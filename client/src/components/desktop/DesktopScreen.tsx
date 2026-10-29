@@ -308,7 +308,7 @@ function WinTaskbar({
           type="button"
           onClick={onTray}
           {...motion.handlers}
-          aria-label={`同调${pending ? `，${pending} 个角色待同步` : ""}`}
+          aria-label={`同调${pending ? `，${pending} 个角色有更新` : ""}`}
           aria-expanded={active}
           className={cn(
             "relative grid h-9 w-9 place-items-center rounded transition-colors hover:bg-white/[0.08]",
@@ -414,7 +414,7 @@ function MacMenuBar({
           type="button"
           onClick={onTray}
           {...motion.handlers}
-          aria-label={`同调${pending ? `，${pending} 个角色待同步` : ""}`}
+          aria-label={`同调${pending ? `，${pending} 个角色有更新` : ""}`}
           aria-expanded={active}
           className={cn(
             "flex h-[22px] items-center gap-1 rounded-[5px] px-1.5 transition-colors hover:bg-white/[0.12]",

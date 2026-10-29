@@ -195,7 +195,7 @@ export function Avatar({
   );
 }
 
-/** 朱砂小方印徽标，用于待同步数量 */
+/** 朱砂小方印徽标，用于"有更新"的数量 */
 export function SealBadge({
   count,
   className,
@@ -226,9 +226,12 @@ export function StatusPill({
 }) {
   if (status === "synced") {
     return (
-      <span className="inline-flex items-center gap-1 whitespace-nowrap text-[12px] text-jade">
+      <span
+        title={version ? `游戏里是 v${version}` : undefined}
+        className="inline-flex items-center gap-1 whitespace-nowrap text-[12px] text-jade"
+      >
         <Check className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden="true" />
-        已同步{version ? ` v${version}` : ""}
+        已是最新
       </span>
     );
   }
@@ -239,7 +242,7 @@ export function StatusPill({
           className="h-1.5 w-1.5 rounded-[1.5px] bg-cinnabar"
           aria-hidden="true"
         />
-        {status === "never" ? "没同步过" : "待同步"}
+        有更新
       </span>
     );
   }
@@ -260,12 +263,10 @@ export function StatusDot({ status }: { status: SyncStatus }) {
         : "bg-paper-3/50";
   const label =
     status === "synced"
-      ? "已同步"
-      : status === "pending"
-        ? "待同步"
-        : status === "never"
-          ? "没同步过"
-          : "无方案";
+      ? "已是最新"
+      : status === "pending" || status === "never"
+        ? "有更新"
+        : "无方案";
   return (
     <span
       className={cn("inline-block h-2 w-2 shrink-0 rounded-[2px]", cls)}

@@ -735,7 +735,7 @@ function SaveDialog({
       actions.toast(
         "manager",
         "success",
-        `已保存 v${nextV}。${affected.length ? `${affected.length} 个角色变成待同步。` : ""}`
+        `已保存 v${nextV}。${affected.length ? `${affected.length} 个角色有更新。` : ""}`
       );
     }
   };
@@ -800,7 +800,7 @@ function SaveDialog({
         {affected.length > 0 && (
           <div className="rounded-lg bg-cinnabar/[0.07] px-3 py-2.5 text-[12.5px] ring-1 ring-inset ring-cinnabar/20">
             <p className="text-paper">
-              保存后，这 {affected.length} 个角色会变成待同步：
+              保存后，这 {affected.length} 个角色要在游戏里更新：
             </p>
             <p className="mt-1 text-paper-2">
               {affected

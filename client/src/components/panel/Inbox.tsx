@@ -3,7 +3,13 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { ArrowLeft, BellOff, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  ArrowLeft,
+  BellOff,
+  Check,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { OfflineBar } from "@/components/common/overlay";
 import { Btn, IconBtn } from "@/components/common/ui";
@@ -21,7 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ChangeList } from "./PanelContent";
 
-/** 面板的二级页：列出所有待同步的方案更新 */
+/** 面板的二级页：列出所有"有更新"的方案 */
 export function Inbox({
   onBack,
   onOpenItem,
@@ -39,7 +45,7 @@ export function Inbox({
 
   const markAll = () => {
     const n = actions.markAllSynced();
-    if (n) actions.toast("panel", "success", `${n} 条已标记为已同步`);
+    if (n) actions.toast("panel", "success", `${n} 条都已是最新`);
   };
 
   return (
@@ -64,9 +70,9 @@ export function Inbox({
               size="xs"
               onClick={markAll}
               disabled={!online}
-              title={online ? undefined : "离线时不能标记"}
+              title={online ? "在游戏里都改好后点这里" : "离线时不能操作"}
             >
-              全部标记已同步
+              全部改好了
             </Btn>
           </span>
         )}
@@ -116,7 +122,7 @@ function InboxRow({
   const onMark = () => {
     const r = actions.markSynced(char.id, mode, xinfa);
     if (r)
-      actions.toast("panel", "success", `${r.name} 已同步到 v${r.version}`);
+      actions.toast("panel", "success", `${r.name} ${xinfa} ${mode} 已是最新`);
   };
 
   return (
@@ -147,7 +153,7 @@ function InboxRow({
           >
             {base
               ? `v${base.version} → v${last.version}`
-              : `首次同步 v${last.version}`}
+              : `首次使用 v${last.version}`}
             {" · "}
             {memberName(state, last.authorId)} · {relativeTime(last.at)}
           </p>
@@ -157,9 +163,10 @@ function InboxRow({
           size="xs"
           onClick={onMark}
           disabled={!online}
-          title={online ? "在游戏里改好后点这里" : "离线时不能标记"}
+          icon={<Check className="h-3.5 w-3.5" />}
+          title={online ? "在游戏里改好后点这里" : "离线时不能操作"}
         >
-          标记已同步
+          改好了
         </Btn>
       </div>
 

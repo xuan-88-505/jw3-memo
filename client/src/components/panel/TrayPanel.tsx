@@ -176,7 +176,7 @@ function PanelMain({
           onPointerDown={e => e.stopPropagation()}
         >
           <IconBtn
-            label={inboxCount ? `通知，${inboxCount} 条待同步` : "通知"}
+            label={inboxCount ? `通知，${inboxCount} 条有更新` : "通知"}
             onClick={() => setView("inbox")}
           >
             <span className="relative">
@@ -401,7 +401,7 @@ function CharacterSwitcher({
                         {schoolLabel(c)}
                       </span>
                     </span>
-                    {pending && <span className="sr-only">待同步</span>}
+                    {pending && <span className="sr-only">有更新</span>}
                     {pending && <ChangeDot className="h-2 w-2 rounded-[2px]" />}
                   </button>
                 </li>

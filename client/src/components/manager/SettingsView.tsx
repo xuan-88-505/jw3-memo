@@ -19,7 +19,7 @@ import { SectionHeader } from "./shared";
 const APP_VERSION = "v0.1.0";
 
 const MOTION_DESC: Record<TrayMotion, string> = {
-  hover: "鼠标移上去时动；有新的待同步时动 3 秒",
+  hover: "鼠标移上去时动；有新的更新时动 3 秒",
   always: "一直动，和游戏里一样",
   off: "一直静止",
 };

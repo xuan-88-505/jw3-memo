@@ -1,26 +1,42 @@
-import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Pencil,
+  Plus,
+  Trash2,
+  UserPlus,
+} from "lucide-react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { InlineModal } from "@/components/common/overlay";
 import { Btn, IconBtn, Segmented, StatusPill } from "@/components/common/ui";
-import { SCHOOL_GROUPS, SERVERS, schoolLabel, xinfasOf } from "@/data/seed";
+import {
+  SCHOOL_GROUPS,
+  SERVERS,
+  layersOf,
+  schoolLabel,
+  xinfasOf,
+} from "@/data/seed";
 import type { Character, Mode } from "@/data/types";
 import {
   charPending,
-  findScheme,
+  inboxItems,
   isOnline,
   isPending,
-  latest,
   modesOf,
   myCharacters,
   statusOf,
   useProto,
 } from "@/state/store";
+import { diffVersions } from "@/lib/diff";
 import { cn } from "@/lib/utils";
+import { ChangeList } from "@/components/panel/PanelContent";
 import { AvatarPicker } from "./AvatarPicker";
 import {
   EmptyState,
   Field,
+  diffSummary,
   SectionHeader,
   SelectBox,
   inputCls,
@@ -63,7 +79,7 @@ export function CharactersView() {
                 onChange={setFilter}
                 options={[
                   { value: "all", label: `全部 ${mine.length}` },
-                  { value: "pending", label: `待同步 ${pending}` },
+                  { value: "pending", label: `有更新 ${pending}` },
                 ]}
               />
               <Btn
@@ -97,7 +113,7 @@ export function CharactersView() {
       ) : rows.length === 0 ? (
         <EmptyState
           icon={<CheckCircle2 className="h-5 w-5 text-jade" />}
-          title="全部已同步"
+          title="全部已是最新"
         />
       ) : (
         <div className="rounded-xl ring-1 ring-inset ring-paper/8">
@@ -106,7 +122,7 @@ export function CharactersView() {
               <tr className="[&>th]:bg-ink-3">
                 <th className="rounded-tl-xl px-4 py-2.5 font-normal">角色</th>
                 <th className="px-4 py-2.5 font-normal">服务器</th>
-                <th className="px-4 py-2.5 font-normal">同步状态</th>
+                <th className="px-4 py-2.5 font-normal">宏和奇穴</th>
                 <th className="rounded-tr-xl px-4 py-2.5 text-right font-normal">
                   <span className="sr-only">操作</span>
                 </th>
@@ -169,7 +185,7 @@ export function CharactersView() {
         open={!!removing}
         onClose={() => setRemoving(null)}
         title={`删除「${removing?.name}」？`}
-        description="只删除角色和它的同步记录，方案和配装不受影响。"
+        description="方案和配装不受影响。"
         footer={
           <>
             <Btn variant="ghost" size="md" onClick={() => setRemoving(null)}>
@@ -328,12 +344,12 @@ function SchoolCell({
       "manager",
       "success",
       restored
-        ? `${head}，恢复了之前的同步记录`
+        ? `${head}，之前改好的记录已恢复`
         : added.length === 0
           ? head
           : noScheme.length === added.length
             ? `${head}，${noScheme.join("、")}还没有方案`
-            : `${head}，需要按新方案同步`
+            : `${head}，有新的宏和奇穴要改`
     );
   };
   return (
@@ -373,7 +389,7 @@ function SyncCell({ char, online }: { char: Character; online: boolean }) {
             {modes.length === 0 ? (
               <StatusPill status="none" />
             ) : (
-              <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1.5">
+              <div className="flex flex-col gap-1.5">
                 {modes.map(m => (
                   <ModeCell
                     key={m}
@@ -392,6 +408,10 @@ function SyncCell({ char, online }: { char: Character; online: boolean }) {
   );
 }
 
+/**
+ * 一个心法的一个模式：已是最新 / 有更新。
+ * 有更新时显示改了什么（点开看明细）和「改好了」：软件不读游戏，在游戏里改好后由自己确认
+ */
 function ModeCell({
   char,
   xinfa,
@@ -404,39 +424,76 @@ function ModeCell({
   online: boolean;
 }) {
   const { state, actions } = useProto();
+  const [open, setOpen] = useState(false);
   const st = statusOf(state, char, mode, xinfa);
-  const last = latest(findScheme(state, xinfa, mode));
+  const item = isPending(st)
+    ? inboxItems(state).find(i => i.key === `${char.id}-${xinfa}-${mode}`)
+    : undefined;
+  const base = item?.base;
+  const last = item?.last;
+  const diff = useMemo(
+    () => (last ? diffVersions(base, last, layersOf(xinfa)) : null),
+    [base, last, xinfa]
+  );
   const synced = char.synced[xinfa]?.[mode];
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-8 shrink-0 text-[12px] font-medium text-paper-3">
-        {mode}
-      </span>
-      <StatusPill status={st} version={st === "synced" ? synced : undefined} />
-      {isPending(st) && last && (
-        <>
-          <span className="text-[12px] text-paper-3">
-            {synced ? `v${synced} → v${last.version}` : `最新 v${last.version}`}
-          </span>
-          <Btn
-            variant="ghost"
-            size="xs"
-            disabled={!online}
-            title={online ? "在游戏里改好后点这里" : "离线时不能标记"}
-            aria-label={`${xinfa} ${mode} 标记已同步`}
-            onClick={() => {
-              const r = actions.markSynced(char.id, mode, xinfa);
-              if (r)
-                actions.toast(
-                  "manager",
-                  "success",
-                  `「${r.name}」${xinfa} ${mode} 已同步到 v${r.version}`
-                );
-            }}
-          >
-            标记
-          </Btn>
-        </>
+    <div>
+      <div className="flex items-center gap-2">
+        <span className="w-8 shrink-0 text-[12px] font-medium text-paper-3">
+          {mode}
+        </span>
+        <StatusPill
+          status={st}
+          version={st === "synced" ? synced : undefined}
+        />
+        {last && diff && (
+          <>
+            <button
+              type="button"
+              onClick={() => setOpen(o => !o)}
+              aria-expanded={open}
+              title={
+                base
+                  ? `游戏里是 v${base.version}，方案已更新到 v${last.version}`
+                  : `这个角色还没用过 v${last.version}`
+              }
+              className="inline-flex items-center gap-0.5 whitespace-nowrap rounded px-1 py-0.5 text-[12px] text-paper-2 transition-colors hover:bg-paper/[0.05] hover:text-paper"
+            >
+              {base ? diffSummary(diff) : `首次 · ${diffSummary(diff)}`}
+              <ChevronDown
+                className={cn(
+                  "h-3 w-3 transition-transform",
+                  open && "rotate-180"
+                )}
+                aria-hidden="true"
+              />
+            </button>
+            <Btn
+              variant="secondary"
+              size="xs"
+              icon={<Check className="h-3.5 w-3.5" />}
+              disabled={!online}
+              title={online ? "在游戏里改好后点这里" : "离线时不能操作"}
+              aria-label={`${xinfa} ${mode} 改好了`}
+              onClick={() => {
+                const r = actions.markSynced(char.id, mode, xinfa);
+                if (r)
+                  actions.toast(
+                    "manager",
+                    "success",
+                    `「${r.name}」${xinfa} ${mode} 已是最新`
+                  );
+              }}
+            >
+              改好了
+            </Btn>
+          </>
+        )}
+      </div>
+      {open && diff && (
+        <div className="ml-10 mt-1.5 max-w-[440px] rounded-md bg-ink px-2.5 py-2 ring-1 ring-inset ring-paper/8">
+          <ChangeList diff={diff} />
+        </div>
       )}
     </div>
   );

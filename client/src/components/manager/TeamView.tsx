@@ -11,7 +11,7 @@ import { SectionHeader, SelectBox } from "./shared";
 
 const PERMS: { label: string; roles: Role[] }[] = [
   { label: "查看方案、复制宏", roles: ["admin", "editor", "viewer"] },
-  { label: "管理自己的角色和同步状态", roles: ["admin", "editor", "viewer"] },
+  { label: "管理自己的角色", roles: ["admin", "editor", "viewer"] },
   { label: "新建和修改方案", roles: ["admin", "editor"] },
   { label: "邀请成员、改权限、移除成员", roles: ["admin"] },
 ];
@@ -232,7 +232,7 @@ export function TeamView() {
         open={!!removing}
         onClose={() => setRemoving(null)}
         title={`移除 ${removing?.name}？`}
-        description="对方的角色和同步记录会删除，保存过的版本保留。"
+        description="对方的角色会删除，保存过的版本保留。"
         footer={
           <>
             <Btn variant="ghost" size="md" onClick={() => setRemoving(null)}>
