@@ -4,7 +4,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { ArrowLeft, BellOff, ChevronDown, ChevronRight } from "lucide-react";
-import { XinfaMark } from "@/components/brand/Marks";
+import { CharAvatar } from "@/components/brand/CharAvatar";
 import { OfflineBar } from "@/components/common/overlay";
 import { Btn, IconBtn } from "@/components/common/ui";
 import { layersOf } from "@/data/seed";
@@ -122,7 +122,7 @@ function InboxRow({
   return (
     <li className="px-3.5 py-3">
       <div className="flex items-start gap-2.5">
-        <XinfaMark xinfa={char.xinfa} size={28} className="mt-0.5" />
+        <CharAvatar character={char} size={28} className="mt-0.5" />
         <div className="min-w-0 flex-1">
           <button
             type="button"

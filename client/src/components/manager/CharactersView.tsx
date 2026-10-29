@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Plus, Trash2, UserPlus } from "lucide-react";
-import { XinfaMark } from "@/components/brand/Marks";
+import { CheckCircle2, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
+import { CharAvatar } from "@/components/brand/CharAvatar";
 import { InlineModal } from "@/components/common/overlay";
 import { Btn, IconBtn, Segmented, StatusPill } from "@/components/common/ui";
 import { SERVERS, XINFA_LIST } from "@/data/seed";
@@ -15,6 +15,7 @@ import {
   statusOf,
   useProto,
 } from "@/state/store";
+import { AvatarPicker } from "./AvatarPicker";
 import { EmptyState, Field, SectionHeader, inputCls } from "./shared";
 
 export function CharactersView() {
@@ -22,6 +23,7 @@ export function CharactersView() {
   const [filter, setFilter] = useState<"all" | "pending">("all");
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<Character | null>(null);
+  const [avatarFor, setAvatarFor] = useState<string | null>(null);
   const online = isOnline(state);
 
   useEffect(() => {
@@ -104,7 +106,21 @@ export function CharactersView() {
                 <tr key={c.id} className="hover:bg-paper/[0.02]">
                   <td className="px-4 py-2.5">
                     <span className="flex items-center gap-2.5">
-                      <XinfaMark xinfa={c.xinfa} size={30} />
+                      <button
+                        type="button"
+                        onClick={() => setAvatarFor(c.id)}
+                        aria-label={`更换「${c.name}」的头像`}
+                        title="更换头像"
+                        className="group relative shrink-0 rounded-[8px]"
+                      >
+                        <CharAvatar character={c} size={34} />
+                        <span
+                          className="absolute inset-0 grid place-items-center rounded-[8px] bg-black/55 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                          aria-hidden="true"
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-white" />
+                        </span>
+                      </button>
                       <span>
                         <span className="block font-medium text-paper">
                           {c.name}
@@ -138,6 +154,11 @@ export function CharactersView() {
       )}
 
       <AddCharacterDialog open={adding} onClose={() => setAdding(false)} />
+
+      <AvatarPicker
+        character={mine.find(c => c.id === avatarFor) ?? null}
+        onClose={() => setAvatarFor(null)}
+      />
 
       <InlineModal
         open={!!removing}

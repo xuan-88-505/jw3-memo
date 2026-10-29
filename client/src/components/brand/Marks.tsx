@@ -1,4 +1,5 @@
-import { useState, useId } from "react";
+import { useState } from "react";
+import { Huangji } from "./Huangji";
 import { XINFA_META } from "@/data/seed";
 import { cn } from "@/lib/utils";
 
@@ -98,120 +99,9 @@ export function TrayGlyph({
   );
 }
 
-/**
- * 托盘 / 菜单栏图标：黄鸡大笑（照剑三表情重画的矢量版）。
- * 小于 28px 时省掉眉毛、牙缝这些细节，描边加粗，保证任务栏里看得清。
- */
+/** 托盘 / 菜单栏图标：黄鸡大笑 */
 export function HuangjiLaugh({ size = 22 }: { size?: number }) {
-  const uid = useId().replace(/:/g, "");
-  const small = size < 28;
-  const ink = "#5A2E0E";
-  const outline = small ? 4 : 2.8;
-  const mouth =
-    "M15.5 39.5 Q32 37.5 48.5 39.5 C49 51 42 58 32 58 C22 58 15 51 15.5 39.5 Z";
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 64 64"
-      aria-hidden="true"
-      className="shrink-0"
-    >
-      <defs>
-        <radialGradient id={`hj-head-${uid}`} cx="0.38" cy="0.32" r="0.75">
-          <stop offset="0" stopColor="#FFF27A" />
-          <stop offset="0.55" stopColor="#FFD51C" />
-          <stop offset="1" stopColor="#F4AE08" />
-        </radialGradient>
-        <clipPath id={`hj-mouth-${uid}`}>
-          <path d={mouth} />
-        </clipPath>
-      </defs>
-
-      {/* 头：水滴形 */}
-      <path
-        d="M33 4 C38 10 47 15 53 23 C58 30 60 37 59 44 C57.5 55 46 61 32 61 C18 61 6.5 55 5 44 C4 37 6 30 11 23 C17 15 28 10 33 4 Z"
-        fill={`url(#hj-head-${uid})`}
-        stroke={ink}
-        strokeWidth={outline}
-        strokeLinejoin="round"
-      />
-      {/* 头顶卷边 */}
-      {small ? (
-        <path
-          d="M17 23.5 C25 18 40 17.5 48 22"
-          fill="none"
-          stroke="#D98E00"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-      ) : (
-        <path
-          d="M16.5 23.5 C24 17.5 41 16.5 49 21.5 L48 25 C40 20.5 25 21 17.5 27 Z"
-          fill="#F2B400"
-          stroke={ink}
-          strokeWidth="1.6"
-          strokeLinejoin="round"
-        />
-      )}
-      {/* 眉毛 */}
-      {!small && (
-        <path
-          d="M18.5 28.6 L25.5 27.8 M38.5 27.8 L45.5 28.6"
-          stroke={ink}
-          strokeWidth="2.2"
-          strokeLinecap="round"
-        />
-      )}
-      {/* 眯眼 */}
-      <path
-        d="M18.5 35 Q22 29.5 25.5 35 M38.5 35 Q42 29.5 45.5 35"
-        fill="none"
-        stroke={ink}
-        strokeWidth={small ? 3.4 : 2.6}
-        strokeLinecap="round"
-      />
-      {/* 腮红 */}
-      <ellipse
-        cx="13.2"
-        cy="39.5"
-        rx="3.6"
-        ry="2.3"
-        fill="#FF8A3D"
-        opacity="0.85"
-      />
-      <ellipse
-        cx="50.8"
-        cy="39.5"
-        rx="3.6"
-        ry="2.3"
-        fill="#FF8A3D"
-        opacity="0.85"
-      />
-
-      {/* 大嘴 */}
-      <path d={mouth} fill="#C8141E" />
-      <g clipPath={`url(#hj-mouth-${uid})`}>
-        <ellipse cx="32" cy="53" rx="12" ry="6.5" fill="#EE3B30" />
-        <rect x="14" y="37" width="36" height="6.2" fill="#FFFFFF" />
-        <rect x="25" y="53.6" width="14" height="5" fill="#FFFFFF" />
-        {!small && (
-          <path
-            d="M21 39 V43.2 M26.5 38.6 V43.2 M32 38.5 V43.2 M37.5 38.6 V43.2 M43 39 V43.2 M29.7 53.6 V58 M34.3 53.6 V58"
-            stroke={ink}
-            strokeWidth="0.9"
-          />
-        )}
-      </g>
-      <path
-        d={mouth}
-        fill="none"
-        stroke={ink}
-        strokeWidth={small ? 3 : 2.4}
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <Huangji mood="laugh" size={size} />;
 }
 
 /** 心法标记：方印里一个字 */

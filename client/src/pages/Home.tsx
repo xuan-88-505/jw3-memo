@@ -140,8 +140,8 @@ export default function Home() {
 
         <section className="grid gap-x-8 gap-y-3 py-6 text-[13px] leading-relaxed text-paper-2 md:grid-cols-2 xl:grid-cols-4">
           <Tip n="1" title="打开面板">
-            点{mac ? "菜单栏" : "任务栏"}的同调图标，或按 {hk}（可在设置里改）。数字键 1–4
-            切角色。
+            点{mac ? "菜单栏" : "任务栏"}的同调图标，或按 {hk}
+            （可在设置里改）。数字键 1–4 切角色。
           </Tip>
           <Tip n="2" title="通知">
             点铃铛，看哪些角色要同步、改了什么。游戏里改好后点「标记已同步」。

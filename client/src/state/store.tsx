@@ -20,6 +20,7 @@ import {
 import { MODES } from "@/data/types";
 import { diffVersions } from "@/lib/diff";
 import { DEFAULT_HOTKEYS, type Hotkey } from "@/lib/hotkey";
+import { HUANGJI_MOODS, type HuangjiMood } from "@/components/brand/Huangji";
 import type {
   Character,
   DataState,
@@ -34,6 +35,7 @@ import type {
   SchemeVersion,
   SyncStatus,
   Team,
+  CharacterAvatar,
 } from "@/data/types";
 
 // ---------- 状态 ----------
@@ -530,12 +532,27 @@ function useActions(
         update(s => ({
           characters: [
             ...s.characters,
-            { ...c, id, ownerId: ME_ID, synced: {} },
+            {
+              ...c,
+              id,
+              ownerId: ME_ID,
+              synced: {},
+              avatar: c.avatar ?? {
+                kind: "preset",
+                mood: nextMood(s.characters.filter(x => x.ownerId === ME_ID)),
+              },
+            },
           ],
           activeCharId: id,
         }));
         return id;
       },
+      setCharacterAvatar: (id: string, avatar: CharacterAvatar) =>
+        update(s => ({
+          characters: s.characters.map(c =>
+            c.id === id ? { ...c, avatar } : c
+          ),
+        })),
       removeCharacter: (id: string) =>
         update(s => {
           const characters = s.characters.filter(c => c.id !== id);
@@ -628,4 +645,15 @@ export function useProto() {
   const v = useContext(Ctx);
   if (!v) throw new Error("useProto must be used inside ProtoProvider");
   return v;
+}
+
+/** 新角色默认用一个自己还没用过的黄鸡表情；8 种都用过就按顺序轮换 */
+export function nextMood(mine: Character[]): HuangjiMood {
+  const used = new Set(
+    mine.flatMap(c => (c.avatar?.kind === "preset" ? [c.avatar.mood] : []))
+  );
+  const free = HUANGJI_MOODS.find(m => !used.has(m.key));
+  return free
+    ? free.key
+    : HUANGJI_MOODS[mine.length % HUANGJI_MOODS.length].key;
 }

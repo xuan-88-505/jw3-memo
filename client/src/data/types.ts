@@ -1,3 +1,4 @@
+import type { HuangjiMood } from "@/components/brand/Huangji";
 // 原型的数据类型。正式版的后台表结构会沿用这些字段。
 
 export interface TalentOption {
@@ -72,6 +73,11 @@ export interface Scheme {
   versions: SchemeVersion[];
 }
 
+/** 角色头像：默认用黄鸡表情，也可以上传图片（裁成正方形的 data URL） */
+export type CharacterAvatar =
+  | { kind: "preset"; mood: HuangjiMood }
+  | { kind: "upload"; src: string };
+
 export interface Character {
   id: string;
   name: string;
@@ -80,6 +86,7 @@ export interface Character {
   ownerId: string;
   /** 每个模式已同步到的版本号；没有表示从没同步过 */
   synced: Partial<Record<Mode, number>>;
+  avatar?: CharacterAvatar;
 }
 
 export interface Team {

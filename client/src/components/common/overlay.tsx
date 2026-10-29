@@ -17,6 +17,7 @@ export function InlineModal({
   width = 420,
   dismissible = true,
   tone = "default",
+  bodyMaxHeight = 400,
 }: {
   open: boolean;
   onClose: () => void;
@@ -27,6 +28,8 @@ export function InlineModal({
   width?: number;
   dismissible?: boolean;
   tone?: "default" | "warning";
+  /** 内容区最高多少像素，超出后内容区滚动 */
+  bodyMaxHeight?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -90,7 +93,10 @@ export function InlineModal({
           )}
         </div>
         {children && (
-          <div className="scroll-thin max-h-[400px] overflow-y-auto px-5 py-2">
+          <div
+            className="scroll-thin overflow-y-auto px-5 py-2"
+            style={{ maxHeight: bodyMaxHeight }}
+          >
             {children}
           </div>
         )}

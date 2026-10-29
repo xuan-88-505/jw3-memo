@@ -13,6 +13,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
+import { CharAvatar } from "@/components/brand/CharAvatar";
 import { Wordmark, XinfaMark } from "@/components/brand/Marks";
 import { OfflineBar, ToastStack } from "@/components/common/overlay";
 import { Btn, IconBtn, Segmented } from "@/components/common/ui";
@@ -306,7 +307,7 @@ function CharacterSwitcher({
         title={`${current.server} · ${current.xinfa}`}
         className="flex min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 text-left hover:bg-paper/[0.06]"
       >
-        <XinfaMark xinfa={current.xinfa} size={28} />
+        <CharAvatar character={current} size={28} />
         <span className="truncate font-serif text-[15px] font-semibold leading-tight">
           {current.name}
         </span>
@@ -341,7 +342,7 @@ function CharacterSwitcher({
                       active ? "bg-paper/[0.07]" : "hover:bg-paper/[0.05]"
                     )}
                   >
-                    <XinfaMark xinfa={c.xinfa} size={24} />
+                    <CharAvatar character={c} size={26} />
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-paper">
                       {c.name}
                       <span className="ml-2 text-[11.5px] font-normal text-paper-3">
