@@ -12,25 +12,57 @@ const QUALITY = {
   orange: "bg-[#C98A3E]/20 text-[#F0C48A] ring-[#C98A3E]/45",
 } as const;
 
+/** 品质描边，盖在图标上面 */
+const QUALITY_EDGE = {
+  purple: "ring-[#9A84E0]/75",
+  orange: "ring-[#E0A04A]/85",
+} as const;
+
+/** 装备图标：有图标编号时显示游戏图标，加载失败或没有编号时显示部位的一个字 */
 function ItemTile({
   text,
+  iconId,
   quality,
   size = 30,
 }: {
   text: string;
+  iconId?: number;
   quality: keyof typeof QUALITY;
   size?: number;
 }) {
+  const [failedId, setFailedId] = useState<number | null>(null);
+  const showImg = iconId != null && failedId !== iconId;
   return (
     <span
       className={cn(
-        "grid shrink-0 place-items-center rounded-md font-serif ring-1 ring-inset",
+        "relative grid shrink-0 place-items-center overflow-hidden rounded-md font-serif ring-1 ring-inset",
         QUALITY[quality]
       )}
       style={{ width: size, height: size, fontSize: size * 0.45 }}
       aria-hidden="true"
     >
-      {text}
+      {showImg ? (
+        <>
+          <img
+            src={`https://icon.jx3box.com/icon/${iconId}.png`}
+            alt=""
+            width={size}
+            height={size}
+            loading="lazy"
+            draggable={false}
+            onError={() => setFailedId(iconId)}
+            className="h-full w-full object-cover"
+          />
+          <span
+            className={cn(
+              "pointer-events-none absolute inset-0 rounded-md ring-[1.5px] ring-inset",
+              QUALITY_EDGE[quality]
+            )}
+          />
+        </>
+      ) : (
+        text
+      )}
     </span>
   );
 }
@@ -235,7 +267,11 @@ function SlotRow({
           active ? "bg-paper/[0.08]" : "hover:bg-paper/[0.04]"
         )}
       >
-        <ItemTile text={slot.short} quality={slot.item.quality} />
+        <ItemTile
+          text={slot.short}
+          iconId={slot.item.iconId}
+          quality={slot.item.quality}
+        />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5 text-[13px] text-paper">
             {slot.label}
@@ -281,7 +317,12 @@ function CandidateRow({
             : "ring-transparent hover:bg-paper/[0.04]"
         )}
       >
-        <ItemTile text={short} quality={c.quality} size={34} />
+        <ItemTile
+          text={short}
+          iconId={c.iconId}
+          quality={c.quality}
+          size={34}
+        />
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-1.5">
             <span className="text-[13.5px] font-medium text-paper">

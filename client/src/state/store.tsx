@@ -758,6 +758,7 @@ function useActions(
                     ...x.item,
                     name: cand.name.replace(" · ", "·"),
                     quality: cand.quality,
+                    iconId: cand.iconId ?? x.item.iconId,
                     tags: cand.tags,
                   },
                 }

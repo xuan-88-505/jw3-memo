@@ -1,3 +1,4 @@
+import { candidateIconId, gearIconId } from "./gearIcons";
 /**
  * 配装与木桩（原型）。
  *
@@ -29,6 +30,8 @@ export interface AttrGain {
 export interface GearItem {
   name: string;
   quality: "purple" | "orange";
+  /** 游戏图标编号，见 gearIcons.ts */
+  iconId?: number;
   /** 精炼、镶嵌，例如"精 6 · 镶 8/8" */
   detail: string;
   /** 这件装备的主要属性 */
@@ -57,6 +60,8 @@ export interface Candidate {
   name: string;
   source: string;
   quality: "purple" | "orange";
+  /** 游戏图标编号，见 gearIcons.ts */
+  iconId?: number;
   tags: Attr[];
   /** 秒伤提升百分比，相对当前配装 */
   pct: number;
@@ -237,6 +242,7 @@ function buildSlots(xinfa: string): GearSlot[] {
     item: {
       name: `${def.label}·${tags.join(" ")}`,
       quality: def.key === "weapon" ? "orange" : "purple",
+      iconId: gearIconId(xinfa, def.key),
       detail: itemDetail(def),
       tags,
     },
@@ -312,6 +318,7 @@ function buildCandidates(
         name: `${slot.label.replace(/ \d$/, "")} · ${tags.join(" ")}`,
         source: `${SOURCES[i % SOURCES.length]} · 精炼上限 6`,
         quality: "purple",
+        iconId: candidateIconId(xinfa, slot.key, SOURCES[i % SOURCES.length]),
         tags,
         pct: Math.round(pct * 100) / 100,
         effects: [
@@ -340,6 +347,7 @@ function currentAsCandidate(slot: GearSlot): Candidate {
     name: slot.item.name.replace("·", " · "),
     source: "已装备",
     quality: slot.item.quality,
+    iconId: slot.item.iconId,
     tags: slot.item.tags,
     pct: 0,
     effects: [],
@@ -501,6 +509,10 @@ export function seedLoadoutZixia(): Loadout {
       ],
     },
   ]);
+  candidates.ring1 = candidates.ring1.map(c => ({
+    ...c,
+    iconId: c.iconId ?? candidateIconId(xinfa, "ring1", c.source, c.current),
+  }));
   // 其他部位的最佳候选都压到 0.82% 以下，让"下一步建议"指向戒指 1
   for (const k of Object.keys(candidates)) {
     if (k === "ring1") continue;

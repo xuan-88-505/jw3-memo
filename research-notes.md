@@ -74,3 +74,15 @@
   - 装备统计存在全局 SQLite `userdata/role_statistics/equip_stat.v4.db`（第 25 行，PATH_TYPE.GLOBAL），表 OwnerInfo（ownername、servername、ownerforce、ownersuitindex…）+ EquipItems（tabtype、tabindex、strength、diamond_enchant、fea_enchant、permanent_enchant、temporary_enchant…）。同一台电脑上登录过的角色都会记下。
   - 导出按钮 Text_EquipInfoExport → `X.UI.OpenTextEditor(X.CompressLUAData(this.aExport))`（第 953–954 行）。每个部位导出 dwTabType、dwTabIndex、dwTabSubIndex、nStackNum、nStrengthLevel、nDurability、aDiamondEnchant、dwPermanentEnchantID、dwTemporaryEnchantID、dwItemFEAEnchantID（第 771–781 行）。没有心法和奇穴。
   - 这些字段和魔盒导入 JSON 的 id/strength/embedding/enhance/enchant/stone 一一对应（对应关系未逐项验证）。
+
+## 装备图标（2026-10-29 17:13 UTC+8）
+
+- 魔盒物品接口（无需登录，响应 5–8 秒，偶尔超时）：
+  - 单件：`https://node.jx3box.com/item/{类型_ID}?client=std`，例如 `7_110635` → 漫天飞羽·浏风冠（藏剑帽子，130级会心(PVP)，Level 724，IconID 27300，竞技场）。
+  - 批量：`https://node.jx3box.com/item/search?client=std&per=N&ids=7_110635,7_110636,...`（逗号分隔，实测 100 个一批可用）。
+  - 搜索：`https://node.jx3box.com/item/search?client=std&per=N&keyword=戒指`；支持字段过滤，例如 `&BelongSchool=纯阳`。`MinLevel`、`sort`、`school` 参数无效或报错。
+  - 返回字段含 `IconID`、`TypeLabel`（帽子/上衣/腰带/护腕/下装/鞋子/项链/腰坠/戒指…）、`BelongSchool`、`MagicKind`（内功/外功/根骨…）、`MagicType`（如"130级破防全能(PVX)"）、`Level`、`Quality`、`GetType`（副本/竞技场/威望/PVX/商店…）。
+  - 图标地址和奇穴、宏一样：`https://icon.jx3box.com/icon/{IconID}.png`。
+- 类型前缀：6 武器、7 防具、8 饰品（茗伊装备码和魔盒导入 JSON 里的 dwTabType / id 前缀一致）。
+- 扫描 7_109800–7_113400：130 级装备 576 件，最高 Level 724（PVP 漫天飞羽）、717（PVX 陶然意）。这一段没有当前赛季副本 PVE 装备。
+- 例：陶然意·淡尘帽 7_110891（纯阳，130级会心全能(PVX)，IconID 25253）；陶然意护手 IconID 25252、裤 25254、履 25255。
