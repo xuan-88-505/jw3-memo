@@ -532,6 +532,35 @@ export function loadoutList(state: ProtoState): Loadout[] {
   return order.flatMap(x => all.filter(lo => lo.xinfa === x));
 }
 
+/**
+ * 配装最近一次由本人变动的时间：导入、换装备、改附魔、测木桩。
+ * 技改后自动重算的记录（kind 为 patch）不算，不然技改一来所有配装都一样新。
+ */
+function loadoutTouchedAt(lo: Loadout): number {
+  let at = new Date(lo.importedAt).getTime();
+  for (const p of lo.history) {
+    if (p.kind === "patch") continue;
+    at = Math.max(at, new Date(p.at).getTime());
+  }
+  return at;
+}
+
+/**
+ * 角色的当前配装：关联到这个角色的配装里，最近改过或导入的一套。
+ * 没有关联任何配装时返回 null。
+ */
+export function currentLoadout(
+  state: ProtoState,
+  charId: string
+): Loadout | null {
+  let best: Loadout | null = null;
+  for (const lo of Object.values(state.loadouts)) {
+    if (lo.charId !== charId) continue;
+    if (!best || loadoutTouchedAt(lo) > loadoutTouchedAt(best)) best = lo;
+  }
+  return best;
+}
+
 /** 技改后重算（原型：按版本号给一个稳定的小幅变化） */
 function recalcAfterPatch(
   st: ProtoState,

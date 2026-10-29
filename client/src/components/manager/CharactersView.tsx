@@ -5,7 +5,13 @@ import { InlineModal } from "@/components/common/overlay";
 import { Btn, IconBtn } from "@/components/common/ui";
 import { SCHOOL_GROUPS, schoolLabel, xinfasOf } from "@/data/seed";
 import type { Character } from "@/data/types";
-import { isOnline, modesOf, myCharacters, useProto } from "@/state/store";
+import {
+  currentLoadout,
+  isOnline,
+  modesOf,
+  myCharacters,
+  useProto,
+} from "@/state/store";
 import { isServerName } from "@/data/records";
 import { cn } from "@/lib/utils";
 import { AvatarPicker } from "./AvatarPicker";
@@ -36,6 +42,9 @@ export function CharactersView() {
   }, [state.managerIntent, actions]);
 
   const mine = myCharacters(state);
+  // 装分取自角色的当前配装；一个角色都没关联配装时，整列不显示
+  const loadoutOf = new Map(mine.map(c => [c.id, currentLoadout(state, c.id)]));
+  const showScore = mine.some(c => loadoutOf.get(c.id));
 
   return (
     <div>
@@ -74,13 +83,25 @@ export function CharactersView() {
         <div className="-mx-3">
           <table className="w-full table-fixed text-left text-[13px]">
             <colgroup>
-              <col />
+              {showScore ? (
+                <>
+                  <col className="w-[260px]" />
+                  <col />
+                </>
+              ) : (
+                <col />
+              )}
               <col className="w-[180px]" />
               <col className="w-[52px]" />
             </colgroup>
             <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
               <tr>
                 <th className="px-3 py-2.5 font-normal">角色</th>
+                {showScore && (
+                  <th className="whitespace-nowrap px-3 py-2.5 font-normal">
+                    装分
+                  </th>
+                )}
                 <th className="whitespace-nowrap px-3 py-2.5 font-normal">
                   服务器
                 </th>
@@ -90,51 +111,72 @@ export function CharactersView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-paper/[0.07]">
-              {mine.map(c => (
-                <tr
-                  key={c.id}
-                  className="group/row transition-colors hover:bg-paper/[0.025]"
-                >
-                  <td className={TD}>
-                    <span className="flex items-center gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setAvatarFor(c.id)}
-                        aria-label={`更换「${c.name}」的头像`}
-                        title="更换头像"
-                        className="group relative shrink-0 rounded-[8px]"
-                      >
-                        <CharAvatar character={c} size={44} />
-                        <span
-                          className="absolute inset-0 grid place-items-center rounded-[8px] bg-black/55 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-                          aria-hidden="true"
+              {mine.map(c => {
+                const lo = loadoutOf.get(c.id) ?? null;
+                return (
+                  <tr
+                    key={c.id}
+                    className="group/row transition-colors hover:bg-paper/[0.025]"
+                  >
+                    <td className={TD}>
+                      <span className="flex items-center gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => setAvatarFor(c.id)}
+                          aria-label={`更换「${c.name}」的头像`}
+                          title="更换头像"
+                          className="group relative shrink-0 rounded-[8px]"
                         >
-                          <Pencil className="h-3.5 w-3.5 text-white" />
+                          <CharAvatar character={c} size={44} />
+                          <span
+                            className="absolute inset-0 grid place-items-center rounded-[8px] bg-black/55 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                            aria-hidden="true"
+                          >
+                            <Pencil className="h-3.5 w-3.5 text-white" />
+                          </span>
+                        </button>
+                        <span className="flex min-w-0 flex-col items-start">
+                          <NameInput char={c} disabled={!online} />
+                          <SchoolCell char={c} disabled={!online} />
                         </span>
-                      </button>
-                      <span className="flex min-w-0 flex-col items-start">
-                        <NameInput char={c} disabled={!online} />
-                        <SchoolCell char={c} disabled={!online} />
                       </span>
-                    </span>
-                  </td>
-                  <td className={cn(TD, "whitespace-nowrap text-paper-2")}>
-                    {c.server}
-                  </td>
-                  <td className={cn(TD, "text-right")}>
-                    {/* 悬停整行或键盘聚焦时出现 */}
-                    <span className="inline-flex opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100">
-                      <IconBtn
-                        label={`删除角色 ${c.name}`}
-                        onClick={() => setRemoving(c)}
-                        disabled={!online}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </IconBtn>
-                    </span>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    {showScore && (
+                      <td className={TD}>
+                        {lo && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              actions.selectLoadout(lo.id);
+                              actions.setSection("gear");
+                            }}
+                            title={`${lo.name} · ${lo.xinfa}`}
+                            aria-label={`装分 ${lo.panel.score.toLocaleString("en-US")}，打开配装「${lo.name}」`}
+                            className="-mx-1.5 rounded-md px-1.5 py-0.5 tabular-nums text-paper transition-colors hover:bg-paper/[0.06]"
+                          >
+                            {lo.panel.score.toLocaleString("en-US")}
+                          </button>
+                        )}
+                      </td>
+                    )}
+                    <td className={cn(TD, "whitespace-nowrap text-paper-2")}>
+                      {c.server}
+                    </td>
+                    <td className={cn(TD, "text-right")}>
+                      {/* 悬停整行或键盘聚焦时出现 */}
+                      <span className="inline-flex opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100">
+                        <IconBtn
+                          label={`删除角色 ${c.name}`}
+                          onClick={() => setRemoving(c)}
+                          disabled={!online}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </IconBtn>
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
