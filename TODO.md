@@ -394,4 +394,5 @@
 
 - 已验证：`/tmp/desktop_mock.py` 用假的 Tauri 接口打开面板和管理窗口两个页面，41 项全部通过，无页面错误（空白首启、不写文件、添加角色写文件、跨窗口同步、不互相反复保存、置顶/Esc/快捷键/拖动/双击、打开管理窗口指定页、重开数据还在、设置各项、导出、导入错误文件、导入确认与替换、改快捷键后重新注册、外链）。
 - 已验证：Linux 调试版在虚拟屏幕上真机运行：管理窗口显示空白首启；`Ctrl+Alt+Q` 呼出面板；添加角色后 `data.json` 写入磁盘，面板同步显示；重启后数据还在；点管理窗口后面板自动收起。
+- 已验证：GitHub Actions 第一次打包成功（Windows 7 分钟，Mac 11 分钟），Release `v1.0.0` 已发布为 Latest：`Tongdiao_1.0.0_windows_x64-setup.exe`（2.0 MB，NSIS 安装程序）、`Tongdiao_1.0.0_darwin_universal.dmg`（5.1 MB）。Mac 的平台名是 `darwin`，README 和 Release 说明已按实际文件名改正。
 - 未验证：Windows 和 Mac 上的实际运行（托盘位置、菜单栏位置、Mac 透明圆角、开机自启、单实例）。要等 GitHub 打包后在真机上确认。

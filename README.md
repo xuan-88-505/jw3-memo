@@ -11,7 +11,7 @@
 | 系统 | 下载这个文件 |
 | --- | --- |
 | Windows 10 / 11 | `Tongdiao_*_windows_x64-setup.exe` |
-| Mac（M 芯片和 Intel 芯片都可以） | `Tongdiao_*_macos_universal.dmg` |
+| Mac（M 芯片和 Intel 芯片都可以） | `Tongdiao_*_darwin_universal.dmg` |
 
 ## 第一次打开
 
