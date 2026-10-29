@@ -10,28 +10,30 @@ import {
 } from "lucide-react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { InlineModal } from "@/components/common/overlay";
-import { Btn, IconBtn, Segmented, StatusPill } from "@/components/common/ui";
+import { Btn, IconBtn, Segmented } from "@/components/common/ui";
 import { SCHOOL_GROUPS, layersOf, schoolLabel, xinfasOf } from "@/data/seed";
 import type { Character, Mode } from "@/data/types";
 import {
+  canEdit,
   charPending,
   inboxItems,
   isOnline,
   isPending,
+  memberName,
   modesOf,
   myCharacters,
   statusOf,
   useProto,
 } from "@/state/store";
-import { diffVersions } from "@/lib/diff";
+import { diffVersions, type SchemeDiff } from "@/lib/diff";
+import { relativeTime } from "@/lib/format";
 import { isServerName } from "@/data/records";
 import { cn } from "@/lib/utils";
-import { ChangeList } from "@/components/panel/PanelContent";
 import { AvatarPicker } from "./AvatarPicker";
+import { GameUpdateDialog } from "./GameUpdateDialog";
 import {
   EmptyState,
   Field,
-  diffSummary,
   SectionHeader,
   SelectBox,
   inputCls,
@@ -74,7 +76,7 @@ export function CharactersView() {
                 onChange={setFilter}
                 options={[
                   { value: "all", label: `全部 ${mine.length}` },
-                  { value: "pending", label: `有更新 ${pending}` },
+                  { value: "pending", label: `要改 ${pending}` },
                 ]}
               />
               <Btn
@@ -116,8 +118,10 @@ export function CharactersView() {
             <thead className="text-[12px] text-paper-3">
               <tr className="[&>th]:bg-ink-3">
                 <th className="rounded-tl-xl px-4 py-2.5 font-normal">角色</th>
-                <th className="px-4 py-2.5 font-normal">服务器</th>
-                <th className="px-4 py-2.5 font-normal">宏和奇穴</th>
+                <th className="whitespace-nowrap px-4 py-2.5 font-normal">
+                  服务器
+                </th>
+                <th className="px-4 py-2.5 font-normal">游戏里的宏和奇穴</th>
                 <th className="rounded-tr-xl px-4 py-2.5 text-right font-normal">
                   <span className="sr-only">操作</span>
                 </th>
@@ -149,9 +153,11 @@ export function CharactersView() {
                       </span>
                     </span>
                   </td>
-                  <td className={cn(TD, "text-paper-2")}>{c.server}</td>
+                  <td className={cn(TD, "whitespace-nowrap text-paper-2")}>
+                    {c.server}
+                  </td>
                   <td className={TD}>
-                    <SyncCell char={c} online={online} />
+                    <SyncCell char={c} />
                   </td>
                   <td className={cn(TD, "text-right")}>
                     <IconBtn
@@ -296,8 +302,11 @@ function NameInput({ char, disabled }: { char: Character; disabled: boolean }) {
           }
         }}
         onBlur={onBlur}
+        style={{
+          width: `min(176px, calc(${Math.max(value.length, 2)}em + 14px))`,
+        }}
         className={cn(
-          "h-7 w-[176px] rounded-md bg-transparent px-1.5 text-[13px] font-medium text-paper outline-none transition-colors",
+          "h-7 rounded-md bg-transparent px-1.5 text-[13px] font-medium text-paper outline-none transition-colors",
           "hover:bg-paper/[0.05] focus:bg-ink-1 focus:ring-1 focus:ring-inset focus:ring-cinnabar-text/50",
           "disabled:cursor-default disabled:hover:bg-transparent",
           error &&
@@ -367,22 +376,23 @@ function SchoolCell({
 
 /**
  * 每个心法一行，只玩一个心法时不写心法名。
- * 每行只列出这个心法已有的模式；一个方案都没有时显示「无方案」
+ * 每行只列出这个心法已有的模式；方案库里还没有时给「新建」入口
  */
-function SyncCell({ char, online }: { char: Character; online: boolean }) {
-  const { state } = useProto();
+function SyncCell({ char }: { char: Character }) {
+  const { state, actions } = useProto();
   const xs = xinfasOf(char);
   const multi = xs.length > 1;
+  const editable = canEdit(state);
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2.5">
       {xs.map(x => {
         const modes = modesOf(state, x);
         return (
-          <div key={x} className="flex items-baseline gap-2">
+          <div key={x} className="flex items-start gap-2">
             {multi && (
               <span
                 className={cn(
-                  "w-[62px] shrink-0 whitespace-nowrap text-[12px]",
+                  "w-[62px] shrink-0 whitespace-nowrap text-[12px] leading-5",
                   modes.length ? "text-paper-2" : "text-paper-3"
                 )}
               >
@@ -390,17 +400,30 @@ function SyncCell({ char, online }: { char: Character; online: boolean }) {
               </span>
             )}
             {modes.length === 0 ? (
-              <StatusPill status="none" />
+              <span className="flex items-center gap-1.5 text-[12px] leading-5 text-paper-3">
+                还没有方案
+                {editable && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        actions.openManager("schemes", undefined, {
+                          newScheme: { xinfa: x, mode: "PVE" },
+                        })
+                      }
+                      aria-label={`新建${x}方案`}
+                      className="rounded text-paper-2 underline-offset-2 transition-colors hover:text-paper hover:underline"
+                    >
+                      新建
+                    </button>
+                  </>
+                )}
+              </span>
             ) : (
-              <div className="flex flex-col gap-1.5">
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
                 {modes.map(m => (
-                  <ModeCell
-                    key={m}
-                    char={char}
-                    xinfa={x}
-                    mode={m}
-                    online={online}
-                  />
+                  <ModeCell key={m} char={char} xinfa={x} mode={m} />
                 ))}
               </div>
             )}
@@ -411,22 +434,29 @@ function SyncCell({ char, online }: { char: Character; online: boolean }) {
   );
 }
 
+/** 「奇穴 1 处、宏 1 个」 */
+function todoText(diff: SchemeDiff) {
+  const parts: string[] = [];
+  if (diff.talents.length) parts.push(`奇穴 ${diff.talents.length} 处`);
+  if (diff.macros.length) parts.push(`宏 ${diff.macros.length} 个`);
+  return parts.join("、");
+}
+
 /**
- * 一个心法的一个模式：已是最新 / 有更新。
- * 有更新时显示改了什么（点开看明细）和「改好了」：软件不读游戏，在游戏里改好后由自己确认
+ * 一个心法的一个模式。
+ * 方案更新了：写清游戏里要改什么、谁什么时候改的方案，「去改」打开明细和「我改好了」。
+ * 软件不读游戏，所以要自己确认。
  */
 function ModeCell({
   char,
   xinfa,
   mode,
-  online,
 }: {
   char: Character;
   xinfa: string;
   mode: Mode;
-  online: boolean;
 }) {
-  const { state, actions } = useProto();
+  const { state } = useProto();
   const [open, setOpen] = useState(false);
   const st = statusOf(state, char, mode, xinfa);
   const item = isPending(st)
@@ -440,63 +470,64 @@ function ModeCell({
   );
   const synced = char.synced[xinfa]?.[mode];
   return (
-    <div>
-      <div className="flex items-center gap-2">
-        <span className="w-8 shrink-0 text-[12px] font-medium text-paper-3">
-          {mode}
-        </span>
-        <StatusPill
-          status={st}
-          version={st === "synced" ? synced : undefined}
-        />
-        {last && diff && (
-          <>
-            <button
-              type="button"
-              onClick={() => setOpen(o => !o)}
-              aria-expanded={open}
-              title={
-                base
-                  ? `游戏里是 v${base.version}，方案已更新到 v${last.version}`
-                  : `这个角色还没用过 v${last.version}`
-              }
-              className="inline-flex items-center gap-0.5 whitespace-nowrap rounded px-1 py-0.5 text-[12px] text-paper-2 transition-colors hover:bg-paper/[0.05] hover:text-paper"
-            >
-              {base ? diffSummary(diff) : `首次 · ${diffSummary(diff)}`}
-              <ChevronDown
-                className={cn(
-                  "h-3 w-3 transition-transform",
-                  open && "rotate-180"
-                )}
+    <div className="flex items-start gap-3">
+      <span className="w-8 shrink-0 text-[12px] font-medium leading-5 text-paper-3">
+        {mode}
+      </span>
+      {last && diff ? (
+        <>
+          <span className="min-w-0 flex-1">
+            {/* 窄窗口时按短语换行，不把「奇穴 1 处」拆开 */}
+            <span className="flex items-start gap-1.5 text-[12.5px] font-medium leading-5 text-paper">
+              <span
+                className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-[1.5px] bg-cinnabar"
                 aria-hidden="true"
               />
-            </button>
-            <Btn
-              variant="secondary"
-              size="xs"
-              icon={<Check className="h-3.5 w-3.5" />}
-              disabled={!online}
-              title={online ? "在游戏里改好后点这里" : "离线时不能操作"}
-              aria-label={`${xinfa} ${mode} 改好了`}
-              onClick={() => {
-                const r = actions.markSynced(char.id, mode, xinfa);
-                if (r)
-                  actions.toast(
-                    "manager",
-                    "success",
-                    `「${r.name}」${xinfa} ${mode} 已是最新`
-                  );
-              }}
-            >
-              改好了
-            </Btn>
-          </>
-        )}
-      </div>
-      {open && diff && (
-        <div className="ml-10 mt-1.5 max-w-[440px] rounded-md bg-ink px-2.5 py-2 ring-1 ring-inset ring-paper/8">
-          <ChangeList diff={diff} />
-        </div>
+              <span className="flex flex-wrap">
+                <span className="whitespace-nowrap">
+                  {base ? "游戏里要改：" : "游戏里要设置："}
+                </span>
+                <span className="whitespace-nowrap">{todoText(diff)}</span>
+              </span>
+            </span>
+            <span className="flex flex-wrap gap-x-2 pl-3 text-[11.5px] leading-[18px] text-paper-3">
+              <span className="whitespace-nowrap">
+                {base
+                  ? `v${base.version} → v${last.version}`
+                  : `第一次用 v${last.version}`}
+              </span>
+              <span className="whitespace-nowrap">
+                {memberName(state, last.authorId)} {relativeTime(last.at)}更新
+              </span>
+            </span>
+          </span>
+          <Btn
+            variant="secondary"
+            size="xs"
+            className="shrink-0 self-center"
+            aria-label={`${xinfa} ${mode}：看游戏里要改什么`}
+            onClick={() => setOpen(true)}
+          >
+            去改
+          </Btn>
+          <GameUpdateDialog
+            char={open ? char : null}
+            xinfa={xinfa}
+            mode={mode}
+            onClose={() => setOpen(false)}
+          />
+        </>
+      ) : (
+        <span
+          className="inline-flex items-center gap-1 whitespace-nowrap text-[12px] leading-5 text-jade"
+          title="游戏里和方案一致"
+        >
+          <Check className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden="true" />
+          已是最新
+          {synced !== undefined && (
+            <span className="ml-0.5 text-paper-3">v{synced}</span>
+          )}
+        </span>
       )}
     </div>
   );

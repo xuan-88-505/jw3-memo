@@ -774,7 +774,7 @@ function SaveDialog({
       actions.toast(
         "manager",
         "success",
-        `已保存 v${nextV}。${affected.length ? `${affected.length} 个角色有更新。` : ""}`
+        `已保存 v${nextV}。${affected.length ? `${affected.length} 个角色要在游戏里跟着改。` : ""}`
       );
     }
   };

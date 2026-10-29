@@ -113,7 +113,7 @@ export function MacroList({
   );
 }
 
-function MacroCard({
+export function MacroCard({
   macro,
   prev,
   open,

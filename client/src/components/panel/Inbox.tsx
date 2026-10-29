@@ -166,7 +166,7 @@ function InboxRow({
           icon={<Check className="h-3.5 w-3.5" />}
           title={online ? "在游戏里改好后点这里" : "离线时不能操作"}
         >
-          改好了
+          我改好了
         </Btn>
       </div>
 
