@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { useProto } from "@/state/store";
 import { EmptyState, SelectBox } from "../shared";
 import { fmt } from "./Dashboard";
-import { ItemTile } from "./TryOn";
+import { ItemTile } from "./ItemTile";
 import { BigIcon, ExtrasLine, extrasDiffer, slotExtras } from "./EnchantBits";
 import { panelRows, panelSame, showPanelValue } from "./panelRows";
 

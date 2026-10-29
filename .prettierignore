@@ -36,3 +36,5 @@ Thumbs.db
 client/src/data/buffData.ts
 client/src/data/stones.ts
 client/src/data/talents.ts
+client/src/data/equip/
+client/src/data/seedEquip.ts

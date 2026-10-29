@@ -14,7 +14,7 @@ function deltaText(d: number, unit: PanelRow["unit"]) {
 }
 
 /**
- * 面板属性（不含增益）。传 base 时和它比，变了的属性标出涨跌，用于试穿。
+ * 面板属性（不含增益）。传 base 时和它比，变了的属性标出涨跌，用于配装器。
  * 左边是装分、气血，右边是影响秒伤的属性。
  */
 export function PanelStrip({

@@ -28,8 +28,9 @@ import {
   patchDelta,
   seedLoadoutZixia,
   seedLoadoutZixiaAlt,
-  sortCandidates,
-  swapPanel,
+  applyDraft,
+  draftChanges,
+  type GearDraft,
   type Loadout,
   type LoadoutSource,
 } from "@/data/gear";
@@ -1023,70 +1024,60 @@ function useActions(
           };
         }),
       selectLoadout: (activeLoadoutId: string) => patch({ activeLoadoutId }),
-      /** 把试穿的装备应用到配装；返回新秒伤 */
-      applyCandidate: (loId: string, slotKey: string, candId: string) => {
-        const s = stateRef.current;
-        const lo = s.loadouts[loId];
-        const cand = lo?.candidates[slotKey]?.find(c => c.id === candId);
-        const slot = lo?.slots.find(x => x.key === slotKey);
-        if (!lo || !cand || !slot || cand.current) return lo?.dps ?? 0;
-        const dps = Math.round(lo.dps * (1 + cand.pct / 100));
-        const at = new Date().toISOString();
-        const swapped = swapPanel(lo, slotKey, cand.tags);
+      /** 保存配装器的草稿：装备、精炼、镶嵌、附魔、大附魔、五彩石。返回新秒伤 */
+      saveGearDraft: (loId: string, draft: GearDraft) => {
+        const lo = stateRef.current.loadouts[loId];
+        if (!lo) return 0;
+        const changes = draftChanges(lo, draft);
+        if (!changes.length) return lo.dps;
+        const saved = applyDraft(lo, draft);
+        const label =
+          changes.length === 1
+            ? `改${changes[0].replace(/ \d$/, "")}`
+            : `改 ${changes.length} 处`;
         const next: Loadout = {
-          ...lo,
-          dps,
-          panel: swapped.panel,
-          haste: hasteOf(swapped.hasteValue),
-          slots: lo.slots.map(x =>
-            x.key === slotKey
-              ? {
-                  ...x,
-                  item: {
-                    ...x.item,
-                    name: cand.name.replace(" · ", "·"),
-                    quality: cand.quality,
-                    iconId: cand.iconId ?? x.item.iconId,
-                    tags: cand.tags,
-                  },
-                }
-              : x
-          ),
-          // 其他候选的提升值改成相对新装备
-          candidates: {
-            ...lo.candidates,
-            [slotKey]: sortCandidates(
-              lo.candidates[slotKey].map(c =>
-                c.id === candId
-                  ? {
-                      ...c,
-                      pct: 0,
-                      current: true,
-                      source: "已装备",
-                      effects: [],
-                      note: undefined,
-                    }
-                  : {
-                      ...c,
-                      current: false,
-                      source: c.current ? "刚换下" : c.source,
-                      pct: Math.round((c.pct - cand.pct) * 100) / 100,
-                    }
-              )
-            ),
-          },
+          ...saved,
           history: [
             ...lo.history,
             {
-              at,
-              dps,
-              label: `换${slot.label.replace(/ \d$/, "")}`,
+              at: new Date().toISOString(),
+              dps: saved.dps,
+              label,
               kind: "gear",
+              detail: changes.join("、"),
             },
           ],
         };
         update(st => ({ loadouts: { ...st.loadouts, [loId]: next } }));
-        return dps;
+        return next.dps;
+      },
+      /** 草稿另存为一套新配装（同心法、不关联角色），原配装不变。返回新配装 id */
+      saveGearDraftAs: (loId: string, draft: GearDraft, name: string) => {
+        const lo = stateRef.current.loadouts[loId];
+        if (!lo) return null;
+        const id = `lo${Date.now()}`;
+        const at = new Date().toISOString();
+        const saved = applyDraft(lo, draft);
+        const made: Loadout = {
+          ...saved,
+          id,
+          name,
+          charId: null,
+          importedAt: at,
+          history: [
+            {
+              at,
+              dps: saved.dps,
+              label: `从「${lo.name}」另存`,
+              kind: "import",
+            },
+          ],
+        };
+        update(st => ({
+          loadouts: { ...st.loadouts, [id]: made },
+          activeLoadoutId: id,
+        }));
+        return id;
       },
       /** 改配装的增益（小药、团队增益、阵眼）。只影响本人看到的估算 */
       setLoadoutBuffs: (loId: string, buffs: BuffSelection) =>

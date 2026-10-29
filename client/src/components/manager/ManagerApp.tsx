@@ -60,7 +60,10 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
   };
 
   return (
-    <div className="relative flex h-full w-full overflow-hidden bg-ink-2 text-paper">
+    <div
+      data-layer-root
+      className="relative flex h-full w-full overflow-hidden bg-ink-2 text-paper"
+    >
       <aside className="flex w-[200px] shrink-0 flex-col border-r border-paper/[0.07] bg-ink">
         <nav aria-label="管理窗口导航" className="flex-1 px-2 pt-3">
           <SortableNav

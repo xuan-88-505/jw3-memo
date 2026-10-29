@@ -12,7 +12,20 @@ import {
   type GearConfig,
   type StatDelta,
 } from "./enchants";
-import { candidateIconId, gearIconId } from "./gearIcons";
+import {
+  GEM_MAX,
+  decodeEquip,
+  getEquipDb,
+  itemDelta,
+  itemTags,
+  maxRefine,
+  poolFor,
+  qualityOf,
+  type EquipDb,
+  type EquipDef,
+} from "./equip";
+import { gearIconId } from "./gearIcons";
+import { SEED_EQUIP_ROWS, SEED_ZIXIA, SEED_ZIXIA_ALT } from "./seedEquip";
 /**
  * 配装与木桩（原型）。
  *
@@ -63,29 +76,12 @@ export interface GearSlot {
   item: GearItem;
   /** 小附魔 id，见 enchants.ts；换装备时保留 */
   enchant: string | null;
-}
-
-export interface Effect {
-  label: string;
-  value: string;
-  up: boolean;
-}
-
-export interface Candidate {
-  id: string;
-  name: string;
-  source: string;
-  quality: "purple" | "orange";
-  /** 游戏图标编号，见 gearIcons.ts */
-  iconId?: number;
-  tags: Attr[];
-  /** 秒伤提升百分比，相对当前配装 */
-  pct: number;
-  effects: Effect[];
-  /** 反直觉结果的原因，例如"加速仍是一段，没有跨段" */
-  note?: string;
-  /** 正在穿的那件 */
-  current?: boolean;
+  /** 装备库里的这件装备（快照）；null 是装备库没加载时生成的示例装备 */
+  def: EquipDef | null;
+  /** 精炼等级，0–6（橙武 0–8） */
+  refine: number;
+  /** 每个五行石孔的等级，0 是没镶 */
+  gems: number[];
 }
 
 export interface DpsPoint {
@@ -169,7 +165,6 @@ export interface Loadout {
   stone: string | null;
   gains: AttrGain[];
   slots: GearSlot[];
-  candidates: Record<string, Candidate[]>;
   history: DpsPoint[];
   /** 生成的示例数值（不是实测） */
   sample: boolean;
@@ -196,95 +191,98 @@ export function hasteOf(value: number): Loadout["haste"] {
   };
 }
 
-const SLOT_DEFS: Array<Omit<GearSlot, "item" | "enchant"> & { tags: Attr[] }> =
-  [
-    {
-      key: "hat",
-      label: "帽子",
-      short: "帽",
-      group: "防具",
-      tags: ["会心", "破防"],
-    },
-    {
-      key: "coat",
-      label: "上衣",
-      short: "衣",
-      group: "防具",
-      tags: ["破防", "无双"],
-    },
-    {
-      key: "belt",
-      label: "腰带",
-      short: "腰",
-      group: "防具",
-      tags: ["会心效果", "破防"],
-    },
-    {
-      key: "wrist",
-      label: "护腕",
-      short: "腕",
-      group: "防具",
-      tags: ["加速", "破防"],
-    },
-    {
-      key: "pants",
-      label: "下装",
-      short: "裤",
-      group: "防具",
-      tags: ["会心", "无双"],
-    },
-    {
-      key: "shoes",
-      label: "鞋子",
-      short: "鞋",
-      group: "防具",
-      tags: ["破招", "破防"],
-    },
-    {
-      key: "neck",
-      label: "项链",
-      short: "链",
-      group: "饰品",
-      tags: ["会心", "会心效果"],
-    },
-    {
-      key: "pendant",
-      label: "腰坠",
-      short: "坠",
-      group: "饰品",
-      tags: ["破防", "无双"],
-    },
-    {
-      key: "ring1",
-      label: "戒指 1",
-      short: "戒",
-      group: "饰品",
-      tags: ["会心效果", "破招"],
-    },
-    {
-      key: "ring2",
-      label: "戒指 2",
-      short: "戒",
-      group: "饰品",
-      tags: ["破防", "会心"],
-    },
-    {
-      key: "weapon",
-      label: "主武器",
-      short: "剑",
-      group: "武器",
-      tags: ["会心", "破防"],
-    },
-    {
-      key: "hidden",
-      label: "暗器",
-      short: "暗",
-      group: "武器",
-      tags: ["会心"],
-    },
-  ];
+const SLOT_DEFS: Array<
+  Pick<GearSlot, "key" | "label" | "short" | "group"> & { tags: Attr[] }
+> = [
+  {
+    key: "hat",
+    label: "帽子",
+    short: "帽",
+    group: "防具",
+    tags: ["会心", "破防"],
+  },
+  {
+    key: "coat",
+    label: "上衣",
+    short: "衣",
+    group: "防具",
+    tags: ["破防", "无双"],
+  },
+  {
+    key: "belt",
+    label: "腰带",
+    short: "腰",
+    group: "防具",
+    tags: ["会心效果", "破防"],
+  },
+  {
+    key: "wrist",
+    label: "护腕",
+    short: "腕",
+    group: "防具",
+    tags: ["加速", "破防"],
+  },
+  {
+    key: "pants",
+    label: "下装",
+    short: "裤",
+    group: "防具",
+    tags: ["会心", "无双"],
+  },
+  {
+    key: "shoes",
+    label: "鞋子",
+    short: "鞋",
+    group: "防具",
+    tags: ["破招", "破防"],
+  },
+  {
+    key: "neck",
+    label: "项链",
+    short: "链",
+    group: "饰品",
+    tags: ["会心", "会心效果"],
+  },
+  {
+    key: "pendant",
+    label: "腰坠",
+    short: "坠",
+    group: "饰品",
+    tags: ["破防", "无双"],
+  },
+  {
+    key: "ring1",
+    label: "戒指 1",
+    short: "戒",
+    group: "饰品",
+    tags: ["会心效果", "破招"],
+  },
+  {
+    key: "ring2",
+    label: "戒指 2",
+    short: "戒",
+    group: "饰品",
+    tags: ["破防", "会心"],
+  },
+  {
+    key: "weapon",
+    label: "主武器",
+    short: "剑",
+    group: "武器",
+    tags: ["会心", "破防"],
+  },
+  {
+    key: "hidden",
+    label: "暗器",
+    short: "暗",
+    group: "武器",
+    tags: ["会心"],
+  },
+];
 
 const PRIMARY: Record<string, Attr> = {
+  花间游: "元气",
+  山居剑意: "身法",
   山海心诀: "身法",
   傲血战意: "力道",
   分山劲: "身法",
@@ -319,80 +317,198 @@ function hash(s: string) {
   return (h >>> 0) / 4294967296;
 }
 
-function itemDetail(slot: Omit<GearSlot, "item" | "enchant">) {
-  if (slot.group === "武器" && slot.key === "weapon")
-    return "特效武器 · 精 8 · 镶 8/8";
-  if (slot.group === "饰品")
-    return slot.key.startsWith("ring") ? "精 6 · 小附魔" : "精 6 · 镶 8";
-  if (slot.key === "hidden") return "精 6 · 镶 8";
-  return "精 6 · 镶 8/8";
+/** 装备库没加载时的示例部位（只有名称和词条，不参与属性计算） */
+function legacySlots(xinfa: string): GearSlot[] {
+  return SLOT_DEFS.map(({ tags, ...def }) => ({
+    ...def,
+    short: def.key === "weapon" ? weaponShort(xinfa) : def.short,
+    enchant: null,
+    def: null,
+    refine: 6,
+    gems: [],
+    item: {
+      name: `${def.label}·${tags.join(" ")}`,
+      quality: def.key === "weapon" ? "orange" : "purple",
+      iconId: gearIconId(xinfa, def.key),
+      detail: "精 6",
+      tags,
+    },
+  }));
+}
+
+/** 装备的显示信息：名称、品质、图标、精炼和镶嵌、二级属性 */
+export function itemOf(
+  def: EquipDef,
+  refine: number,
+  gems: number[]
+): GearItem {
+  return {
+    name: def.name,
+    quality: qualityOf(def),
+    iconId: def.iconId,
+    detail: gems.length
+      ? `精 ${refine} · 镶 ${gems.join("/")}`
+      : `精 ${refine}`,
+    tags: itemTags(def),
+  };
 }
 
 /**
- * 生成全身装备。variant 为空时是这个心法的默认配装；
- * 不为空时按它随机换掉几件防具和饰品的属性组合（同一个 variant 结果固定）。
+ * 部位换上一件装备：精炼拉满；五行石按孔继承原来的等级，
+ * 多出来的孔用原来最高的等级（原来没孔就 8 级）。小附魔保留。
  */
-function buildSlots(xinfa: string, variant?: string): GearSlot[] {
-  return SLOT_DEFS.map(({ tags: baseTags, ...def }) => {
-    let tags = baseTags;
-    // 带加速的部位不换，避免加速掉段
-    if (variant && def.group !== "武器" && !baseTags.includes("加速")) {
-      const r = hash(`${variant}-${def.key}`);
-      if (r < 0.4) {
-        const pool = SWAP_PAIRS.filter(p => p.join() !== baseTags.join());
-        tags = pool[Math.floor(hash(`${variant}-${def.key}-p`) * pool.length)];
-      }
-    }
-    return {
-      ...def,
-      short: def.key === "weapon" ? weaponShort(xinfa) : def.short,
-      enchant: null,
-      item: {
-        name: `${def.label}·${tags.join(" ")}`,
-        quality: def.key === "weapon" ? "orange" : "purple",
-        iconId: gearIconId(xinfa, def.key),
-        detail: itemDetail(def),
-        tags,
-      },
-    };
-  });
+export function equipSlot(slot: GearSlot, def: EquipDef): GearSlot {
+  const fallback = slot.gems.length ? Math.max(...slot.gems) : GEM_MAX;
+  const gems = def.holes.map((_, i) => slot.gems[i] ?? fallback);
+  const refine = maxRefine(def);
+  return { ...slot, def, refine, gems, item: itemOf(def, refine, gems) };
 }
 
-/** 换装时可选的属性组合（不含加速，避免跨段位） */
-const SWAP_PAIRS: Attr[][] = [
-  ["无双", "会心"],
-  ["无双", "破防"],
-  ["会心", "攻击"],
-  ["会心效果", "破招"],
-  ["破防", "会心"],
-  ["无双", "破招"],
-];
-
-/** 每多一条属性词条，面板加多少（示例数值，和试穿里的效果一致） */
-const TAG_DELTA: Partial<Record<Attr, StatDelta>> = {
-  攻击: { baseAttack: 420 },
-  会心: { critLv: 2175 },
-  会心效果: { critDmgLv: 2622 },
-  破防: { overcomeLv: 2260 },
-  无双: { strainLv: 1200 },
-  破招: { surplus: 410 },
-  加速: { haste: 2743 },
-};
-
-function tagsDelta(from: Attr[], to: Attr[]): StatDelta {
-  let d: StatDelta = {};
-  for (const t of from) d = addDelta(d, TAG_DELTA[t], -1);
-  for (const t of to) d = addDelta(d, TAG_DELTA[t]);
-  return d;
+export function refineSlot(slot: GearSlot, refine: number): GearSlot {
+  if (!slot.def) return slot;
+  const r = Math.max(0, Math.min(maxRefine(slot.def), refine));
+  return { ...slot, refine: r, item: itemOf(slot.def, r, slot.gems) };
 }
 
-function slotsDelta(from: GearSlot[], to: GearSlot[]): StatDelta {
-  let d: StatDelta = {};
-  for (const s of to) {
-    const old = from.find(x => x.key === s.key);
-    if (old) d = addDelta(d, tagsDelta(old.item.tags, s.item.tags));
+export function gemSlot(
+  slot: GearSlot,
+  index: number,
+  level: number
+): GearSlot {
+  if (!slot.def || index >= slot.gems.length) return slot;
+  const gems = slot.gems.map((g, i) => (i === index ? level : g));
+  return { ...slot, gems, item: itemOf(slot.def, slot.refine, gems) };
+}
+
+/** 一个部位的装备（含精炼、镶嵌）给的属性；示例装备按 0 算 */
+function slotStats(slot: GearSlot, main: Attr): StatDelta {
+  return slot.def
+    ? itemDelta(slot.def, slot.refine, slot.gems, main, isOuter(main))
+    : {};
+}
+
+/** 部位从 a 换成 b 的属性变化（不含小附魔） */
+export function slotChange(a: GearSlot, b: GearSlot, main: Attr): StatDelta {
+  return addDelta(slotStats(b, main), slotStats(a, main), -1);
+}
+
+/** 配装器里还没保存的改动：全身装备（含小附魔、精炼、镶嵌）、大附魔、五彩石 */
+export interface GearDraft {
+  slots: GearSlot[];
+  big: BigEnchants;
+  stone: string | null;
+}
+
+export function draftOf(lo: Loadout): GearDraft {
+  return { slots: lo.slots, big: lo.big, stone: lo.stone };
+}
+
+/** 草稿相对已保存配装的属性变化 */
+export function draftDelta(lo: Loadout, d: GearDraft): StatDelta {
+  const main = primaryAttr(lo.xinfa);
+  let out = configDelta(main, configOf(lo), configOf(d));
+  for (const s of d.slots) {
+    const old = lo.slots.find(x => x.key === s.key);
+    if (old && old !== s) out = addDelta(out, slotChange(old, s, main));
   }
-  return d;
+  return out;
+}
+
+export interface DraftEval {
+  panel: PanelStats;
+  hasteValue: number;
+  /** 不含增益的秒伤（估算） */
+  dps: number;
+  /** 相对已保存配装的秒伤比例（0.01 = 1%） */
+  pct: number;
+}
+
+export function evalDraft(lo: Loadout, d: GearDraft): DraftEval {
+  const main = primaryAttr(lo.xinfa);
+  const delta = draftDelta(lo, d);
+  const adj = applyDeltaToPanel(lo.panel, lo.haste.value, delta, main);
+  const pct = statDeltaDpsPct(lo, delta);
+  return {
+    panel: adj.panel,
+    hasteValue: adj.hasteValue,
+    dps: Math.round(lo.dps * (1 + pct)),
+    pct,
+  };
+}
+
+/** 在草稿上再做一处改动的秒伤比例（相对草稿）。加速按草稿当前的段位算 */
+export function changePct(lo: Loadout, ev: DraftEval, change: StatDelta) {
+  const main = primaryAttr(lo.xinfa);
+  const pp = perPoint(lo.gains, isOuter(main));
+  const from = hasteTierIndex(ev.hasteValue);
+  const to = hasteTierIndex(Math.max(0, ev.hasteValue + (change.haste ?? 0)));
+  const p =
+    deltaDpsPct(change, pp, main, ev.panel.primary) + (to - from) * 0.02;
+  return ev.dps ? (p * lo.dps) / ev.dps : p;
+}
+
+/** 把草稿存进配装：面板、加速、秒伤一起更新 */
+export function applyDraft(lo: Loadout, d: GearDraft): Loadout {
+  const ev = evalDraft(lo, d);
+  return {
+    ...lo,
+    slots: d.slots,
+    big: { ...d.big },
+    stone: d.stone,
+    panel: ev.panel,
+    haste: hasteOf(ev.hasteValue),
+    dps: ev.dps,
+  };
+}
+
+/** 草稿里改了哪些地方，例如 ["帽子", "大附魔", "五彩石"] */
+export function draftChanges(lo: Loadout, d: GearDraft): string[] {
+  const out: string[] = [];
+  for (const s of d.slots) {
+    const old = lo.slots.find(x => x.key === s.key);
+    if (!old || old === s) continue;
+    if (
+      old.def?.id !== s.def?.id ||
+      old.item.name !== s.item.name ||
+      old.refine !== s.refine ||
+      old.gems.join() !== s.gems.join() ||
+      old.enchant !== s.enchant
+    )
+      out.push(s.label);
+  }
+  const bigKeys = Object.keys(d.big) as (keyof BigEnchants)[];
+  if (bigKeys.some(k => d.big[k] !== lo.big[k])) out.push("大附魔");
+  if (d.stone !== lo.stone) out.push("五彩石");
+  return out;
+}
+
+/** 装备库里提升最大的一件（看板"下一步建议"）；pct 单位是 % */
+export function bestUpgrade(lo: Loadout, db: EquipDb) {
+  const main = primaryAttr(lo.xinfa);
+  const ev = evalDraft(lo, draftOf(lo));
+  let best: {
+    slotKey: string;
+    slotLabel: string;
+    itemId: number;
+    name: string;
+    pct: number;
+  } | null = null;
+  for (const slot of lo.slots) {
+    for (const def of poolFor(db, slot.key, lo.xinfa, main)) {
+      if (def.id === slot.def?.id) continue;
+      const pct =
+        changePct(lo, ev, slotChange(slot, equipSlot(slot, def), main)) * 100;
+      if (pct > 0 && (!best || pct > best.pct))
+        best = {
+          slotKey: slot.key,
+          slotLabel: slot.label,
+          itemId: def.id,
+          name: def.name,
+          pct,
+        };
+    }
+  }
+  return best;
 }
 
 /**
@@ -441,29 +557,6 @@ export function applyDeltaToPanel(
     },
     hasteValue: Math.max(0, hasteValue + (d.haste ?? 0)),
   };
-}
-
-/** 按两套装备的词条差，调整面板和加速 */
-function adjustPanel(
-  panel: PanelStats,
-  hasteValue: number,
-  from: GearSlot[],
-  to: GearSlot[],
-  main: Attr
-) {
-  return applyDeltaToPanel(panel, hasteValue, slotsDelta(from, to), main);
-}
-
-/** 试穿：把一个部位换成这些词条后的面板和加速 */
-export function swapPanel(lo: Loadout, slotKey: string, tags: Attr[]) {
-  const slot = lo.slots.find(s => s.key === slotKey);
-  if (!slot) return { panel: lo.panel, hasteValue: lo.haste.value };
-  return applyDeltaToPanel(
-    lo.panel,
-    lo.haste.value,
-    tagsDelta(slot.item.tags, tags),
-    primaryAttr(lo.xinfa)
-  );
 }
 
 /** 这个心法默认配装的面板（示例数值，已经算上默认的附魔和五彩石） */
@@ -555,11 +648,6 @@ export function applyConfig(lo: Loadout, next: GearConfig): Loadout {
   };
 }
 
-/** 装备总分（示例算法）：换装后秒伤按分差变化 */
-function slotsScore(slots: GearSlot[], gains: AttrGain[]) {
-  return slots.reduce((sum, s) => sum + scorePair(s.item.tags, gains), 0);
-}
-
 function weaponShort(xinfa: string) {
   const map: Record<string, string> = {
     紫霞功: "剑",
@@ -568,106 +656,6 @@ function weaponShort(xinfa: string) {
     山海心诀: "弓",
   };
   return map[xinfa] ?? "武";
-}
-
-const PCT_ATTR: Attr[] = ["会心", "会心效果", "破防", "无双", "加速"];
-
-function effectValue(attr: Attr, sign: 1 | -1, seed: number) {
-  if (PCT_ATTR.includes(attr)) {
-    const v = (attr === "会心效果" ? 3.6 : 0.9 + seed * 0.4).toFixed(1);
-    return `${sign > 0 ? "+" : "−"}${v}%`;
-  }
-  const v = Math.round(380 + seed * 80);
-  return `${sign > 0 ? "+" : "−"}${v}`;
-}
-
-const SOURCES = ["秘境掉落", "商店兑换", "上赛季", "试炼之地"];
-const PAIRS: Attr[][] = [
-  ["无双", "会心"],
-  ["无双", "破防"],
-  ["会心", "攻击"],
-  ["会心效果", "破招"],
-  ["加速", "会心"],
-  ["破招", "会心效果"],
-  ["破防", "会心"],
-  ["无双", "破招"],
-];
-
-/** 按属性收益给一件候选打分（示例算法，不是真实计算） */
-function scorePair(tags: Attr[], gains: AttrGain[]) {
-  const g = (a: Attr) => gains.find(x => x.attr === a)?.pct ?? 0;
-  return tags.reduce((sum, a) => sum + g(a), 0) * 0.3;
-}
-
-function buildCandidates(
-  xinfa: string,
-  slots: GearSlot[],
-  gains: AttrGain[]
-): Record<string, Candidate[]> {
-  const out: Record<string, Candidate[]> = {};
-  for (const slot of slots) {
-    if (slot.key === "weapon" || slot.key === "hidden") {
-      out[slot.key] = [currentAsCandidate(slot)];
-      continue;
-    }
-    const base = scorePair(slot.item.tags, gains);
-    const pool = PAIRS.filter(
-      p =>
-        p.join() !== slot.item.tags.join() &&
-        p.join() !== [...slot.item.tags].reverse().join()
-    ).slice(0, 5);
-    const list: Candidate[] = pool.map((tags, i) => {
-      const r = hash(`${xinfa}-${slot.key}-${i}`);
-      const hasHaste = tags.includes("加速");
-      const pct = hasHaste
-        ? -(0.05 + r * 0.1)
-        : scorePair(tags, gains) - base + (r - 0.5) * 0.12;
-      const added = tags.filter(t => !slot.item.tags.includes(t));
-      const removed = slot.item.tags.filter(t => !tags.includes(t));
-      return {
-        id: `${slot.key}-${i}`,
-        name: `${slot.label.replace(/ \d$/, "")} · ${tags.join(" ")}`,
-        source: `${SOURCES[i % SOURCES.length]} · 精炼上限 6`,
-        quality: "purple",
-        iconId: candidateIconId(xinfa, slot.key, SOURCES[i % SOURCES.length]),
-        tags,
-        pct: Math.round(pct * 100) / 100,
-        effects: [
-          ...added.map(a => ({
-            label: a,
-            value: effectValue(a, 1, r),
-            up: true,
-          })),
-          ...removed.map(a => ({
-            label: a,
-            value: effectValue(a, -1, r),
-            up: false,
-          })),
-        ],
-        note: hasHaste ? "加速仍是一段，没有跨段" : undefined,
-      };
-    });
-    out[slot.key] = sortCandidates([...list, currentAsCandidate(slot)]);
-  }
-  return out;
-}
-
-function currentAsCandidate(slot: GearSlot): Candidate {
-  return {
-    id: `${slot.key}-current`,
-    name: slot.item.name.replace("·", " · "),
-    source: "已装备",
-    quality: slot.item.quality,
-    iconId: slot.item.iconId,
-    tags: slot.item.tags,
-    pct: 0,
-    effects: [],
-    current: true,
-  };
-}
-
-export function sortCandidates(list: Candidate[]) {
-  return [...list].sort((a, b) => b.pct - a.pct);
 }
 
 /**
@@ -713,26 +701,39 @@ export function makeLoadout(opts: {
     .sort((a, b) => b.pct - a.pct);
   const panel0 = basePanel(xinfa);
   const cfg = defaultConfig(xinfa, gains, panel0.primary);
-  const withEnchant = (list: GearSlot[]) =>
-    list.map(s => ({ ...s, enchant: cfg.enchants[s.key] ?? null }));
-  const baseSlots = withEnchant(buildSlots(xinfa));
-  const slots = variant ? withEnchant(buildSlots(xinfa, variant)) : baseSlots;
-  const adj = adjustPanel(
-    panel0,
-    Math.round(1200 + r * 2400),
-    baseSlots,
-    slots,
-    primary
-  );
-  const dps = variant
-    ? Math.round(
-        baseDps *
-          (1 +
-            (slotsScore(slots, gains) - slotsScore(baseSlots, gains)) / 100 +
-            (hash(`${variant}-dps`) - 0.5) * 0.004)
-      )
-    : baseDps;
-  return {
+  const db = getEquipDb(primary);
+  const pp = perPoint(gains, isOuter(primary));
+  // 从装备库挑：品级 35xxx 的普通装备里按属性收益排序，取第 nth 件
+  const pick = (slot: GearSlot, nth: number) => {
+    if (!db) return slot;
+    const pool = poolFor(db, slot.key, xinfa, primary);
+    const tier = pool.filter(
+      d => d.ilvl >= 35000 && d.ilvl < 36000 && d.type === "普通"
+    );
+    const ranked = (tier.length ? tier : pool)
+      .map(def => ({
+        def,
+        s: deltaDpsPct(
+          itemDelta(
+            def,
+            maxRefine(def),
+            def.holes.map(() => GEM_MAX),
+            primary,
+            isOuter(primary)
+          ),
+          pp,
+          primary,
+          panel0.primary
+        ),
+      }))
+      .sort((a, b) => b.s - a.s);
+    if (!ranked.length) return slot;
+    return equipSlot(slot, ranked[Math.min(nth, ranked.length - 1)].def);
+  };
+  const baseSlots = legacySlots(xinfa)
+    .map(s => ({ ...s, enchant: cfg.enchants[s.key] ?? null }))
+    .map(s => pick(s, s.key === "ring2" ? 1 : 0));
+  const base: Loadout = {
     id,
     xinfa,
     charId,
@@ -741,16 +742,27 @@ export function makeLoadout(opts: {
     name,
     importedAt: at,
     target: "134 级木桩 · 304 秒",
-    dps,
-    haste: hasteOf(adj.hasteValue),
-    panel: adj.panel,
+    dps: baseDps,
+    haste: hasteOf(Math.round(1200 + r * 2400)),
+    panel: panel0,
     big: cfg.big,
     stone: cfg.stone,
     gains,
-    slots,
-    candidates: buildCandidates(xinfa, slots, gains),
-    history: [{ at, dps, label: "导入", kind: "import" }],
+    slots: baseSlots,
+    history: [{ at, dps: baseDps, label: "导入", kind: "import" }],
     sample: true,
+  };
+  if (!variant || !db) return base;
+  // 同心法再建一套：随机换掉几件（同一个 variant 结果固定）
+  const slots = baseSlots.map(s =>
+    s.key !== "weapon" && hash(`${variant}-${s.key}`) < 0.4
+      ? pick(s, 1 + Math.floor(hash(`${variant}-${s.key}-n`) * 3))
+      : s
+  );
+  const next = applyDraft(base, { slots, big: base.big, stone: base.stone });
+  return {
+    ...next,
+    history: [{ at, dps: next.dps, label: "导入", kind: "import" }],
   };
 }
 
@@ -782,104 +794,7 @@ export function seedLoadoutZixia(): Loadout {
     { attr: "会心效果", dps: 23765, pct: 1.03 },
     { attr: "破招", dps: 21214, pct: 0.92 },
   ];
-  const slots = buildSlots(xinfa).map(s => ({
-    ...s,
-    enchant: ZIXIA_ENCHANTS[s.key] ?? null,
-  }));
-  const candidates = buildCandidates(xinfa, slots, gains);
-  // 戒指 1：引用任务原型里的 6 件候选
-  candidates.ring1 = sortCandidates([
-    {
-      id: "ring1-a",
-      name: "戒指 · 无双 会心",
-      source: "秘境掉落 · 精炼上限 6",
-      quality: "purple",
-      tags: ["无双", "会心"],
-      pct: 0.82,
-      effects: [
-        { label: "无双", value: "+0.9%", up: true },
-        { label: "会心", value: "+1.1%", up: true },
-        { label: "会心效果", value: "−3.6%", up: false },
-        { label: "破招", value: "−410", up: false },
-      ],
-    },
-    {
-      id: "ring1-b",
-      name: "戒指 · 无双 破防",
-      source: "秘境掉落 · 精炼上限 6",
-      quality: "purple",
-      tags: ["无双", "破防"],
-      pct: 0.61,
-      effects: [
-        { label: "无双", value: "+0.9%", up: true },
-        { label: "破防", value: "+1.0%", up: true },
-        { label: "会心效果", value: "−3.6%", up: false },
-        { label: "破招", value: "−410", up: false },
-      ],
-    },
-    {
-      id: "ring1-c",
-      name: "戒指 · 会心 攻击",
-      source: "商店兑换 · 精炼上限 6",
-      quality: "purple",
-      tags: ["会心", "攻击"],
-      pct: 0.38,
-      effects: [
-        { label: "会心", value: "+1.1%", up: true },
-        { label: "攻击", value: "+420", up: true },
-        { label: "会心效果", value: "−3.6%", up: false },
-        { label: "破招", value: "−410", up: false },
-      ],
-    },
-    {
-      id: "ring1-current",
-      name: "戒指 · 会效 破招",
-      source: "已装备",
-      quality: "purple",
-      tags: ["会心效果", "破招"],
-      pct: 0,
-      effects: [],
-      current: true,
-    },
-    {
-      id: "ring1-d",
-      name: "戒指 · 加速 会心",
-      source: "商店兑换 · 精炼上限 6",
-      quality: "purple",
-      tags: ["加速", "会心"],
-      pct: -0.09,
-      effects: [
-        { label: "加速", value: "+1.3%", up: true },
-        { label: "会心", value: "+1.1%", up: true },
-      ],
-      note: "加速仍是一段，没有跨段",
-    },
-    {
-      id: "ring1-e",
-      name: "戒指 · 破招 会效",
-      source: "上赛季 · 精炼上限 6",
-      quality: "purple",
-      tags: ["破招", "会心效果"],
-      pct: -0.36,
-      effects: [
-        { label: "会心效果", value: "−0.9%", up: false },
-        { label: "破招", value: "−120", up: false },
-      ],
-    },
-  ]);
-  candidates.ring1 = candidates.ring1.map(c => ({
-    ...c,
-    iconId: c.iconId ?? candidateIconId(xinfa, "ring1", c.source, c.current),
-  }));
-  // 其他部位的最佳候选都压到 0.82% 以下，让"下一步建议"指向戒指 1
-  for (const k of Object.keys(candidates)) {
-    if (k === "ring1") continue;
-    candidates[k] = sortCandidates(
-      candidates[k].map(c =>
-        c.pct > 0.6 ? { ...c, pct: Math.round(c.pct * 50) / 100 } : c
-      )
-    );
-  }
+  const slots = seedSlots(xinfa, SEED_ZIXIA);
   return {
     id: "lo1",
     xinfa,
@@ -910,7 +825,6 @@ export function seedLoadoutZixia(): Loadout {
     stone: "彩·灭气·激流·月华(陆)",
     gains,
     slots,
-    candidates,
     history: [
       {
         at: "2026-09-06T20:30:00+08:00",
@@ -939,67 +853,47 @@ export function seedLoadoutZixia(): Loadout {
   };
 }
 
-/** 第二套紫霞功配装（示例）：换了戒指 1 和腰带，用来演示对比；不关联角色 */
+const SEED_DEFS = new Map(
+  SEED_EQUIP_ROWS.map(r => [r[0], decodeEquip(r)] as const)
+);
+
+/** 示例配装的部位：装备快照来自 seedEquip.ts，五行石 8 级、精炼满级 */
+function seedSlots(xinfa: string, ids: Record<string, number>): GearSlot[] {
+  return legacySlots(xinfa).map(s => {
+    const def = SEED_DEFS.get(ids[s.key]);
+    return {
+      ...(def ? equipSlot(s, def) : s),
+      enchant: ZIXIA_ENCHANTS[s.key] ?? null,
+    };
+  });
+}
+
+/** 第二套紫霞功配装（示例）：帽子、下装、腰坠、戒指 1 和五彩石换成无双，用来演示对比；不关联角色 */
 export function seedLoadoutZixiaAlt(): Loadout {
   const base = seedLoadoutZixia();
-  const swap: Record<string, Attr[]> = {
-    ring1: ["无双", "会心"],
-    belt: ["无双", "破防"],
-  };
-  const slots = base.slots.map(s =>
-    swap[s.key]
-      ? {
-          ...s,
-          item: {
-            ...s.item,
-            name: `${s.label.replace(/ \d$/, "")}·${swap[s.key].join(" ")}`,
-            iconId: candidateIconId(base.xinfa, s.key, "秘境掉落"),
-            tags: swap[s.key],
-          },
-        }
-      : s
-  );
-  const main = primaryAttr(base.xinfa);
-  const adj = adjustPanel(
-    base.panel,
-    base.haste.value,
-    base.slots,
-    slots,
-    main
-  );
-  // 五彩石换成无双
-  const stone = "彩·无双·激流·灭气(陆)";
-  const withStone = applyDeltaToPanel(
-    adj.panel,
-    adj.hasteValue,
-    configDelta(main, configOf(base), { ...configOf(base), stone }),
-    main
-  );
-  const dps = 2321146;
+  const next = applyDraft(base, {
+    slots: seedSlots(base.xinfa, SEED_ZIXIA_ALT),
+    big: base.big,
+    stone: "彩·无双·激流·灭气(陆)",
+  });
   return {
-    ...base,
+    ...next,
     id: "lo2",
     charId: null,
     name: "无双流",
     source: "myplugin",
     sourceId: null,
     importedAt: "2026-10-26T21:15:00+08:00",
-    dps,
-    haste: hasteOf(withStone.hasteValue),
-    panel: withStone.panel,
-    stone,
-    slots,
-    candidates: buildCandidates(base.xinfa, slots, base.gains),
     history: [
       {
         at: "2026-10-26T21:15:00+08:00",
-        dps: 2312400,
+        dps: Math.round(next.dps * 0.9962),
         label: "导入",
         kind: "import",
       },
       {
         at: "2026-10-28T21:40:00+08:00",
-        dps,
+        dps: next.dps,
         label: "v4 技改",
         kind: "patch",
         detail: "第 7 重 抱一 → 正气",

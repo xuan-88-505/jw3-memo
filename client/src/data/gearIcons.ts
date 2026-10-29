@@ -151,22 +151,3 @@ export function gearIconId(
   const base = slotKey === "ring2" ? 1 : 0;
   return pool[(base + variant) % pool.length];
 }
-
-const SOURCE_VARIANT: Record<string, number> = {
-  秘境掉落: 1,
-  商店兑换: 2,
-  上赛季: 3,
-  试炼之地: 4,
-};
-
-/** 候选装备的图标：按来源换款式；"已装备"用身上那件 */
-export function candidateIconId(
-  xinfa: string,
-  slotKey: string,
-  source: string,
-  current?: boolean
-) {
-  if (current) return gearIconId(xinfa, slotKey, 0);
-  const kind = source.split(" · ")[0];
-  return gearIconId(xinfa, slotKey, SOURCE_VARIANT[kind] ?? 1);
-}

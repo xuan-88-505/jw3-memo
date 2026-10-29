@@ -11,23 +11,34 @@ import { CharAvatar } from "@/components/brand/CharAvatar";
 import { XinfaMark } from "@/components/brand/Marks";
 import { Btn, IconBtn } from "@/components/common/ui";
 import { findScheme, latest, loadoutList, useProto } from "@/state/store";
-import { SOURCE_LABEL, type LoadoutSource } from "@/data/gear";
+import {
+  SOURCE_LABEL,
+  draftChanges,
+  draftOf,
+  equipSlot,
+  primaryAttr,
+  type GearDraft,
+  type Loadout,
+  type LoadoutSource,
+} from "@/data/gear";
+import { getEquipDb, partOf } from "@/data/equip";
+import { InlineModal } from "@/components/common/overlay";
 import { buffFactor, buffLabel } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
-import { EmptyState, SectionHeader } from "../shared";
+import { EmptyState, SectionHeader, inputCls } from "../shared";
 import { BuffsView } from "./BuffsView";
 import { CompareView } from "./CompareView";
 import { Dashboard, fmt } from "./Dashboard";
 import { ImportCard } from "./ImportCard";
 import { EditLoadoutDialog, NewLoadoutDialog } from "./NewLoadoutDialog";
 import type { GearConfig } from "@/data/enchants";
-import { TryOn } from "./TryOn";
+import { GearEditor } from "./GearEditor";
 
-type Tab = "board" | "try" | "buffs" | "compare";
+type Tab = "board" | "editor" | "buffs" | "compare";
 
 const TABS: [Tab, string][] = [
   ["board", "看板"],
-  ["try", "试穿"],
+  ["editor", "配装器"],
   ["buffs", "增益"],
   ["compare", "对比"],
 ];
@@ -59,11 +70,14 @@ export function GearView() {
   const [pending, setPending] = useState<NewLoadoutInput | null>(null);
   const [reimporting, setReimporting] = useState(false);
   const [compareB, setCompareB] = useState<string | null>(null);
-  const [tryInit, setTryInit] = useState<{
-    slotKey: string;
-    candId?: string;
-    n: number;
-  } | null>(null);
+  // 配装器草稿：按配装存，切页签不丢。base 是建草稿时的配装，配装在外面改了装备就作废
+  const [drafts, setDrafts] = useState<
+    Record<string, { base: Loadout; d: GearDraft }>
+  >({});
+  const [flash, setFlash] = useState<{ slotKey: string; n: number } | null>(
+    null
+  );
+  const [saveAsOpen, setSaveAsOpen] = useState(false);
   const timer = useRef<number | null>(null);
   // 在对比页里交换 A/B、新建配装时，留在对比页
   const keepTab = useRef(false);
@@ -78,13 +92,35 @@ export function GearView() {
   // 换配装时回到看板，收起导入框
   useEffect(() => {
     setReimport(false);
-    setTryInit(null);
+    setFlash(null);
     if (keepTab.current) keepTab.current = false;
     else setTab("board");
   }, [lo?.id]);
 
   const offline = state.dataState === "offline";
   const computing = !!pending || reimporting;
+
+  const entry = lo ? drafts[lo.id] : undefined;
+  const draft: GearDraft | null = lo
+    ? entry &&
+      entry.base.slots === lo.slots &&
+      entry.base.big === lo.big &&
+      entry.base.stone === lo.stone
+      ? entry.d
+      : draftOf(lo)
+    : null;
+  const dirty = !!lo && !!draft && draftChanges(lo, draft).length > 0;
+  const setDraft = (d: GearDraft) => {
+    if (!lo) return;
+    const base = lo;
+    setDrafts(m => ({ ...m, [base.id]: { base, d } }));
+  };
+  const clearDraft = (id: string) =>
+    setDrafts(m => {
+      const next = { ...m };
+      delete next[id];
+      return next;
+    });
 
   const startCreate = (p: NewLoadoutInput) => {
     const prevId = lo?.id ?? null;
@@ -283,7 +319,7 @@ export function GearView() {
                   aria-selected={tab === k}
                   onClick={() => {
                     setTab(k);
-                    setTryInit(null);
+                    setFlash(null);
                   }}
                   className={cn(
                     "relative h-9 text-[13.5px] transition-colors",
@@ -293,6 +329,12 @@ export function GearView() {
                   )}
                 >
                   {label}
+                  {k === "editor" && dirty && (
+                    <span
+                      className="ml-1 inline-block h-1.5 w-1.5 -translate-y-1.5 rounded-full bg-cinnabar"
+                      aria-label="有未保存的改动"
+                    />
+                  )}
                   {tab === k && (
                     <span
                       className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-cinnabar"
@@ -352,9 +394,19 @@ export function GearView() {
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-8 pb-8 pt-5">
           <Dashboard
             loadout={lo!}
-            onTry={(slotKey, candId) => {
-              setTryInit({ slotKey, candId, n: Date.now() });
-              setTab("try");
+            onTry={(slotKey, itemId) => {
+              const def = getEquipDb(primaryAttr(lo!.xinfa))?.[
+                partOf(slotKey)
+              ]?.find(d => d.id === itemId);
+              if (def && draft)
+                setDraft({
+                  ...draft,
+                  slots: draft.slots.map(s =>
+                    s.key === slotKey ? equipSlot(s, def) : s
+                  ),
+                });
+              setFlash({ slotKey, n: Date.now() });
+              setTab("editor");
             }}
             onOpenChangelog={() => {
               actions.setChangelogFilter(lo!.xinfa);
@@ -397,23 +449,46 @@ export function GearView() {
           />
         </div>
       ) : (
-        <div className="min-h-0 flex-1 px-8 pb-6 pt-4">
-          <TryOn
-            key={`${lo!.id}-${tryInit?.n ?? 0}`}
-            loadout={lo!}
-            initial={tryInit}
-            onApply={(slotKey, candId) => {
-              const dps = actions.applyCandidate(lo!.id, slotKey, candId);
+        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-8">
+          <GearEditor
+            key={lo!.id}
+            lo={lo!}
+            draft={draft!}
+            onDraft={setDraft}
+            flash={flash}
+            onSave={() => {
+              const dps = actions.saveGearDraft(lo!.id, draft!);
+              clearDraft(lo!.id);
               actions.toast(
                 "manager",
                 "success",
-                `已应用到配装，秒伤 ${fmt(Math.round(dps * buffFactor(lo!)))}`
+                `已保存，秒伤 ${fmt(Math.round(dps * buffFactor(lo!)))}`
               );
             }}
+            onSaveAs={() => setSaveAsOpen(true)}
           />
         </div>
       )}
       {newDialog}
+      {lo && draft && (
+        <SaveAsDialog
+          open={saveAsOpen}
+          defaultName={`${lo.name} 改`}
+          onClose={() => setSaveAsOpen(false)}
+          onSave={name => {
+            const from = lo.id;
+            keepTab.current = true;
+            actions.saveGearDraftAs(from, draft, name);
+            clearDraft(from);
+            setSaveAsOpen(false);
+            actions.toast(
+              "manager",
+              "success",
+              `已另存为「${name}」，「${lo.name}」没有改`
+            );
+          }}
+        />
+      )}
       {lo && (
         <EditLoadoutDialog
           loadout={lo}
@@ -422,5 +497,60 @@ export function GearView() {
         />
       )}
     </div>
+  );
+}
+
+/** 另存为新配装：只填名称；同心法，不关联角色 */
+function SaveAsDialog({
+  open,
+  defaultName,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  defaultName: string;
+  onClose: () => void;
+  onSave: (name: string) => void;
+}) {
+  const [name, setName] = useState(defaultName);
+  useEffect(() => {
+    if (open) setName(defaultName);
+  }, [open, defaultName]);
+  const v = name.trim();
+  return (
+    <InlineModal
+      open={open}
+      onClose={onClose}
+      title="另存为新配装"
+      width={380}
+      footer={
+        <>
+          <Btn variant="ghost" onClick={onClose}>
+            取消
+          </Btn>
+          <Btn variant="primary" disabled={!v} onClick={() => onSave(v)}>
+            另存
+          </Btn>
+        </>
+      }
+    >
+      <label
+        className="block text-[12.5px] text-paper-3"
+        htmlFor="save-as-name"
+      >
+        名称
+      </label>
+      <input
+        id="save-as-name"
+        data-autofocus
+        value={name}
+        maxLength={12}
+        onChange={e => setName(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === "Enter" && v) onSave(v);
+        }}
+        className={cn(inputCls(), "mt-1.5 h-9 w-full px-3 text-[13px]")}
+      />
+    </InlineModal>
   );
 }

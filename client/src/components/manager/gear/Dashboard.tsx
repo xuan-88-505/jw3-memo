@@ -1,10 +1,12 @@
 import { ArrowRight, Info } from "lucide-react";
-import type { Loadout } from "@/data/gear";
+import { useMemo } from "react";
+import { bestUpgrade, primaryAttr, type Loadout } from "@/data/gear";
 import { Btn } from "@/components/common/ui";
 import { buffLabel, estimateBuffs, hasteWithBuffs } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
 import { PanelStrip } from "./PanelStrip";
 import { DpsChart } from "./DpsChart";
+import { useEquipDb } from "./useEquipDb";
 
 export const fmt = (n: number) => n.toLocaleString("en-US");
 
@@ -27,31 +29,6 @@ export function Delta({ pct, className }: { pct: number; className?: string }) {
 const card = "rounded-xl bg-ink-3 p-4 ring-1 ring-inset ring-paper/8";
 const cardTitle = "text-[12px] font-medium text-paper-3";
 
-/** 所有部位里提升最大的一件候选 */
-export function bestMove(lo: Loadout) {
-  let best: {
-    slotKey: string;
-    slotLabel: string;
-    candId: string;
-    name: string;
-    pct: number;
-  } | null = null;
-  for (const slot of lo.slots) {
-    for (const c of lo.candidates[slot.key] ?? []) {
-      if (c.current || c.pct <= 0) continue;
-      if (!best || c.pct > best.pct)
-        best = {
-          slotKey: slot.key,
-          slotLabel: slot.label,
-          candId: c.id,
-          name: c.name,
-          pct: c.pct,
-        };
-    }
-  }
-  return best;
-}
-
 export function Dashboard({
   loadout: lo,
   onTry,
@@ -59,7 +36,8 @@ export function Dashboard({
   onOpenBuffs,
 }: {
   loadout: Loadout;
-  onTry: (slotKey: string, candId: string) => void;
+  /** 把建议的装备放进配装器草稿 */
+  onTry: (slotKey: string, itemId: number) => void;
   onOpenChangelog: () => void;
   onOpenBuffs: () => void;
 }) {
@@ -78,7 +56,8 @@ export function Dashboard({
         Math.max(3, ((haste.value - from) / (haste.nextValue - from)) * 100)
       )
     : 100;
-  const best = bestMove(lo);
+  const { db } = useEquipDb(primaryAttr(lo.xinfa));
+  const best = useMemo(() => (db ? bestUpgrade(lo, db) : null), [db, lo]);
   const maxGain = Math.max(...lo.gains.map(g => g.pct));
 
   // 最近一次技改，以及它带来的变化
@@ -174,10 +153,7 @@ export function Dashboard({
             <>
               <p className="mt-2 text-[13.5px] leading-snug text-paper">
                 把「{best.slotLabel}」换成
-                <span className="font-medium">
-                  {" "}
-                  {best.name.split(" · ")[1] ?? best.name}
-                </span>
+                <span className="font-medium"> {best.name}</span>
               </p>
               <p className="mt-1.5 text-[12px] text-paper-3">
                 秒伤 <Delta pct={best.pct} className="font-medium" />
@@ -187,16 +163,16 @@ export function Dashboard({
                   size="xs"
                   variant="ghost"
                   className="-ml-2"
-                  onClick={() => onTry(best.slotKey, best.candId)}
+                  onClick={() => onTry(best.slotKey, best.itemId)}
                 >
-                  去试穿
+                  去配装器
                   <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                 </Btn>
               </div>
             </>
           ) : (
             <p className="mt-2 text-[13px] leading-relaxed text-paper-2">
-              现在这套已经是候选里最好的
+              {db ? "装备库里没有比现在更好的" : "正在从装备库里找…"}
             </p>
           )}
         </section>
