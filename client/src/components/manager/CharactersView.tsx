@@ -204,7 +204,7 @@ export function CharactersView() {
 }
 
 /** 角色名校验：添加和改名共用 */
-function nameError(
+export function nameError(
   mine: Character[],
   name: string,
   server: string,

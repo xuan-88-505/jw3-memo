@@ -1,4 +1,4 @@
-import { ExternalLink, RefreshCw, UserPlus } from "lucide-react";
+import { ExternalLink, Plus, RefreshCw, Shirt } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { Btn } from "@/components/common/ui";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { EmptyState, SectionHeader } from "../shared";
 import { Dashboard, fmt } from "./Dashboard";
 import { ImportCard } from "./ImportCard";
+import { NewLoadoutDialog } from "./NewLoadoutDialog";
 import { TryOn } from "./TryOn";
 
 type Tab = "board" | "try";
@@ -21,7 +22,12 @@ function dateLabel(iso: string) {
 export function GearView() {
   const { state, actions } = useProto();
   const mine = myCharacters(state);
-  const char = mine.find(c => c.id === state.activeCharId) ?? mine[0];
+  // 正在导入的新配装：算完之前也要显示在页签里
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
+  // 只显示已有配装的角色；没有配装的从「新建配装」里加
+  const listed = mine.filter(c => !!state.loadouts[c.id] || c.id === pendingId);
+  const char = listed.find(c => c.id === state.activeCharId) ?? listed[0];
   const [tab, setTab] = useState<Tab>("board");
   const [reimport, setReimport] = useState(false);
   const [computing, setComputing] = useState(false);
@@ -46,25 +52,63 @@ export function GearView() {
     setTab("board");
   }, [char?.id]);
 
+  const offline = state.dataState === "offline";
+
+  const doImport = (
+    charId: string,
+    source: LoadoutSource,
+    sourceId: string | null,
+    isNew = false
+  ) => {
+    setPendingId(charId);
+    setComputing(true);
+    timer.current = window.setTimeout(() => {
+      const r = actions.importLoadout(charId, source, sourceId);
+      setComputing(false);
+      setPendingId(null);
+      setReimport(false);
+      setTab("board");
+      actions.toast(
+        "manager",
+        "success",
+        isNew
+          ? "已添加角色，配装导入完成"
+          : r === "same"
+            ? "已重新导入，配装没有变化"
+            : "导入完成"
+      );
+    }, 1200);
+  };
+
+  const newDialog = (
+    <NewLoadoutDialog
+      open={newOpen}
+      onClose={() => setNewOpen(false)}
+      onStart={doImport}
+    />
+  );
+
   if (!char) {
     return (
       <div className="scroll-thin h-full overflow-y-auto px-8 pb-10 pt-7">
         <SectionHeader title="配装" />
         <EmptyState
-          icon={<UserPlus className="h-5 w-5" />}
-          title="还没有角色"
-          description="先添加角色，再给它导入魔盒配装"
+          icon={<Shirt className="h-5 w-5" />}
+          title="还没有配装"
+          description="粘贴茗伊装备码或魔盒链接，算出木桩秒伤"
           action={
             <Btn
               variant="primary"
-              onClick={() =>
-                actions.openManager("characters", undefined, "add-character")
-              }
+              icon={<Plus className="h-4 w-4" />}
+              disabled={offline}
+              title={offline ? "离线时不能导入" : undefined}
+              onClick={() => setNewOpen(true)}
             >
-              添加角色
+              新建配装
             </Btn>
           }
         />
+        {newDialog}
       </div>
     );
   }
@@ -74,23 +118,6 @@ export function GearView() {
   const showImport = !lo || reimport || mismatch || computing;
   const v = latest(findScheme(state, char.xinfa, "PVE"));
   const talentSource = v ? `${char.xinfa} PVE v${v.version}` : null;
-  const offline = state.dataState === "offline";
-
-  const doImport = (source: LoadoutSource, sourceId: string | null) => {
-    setComputing(true);
-    const charId = char.id;
-    timer.current = window.setTimeout(() => {
-      const r = actions.importLoadout(charId, source, sourceId);
-      setComputing(false);
-      setReimport(false);
-      setTab("board");
-      actions.toast(
-        "manager",
-        "success",
-        r === "same" ? "已重新导入，配装没有变化" : "导入完成"
-      );
-    }, 1200);
-  };
 
   return (
     <div className="flex h-full flex-col">
@@ -128,37 +155,44 @@ export function GearView() {
           }
         />
 
-        <div
-          role="tablist"
-          aria-label="角色"
-          className="flex flex-wrap gap-1.5"
-        >
-          {mine.map(c => {
-            const active = c.id === char.id;
-            const has =
-              !!state.loadouts[c.id] && state.loadouts[c.id].xinfa === c.xinfa;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => actions.selectCharacter(c.id)}
-                className={cn(
-                  "flex h-8 items-center gap-2 rounded-lg px-2.5 text-[13px] ring-1 ring-inset transition-colors",
-                  active
-                    ? "bg-paper/[0.08] text-paper ring-paper/12"
-                    : "text-paper-2 ring-transparent hover:bg-paper/[0.04] hover:text-paper"
-                )}
-              >
-                <CharAvatar character={c} size={20} />
-                {c.name}
-                {!has && (
-                  <span className="text-[11px] text-paper-3">未导入</span>
-                )}
-              </button>
-            );
-          })}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <div
+            role="tablist"
+            aria-label="角色"
+            className="flex flex-wrap gap-1.5"
+          >
+            {listed.map(c => {
+              const active = c.id === char.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => actions.selectCharacter(c.id)}
+                  className={cn(
+                    "flex h-8 items-center gap-2 rounded-lg px-2.5 text-[13px] ring-1 ring-inset transition-colors",
+                    active
+                      ? "bg-paper/[0.08] text-paper ring-paper/12"
+                      : "text-paper-2 ring-transparent hover:bg-paper/[0.04] hover:text-paper"
+                  )}
+                >
+                  <CharAvatar character={c} size={20} />
+                  {c.name}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => setNewOpen(true)}
+            disabled={offline || computing}
+            title={offline ? "离线时不能导入" : undefined}
+            className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] text-paper-3 transition-colors hover:bg-paper/[0.04] hover:text-paper disabled:pointer-events-none disabled:opacity-50"
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            新建配装
+          </button>
         </div>
 
         {lo && !showImport && (
@@ -231,7 +265,7 @@ export function GearView() {
                 : undefined
             }
             onCancel={lo && !mismatch ? () => setReimport(false) : undefined}
-            onImport={doImport}
+            onImport={(source, sourceId) => doImport(char.id, source, sourceId)}
           />
         </div>
       ) : tab === "board" ? (
@@ -268,6 +302,7 @@ export function GearView() {
           />
         </div>
       )}
+      {newDialog}
     </div>
   );
 }
