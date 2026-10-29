@@ -200,7 +200,8 @@ function MacroCard({
           size="sm"
           onClick={onCopy}
           aria-label={`复制宏 ${macro.name}`}
-          className={cn("w-[64px]", copied && "text-jade")}
+          title={copied ? "已复制" : "复制"}
+          className={cn("h-8 w-8 px-0", copied && "text-jade")}
           icon={
             copied ? (
               <Check
@@ -212,9 +213,7 @@ function MacroCard({
               <Copy className="h-3.5 w-3.5" aria-hidden="true" />
             )
           }
-        >
-          {copied ? "已复制" : "复制"}
-        </Btn>
+        />
       </div>
       {open && (
         <MacroCode content={macro.content} changed={changed} isNew={isNew} />

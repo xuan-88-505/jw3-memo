@@ -61,42 +61,35 @@ export function TeamView() {
         title={<TeamName name={team.name} editable={isAdmin} online={online} />}
       />
 
-      <div className="mb-6 flex flex-wrap items-center gap-4 rounded-xl bg-ink-3 px-5 py-4 ring-1 ring-inset ring-paper/8">
-        <div className="min-w-0 flex-1">
-          <p className="text-[12px] text-paper-3">邀请码</p>
-          <p className="mt-1 select-all font-mono text-[22px] font-medium tracking-[0.12em] text-paper">
+      <div className="mb-6 rounded-xl bg-ink-3 px-5 py-4 ring-1 ring-inset ring-paper/8">
+        <p className="text-[12px] text-paper-3">邀请码</p>
+        <div className="mt-1 flex items-center gap-1">
+          <p className="mr-2 select-all font-mono text-[22px] font-medium tracking-[0.12em] text-paper">
             {team.inviteCode}
           </p>
-          <p className="mt-1 text-[12px] text-paper-3">新成员默认只读</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Btn
-            variant="primary"
-            size="md"
+          <IconBtn
+            label={copied ? "已复制" : "复制邀请码"}
             onClick={onCopy}
-            icon={
-              copied ? (
-                <Check className="h-4 w-4" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )
-            }
+            className={cn("h-8 w-8", copied && "text-jade hover:text-jade")}
           >
-            {copied ? "已复制" : "复制邀请码"}
-          </Btn>
+            {copied ? (
+              <Check className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />
+            ) : (
+              <Copy className="h-4 w-4" aria-hidden="true" />
+            )}
+          </IconBtn>
           {isAdmin && (
-            <Btn
-              variant="secondary"
-              size="md"
+            <IconBtn
+              label={online ? "重新生成邀请码" : "离线时不能重新生成"}
               onClick={() => setRegen(true)}
               disabled={!online}
-              title={online ? "旧邀请码会失效" : "离线时不能操作"}
-              icon={<RefreshCw className="h-4 w-4" />}
+              className="h-8 w-8"
             >
-              重新生成
-            </Btn>
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            </IconBtn>
           )}
         </div>
+        <p className="mt-1 text-[12px] text-paper-3">新成员默认只读</p>
       </div>
 
       <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-paper/8">
