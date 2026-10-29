@@ -67,10 +67,7 @@ export function ChangelogView() {
 
   return (
     <div>
-      <SectionHeader
-        title="技改记录"
-        description="所有方案的修改历史，按时间倒序。每次保存都会留下一条。"
-      />
+      <SectionHeader title="技改记录" />
 
       <div
         className="mb-5 flex flex-wrap gap-1.5"
@@ -101,7 +98,6 @@ export function ChangelogView() {
         <EmptyState
           icon={<History className="h-5 w-5" />}
           title="还没有修改记录"
-          description="有人保存方案后，这里会按时间列出每一次修改。"
         />
       ) : (
         <div className="space-y-6">

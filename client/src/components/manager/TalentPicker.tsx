@@ -120,8 +120,8 @@ export function TalentPicker({
           </div>
           <p className="mb-2 ml-[60px] mt-2 text-[11.5px] text-paper-3">
             {disabled
-              ? "第七至九重从下面 12 个里选 3 个。"
-              : `正在选第${LAYER_LABEL[slot]}重。点下面的奇穴；点已被占用的，两层会互换。`}
+              ? "12 选 3"
+              : `正在选第${LAYER_LABEL[slot]}重 · 点已占用的会互换`}
           </p>
           <div className="ml-[60px] grid grid-cols-6 gap-1.5">
             {layers[6]?.options.map(o => {

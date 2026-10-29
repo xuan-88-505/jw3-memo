@@ -1,12 +1,12 @@
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
   AppWindow,
+  Bell,
   ChevronDown,
   Pin,
   Plus,
@@ -15,31 +15,23 @@ import {
 } from "lucide-react";
 import { Wordmark, XinfaMark } from "@/components/brand/Marks";
 import { OfflineBar, ToastStack } from "@/components/common/overlay";
-import {
-  Btn,
-  IconBtn,
-  Kbd,
-  Segmented,
-  StatusPill,
-} from "@/components/common/ui";
-import { layersOf, SEED_TEAM } from "@/data/seed";
+import { Btn, IconBtn, Segmented } from "@/components/common/ui";
+import { SEED_TEAM } from "@/data/seed";
 import type { Character, ManagerSection, Mode } from "@/data/types";
-import { diffVersions } from "@/lib/diff";
-import { absoluteTime, hotkeyKeys, relativeTime } from "@/lib/format";
 import {
   charPending,
   findScheme,
+  inboxItems,
   isPending,
   latest,
   me,
-  memberName,
   myCharacters,
-  pendingCount,
   statusOf,
   useProto,
 } from "@/state/store";
 import { cn } from "@/lib/utils";
-import { MacroList, SyncBanner, TalentList } from "./PanelContent";
+import { Inbox } from "./Inbox";
+import { ChangeDot, MacroList, TalentList } from "./PanelContent";
 
 export interface TrayPanelProps {
   /** 钉住后拖动面板用 */
@@ -85,12 +77,12 @@ export function TrayPanel({
     <section
       aria-label="同调面板"
       className={cn(
-        "glass-ink relative flex h-[600px] w-[380px] flex-col overflow-hidden rounded-xl text-paper shadow-[0_28px_70px_-16px_rgb(0_0_0/0.8),0_0_0_1px_rgb(236_230_218/0.1)]",
+        "glass-ink relative flex h-[500px] w-[360px] flex-col overflow-hidden rounded-xl text-paper shadow-[0_28px_70px_-16px_rgb(0_0_0/0.8),0_0_0_1px_rgb(236_230_218/0.1)]",
         className
       )}
     >
       {body}
-      <ToastStack surface="panel" className="bottom-12" />
+      <ToastStack surface="panel" className="bottom-3" />
     </section>
   );
 }
@@ -107,38 +99,54 @@ function PanelMain({
   showPin: boolean;
 }) {
   const { state, actions } = useProto();
+  const [view, setView] = useState<"main" | "inbox">("main");
+  const [tab, setTab] = useState<"macro" | "talent">("macro");
   const mine = myCharacters(state);
   const char = mine.find(c => c.id === state.activeCharId) ?? mine[0];
   const mode: Mode = state.activeMode[char.id] ?? "PVE";
   const scheme = findScheme(state, char.xinfa, mode);
   const last = latest(scheme);
-  const synced = char.synced[mode];
-  const base = scheme?.versions.find(v => v.version === synced);
   const status = statusOf(state, char, mode);
-  const compareBase = status === "pending" ? base : undefined;
-  const diff = useMemo(
-    () =>
-      last
-        ? diffVersions(
-            status === "never" ? undefined : base,
-            last,
-            layersOf(char.xinfa)
-          )
-        : null,
-    [last, base, status, char.xinfa]
-  );
-  const [tab, setTab] = useState<"macro" | "talent">("macro");
-  const pending = pendingCount(state);
+  // 只在"有更新还没同步"时标出变化；从没同步过的角色不逐条标
+  const base =
+    status === "pending"
+      ? scheme?.versions.find(v => v.version === char.synced[mode])
+      : undefined;
+  const inboxCount = inboxItems(state).length;
+  const draggable = state.pinned && !!onHeaderPointerDown;
+
+  if (view === "inbox") {
+    return (
+      <Inbox
+        onBack={() => setView("main")}
+        onOpenItem={(charId, m) => {
+          actions.selectCharacter(charId);
+          actions.setMode(charId, m);
+          setView("main");
+        }}
+        onHeaderPointerDown={onHeaderPointerDown}
+        dragging={draggable}
+      />
+    );
+  }
+
+  const macroChanged =
+    !!base &&
+    !!last &&
+    last.macros.some(m => {
+      const p = base.macros.find(x => x.id === m.id);
+      return !p || p.content !== m.content;
+    });
+  const talentChanged =
+    !!base && !!last && base.talents.some((p, i) => p !== last.talents[i]);
 
   return (
     <>
       <header
         onPointerDown={onHeaderPointerDown}
         className={cn(
-          "flex h-[56px] shrink-0 items-center gap-1 border-b border-paper/[0.07] pl-2 pr-2.5",
-          state.pinned &&
-            onHeaderPointerDown &&
-            "cursor-grab active:cursor-grabbing"
+          "flex h-12 shrink-0 items-center gap-1 border-b border-paper/[0.07] pl-1.5 pr-2",
+          draggable && "cursor-grab active:cursor-grabbing"
         )}
       >
         <CharacterSwitcher
@@ -150,13 +158,22 @@ function PanelMain({
           className="ml-auto flex items-center gap-0.5"
           onPointerDown={e => e.stopPropagation()}
         >
+          <IconBtn
+            label={inboxCount ? `通知，${inboxCount} 条待同步` : "通知"}
+            onClick={() => setView("inbox")}
+          >
+            <span className="relative">
+              <Bell className="h-4 w-4" />
+              {inboxCount > 0 && (
+                <span className="absolute -right-[7px] -top-[6px] grid h-[14px] min-w-[14px] place-items-center rounded-full bg-cinnabar-fill px-[3px] text-[9.5px] font-semibold leading-none text-[#FFF7F0] ring-2 ring-ink-2">
+                  {inboxCount}
+                </span>
+              )}
+            </span>
+          </IconBtn>
           {showPin && (
             <IconBtn
-              label={
-                state.pinned
-                  ? "取消置顶（点外面会收起）"
-                  : "置顶（点外面不收起，可拖动）"
-              }
+              label={state.pinned ? "取消置顶" : "置顶"}
               active={state.pinned}
               onClick={actions.togglePin}
             >
@@ -176,38 +193,54 @@ function PanelMain({
 
       <OfflineBar compact />
 
-      <div className="flex shrink-0 items-center justify-between gap-2 px-4 pb-1 pt-2.5">
-        <Segmented<Mode>
-          label="方案类型"
-          value={mode}
-          onChange={m => actions.setMode(char.id, m)}
-          options={(["PVE", "PVP"] as Mode[]).map(m => {
-            const st = statusOf(state, char, m);
-            return {
+      <div className="flex h-10 shrink-0 items-center gap-4 border-b border-paper/[0.07] px-4">
+        <div
+          role="tablist"
+          aria-label="内容"
+          className="flex h-full items-stretch gap-4"
+        >
+          {(
+            [
+              ["macro", "宏", macroChanged],
+              ["talent", "奇穴", talentChanged],
+            ] as const
+          ).map(([key, label, changed]) => (
+            <button
+              key={key}
+              role="tab"
+              type="button"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              disabled={!last}
+              className={cn(
+                "relative -mb-px flex items-center gap-1.5 border-b-2 text-[13px] font-medium transition-colors disabled:opacity-40",
+                tab === key && last
+                  ? "border-cinnabar text-paper"
+                  : "border-transparent text-paper-3 hover:text-paper"
+              )}
+            >
+              {label}
+              {changed && <ChangeDot />}
+            </button>
+          ))}
+        </div>
+        <div className="ml-auto">
+          <Segmented<Mode>
+            label="方案类型"
+            size="xs"
+            value={mode}
+            onChange={m => actions.setMode(char.id, m)}
+            options={(["PVE", "PVP"] as Mode[]).map(m => ({
               value: m,
               label: (
                 <span className="inline-flex items-center gap-1">
                   {m}
-                  {isPending(st) && (
-                    <span
-                      className="h-1.5 w-1.5 rounded-[1.5px] bg-cinnabar"
-                      aria-label="待同步"
-                    />
-                  )}
+                  {isPending(statusOf(state, char, m)) && <ChangeDot />}
                 </span>
               ),
-            };
-          })}
-        />
-        {last && (
-          <span
-            className="truncate text-[11.5px] text-paper-3"
-            title={absoluteTime(last.at)}
-          >
-            v{last.version} · {memberName(state, last.authorId)} ·{" "}
-            {relativeTime(last.at)}
-          </span>
-        )}
+            }))}
+          />
+        </div>
       </div>
 
       {!scheme || !last ? (
@@ -217,106 +250,17 @@ function PanelMain({
           onCreate={() => openManager("schemes", `${char.xinfa}-${mode}`)}
         />
       ) : (
-        <>
-          {diff && (
-            <SyncBanner
-              char={char}
-              mode={mode}
-              scheme={scheme}
-              last={last}
-              diff={diff}
-            />
-          )}
-
-          <div
-            role="tablist"
-            aria-label="内容"
-            className="mt-1.5 flex shrink-0 items-end gap-4 border-b border-paper/[0.07] px-4"
-          >
-            {(
-              [
-                ["macro", "宏", last.macros.length],
-                ["talent", "奇穴", 9],
-              ] as const
-            ).map(([key, label, n]) => (
-              <button
-                key={key}
-                role="tab"
-                type="button"
-                aria-selected={tab === key}
-                onClick={() => setTab(key)}
-                className={cn(
-                  "relative -mb-px flex h-9 items-center gap-1.5 border-b-2 text-[13px] font-medium transition-colors",
-                  tab === key
-                    ? "border-cinnabar text-paper"
-                    : "border-transparent text-paper-3 hover:text-paper"
-                )}
-              >
-                {label}
-                <span className="text-[11px] font-normal text-paper-3">
-                  {n}
-                </span>
-                {key === "macro" &&
-                  compareBase &&
-                  last.macros.some(m => {
-                    const p = compareBase.macros.find(x => x.id === m.id);
-                    return !p || p.content !== m.content;
-                  }) && (
-                    <span
-                      className="h-1.5 w-1.5 rounded-[1.5px] bg-cinnabar"
-                      aria-label="有变化"
-                    />
-                  )}
-                {key === "talent" &&
-                  compareBase &&
-                  compareBase.talents.some((p, i) => p !== last.talents[i]) && (
-                    <span
-                      className="h-1.5 w-1.5 rounded-[1.5px] bg-cinnabar"
-                      aria-label="有变化"
-                    />
-                  )}
-              </button>
-            ))}
-            {tab === "macro" && (
-              <span className="mb-2.5 ml-auto text-[11px] text-paper-3">
-                复制时自动去掉注释和空行
-              </span>
-            )}
-          </div>
-
-          <div
-            key={`${char.id}-${mode}-${tab}`}
-            className="scroll-thin min-h-0 flex-1 animate-fade overflow-y-auto"
-          >
-            {tab === "macro" ? (
-              <MacroList macros={last.macros} base={compareBase} />
-            ) : (
-              <TalentList
-                xinfa={char.xinfa}
-                talents={last.talents}
-                base={compareBase}
-              />
-            )}
-          </div>
-        </>
-      )}
-
-      <footer className="flex h-9 shrink-0 items-center justify-between border-t border-paper/[0.07] px-4 text-[11.5px] text-paper-3">
-        <span>
-          {mine.length} 个角色
-          {pending > 0 ? (
-            <>
-              {" · "}
-              <span className="text-cinnabar-text">{pending} 个待同步</span>
-            </>
+        <div
+          key={`${char.id}-${mode}-${tab}`}
+          className="scroll-thin min-h-0 flex-1 animate-fade overflow-y-auto"
+        >
+          {tab === "macro" ? (
+            <MacroList macros={last.macros} base={base} />
           ) : (
-            " · 全部已同步"
+            <TalentList xinfa={char.xinfa} talents={last.talents} base={base} />
           )}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <Kbd keys={hotkeyKeys(state.platform)} /> 呼出 / 收起
-        </span>
-      </footer>
+        </div>
+      )}
     </>
   );
 }
@@ -359,72 +303,53 @@ function CharacterSwitcher({
         onClick={() => setOpen(o => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex min-w-0 items-center gap-2.5 rounded-lg px-1.5 py-1 text-left hover:bg-paper/[0.06]"
+        title={`${current.server} · ${current.xinfa}`}
+        className="flex min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 text-left hover:bg-paper/[0.06]"
       >
-        <XinfaMark xinfa={current.xinfa} size={34} />
-        <span className="min-w-0">
-          <span className="flex items-center gap-1.5">
-            <span className="truncate font-serif text-[16px] font-semibold leading-tight">
-              {current.name}
-            </span>
-            <ChevronDown
-              className={cn(
-                "h-3.5 w-3.5 shrink-0 text-paper-3 transition-transform",
-                open && "rotate-180"
-              )}
-              aria-hidden="true"
-            />
-          </span>
-          <span className="block truncate text-[11.5px] text-paper-3">
-            {current.server} · {current.xinfa}
-          </span>
+        <XinfaMark xinfa={current.xinfa} size={28} />
+        <span className="truncate font-serif text-[15px] font-semibold leading-tight">
+          {current.name}
         </span>
+        <ChevronDown
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 text-paper-3 transition-transform",
+            open && "rotate-180"
+          )}
+          aria-hidden="true"
+        />
       </button>
 
       {open && (
-        <div className="absolute inset-x-2 top-[54px] z-30 animate-panel-down rounded-xl bg-ink-3 p-1.5 shadow-[0_18px_44px_-10px_rgb(0_0_0/0.75)] ring-1 ring-paper/12">
-          <p className="px-2 pb-1 pt-1 text-[11px] text-paper-3">
-            切换角色 · 面板打开时可以按数字键
-          </p>
+        <div className="absolute inset-x-2 top-[46px] z-30 animate-panel-down rounded-xl bg-ink-3 p-1 shadow-[0_18px_44px_-10px_rgb(0_0_0/0.75)] ring-1 ring-paper/12">
           <ul role="listbox" aria-label="我的角色">
             {characters.map((c, i) => {
-              const m: Mode = state.activeMode[c.id] ?? "PVE";
-              const st = statusOf(state, c, m);
               const active = c.id === current.id;
+              const pending = charPending(state, c);
               return (
                 <li key={c.id}>
                   <button
                     type="button"
                     role="option"
                     aria-selected={active}
+                    title={i < 9 ? `面板打开时按 ${i + 1} 切换` : undefined}
                     onClick={() => {
                       actions.selectCharacter(c.id);
                       setOpen(false);
                     }}
                     className={cn(
-                      "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left",
+                      "flex h-10 w-full items-center gap-2.5 rounded-lg px-2 text-left",
                       active ? "bg-paper/[0.07]" : "hover:bg-paper/[0.05]"
                     )}
                   >
-                    {i < 9 ? (
-                      <Kbd keys={[String(i + 1)]} />
-                    ) : (
-                      <span className="w-[18px]" />
-                    )}
-                    <XinfaMark xinfa={c.xinfa} size={26} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-medium text-paper">
-                        {c.name}
-                      </span>
-                      <span className="block truncate text-[11px] text-paper-3">
-                        {c.xinfa} · {m}
+                    <XinfaMark xinfa={c.xinfa} size={24} />
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-paper">
+                      {c.name}
+                      <span className="ml-2 text-[11.5px] font-normal text-paper-3">
+                        {c.xinfa}
                       </span>
                     </span>
-                    {charPending(state, c) ? (
-                      <StatusPill status={isPending(st) ? st : "pending"} />
-                    ) : (
-                      <StatusPill status={st} />
-                    )}
+                    {pending && <span className="sr-only">待同步</span>}
+                    {pending && <ChangeDot className="h-2 w-2 rounded-[2px]" />}
                   </button>
                 </li>
               );
@@ -437,10 +362,10 @@ function CharacterSwitcher({
                 setOpen(false);
                 onManage();
               }}
-              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[12.5px] text-paper-2 hover:bg-paper/[0.05] hover:text-paper"
+              className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[12.5px] text-paper-2 hover:bg-paper/[0.05] hover:text-paper"
             >
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              添加或管理角色
+              管理角色
             </button>
           </div>
         </div>
@@ -461,27 +386,23 @@ function NoScheme({
   onCreate: () => void;
 }) {
   const { state } = useProto();
-  const role = me(state)?.role;
+  const viewer = me(state)?.role === "viewer";
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-8 text-center">
-      <XinfaMark xinfa={xinfa} size={44} className="opacity-60" />
-      <p className="mt-4 font-serif text-[15px] font-semibold">
-        {xinfa}还没有 {mode} 方案
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-8 pb-6 text-center">
+      <XinfaMark xinfa={xinfa} size={40} className="opacity-60" />
+      <p className="text-[13.5px] text-paper-2">
+        {xinfa}没有 {mode} 方案
       </p>
-      <p className="mt-1.5 text-[12.5px] leading-relaxed text-paper-3">
-        {role === "viewer"
-          ? "你是只读成员，可以请管理员或编辑新建。"
-          : "新建后，亲友团里所有这个心法的角色都能用。"}
-      </p>
-      {role !== "viewer" && (
+      {viewer ? (
+        <p className="text-[12px] text-paper-3">只读成员不能新建</p>
+      ) : (
         <Btn
           variant="secondary"
           size="sm"
-          className="mt-4"
           onClick={onCreate}
           icon={<Plus className="h-3.5 w-3.5" />}
         >
-          去管理窗口新建
+          新建方案
         </Btn>
       )}
     </div>
@@ -492,7 +413,7 @@ function NoCharacters({ onAdd }: { onAdd: () => void }) {
   const { state } = useProto();
   return (
     <div className="flex flex-1 flex-col">
-      <header className="flex h-[56px] shrink-0 items-center border-b border-paper/[0.07] px-4">
+      <header className="flex h-12 shrink-0 items-center border-b border-paper/[0.07] px-4">
         <Wordmark size="sm" />
         <span className="ml-auto inline-flex items-center gap-1.5 text-[12px] text-paper-3">
           <Users className="h-3.5 w-3.5" aria-hidden="true" />
@@ -500,22 +421,18 @@ function NoCharacters({ onAdd }: { onAdd: () => void }) {
         </span>
       </header>
       <OfflineBar compact />
-      <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
-        <span className="grid h-12 w-12 place-items-center rounded-xl bg-ink-4 text-paper-2 ring-1 ring-inset ring-paper/10">
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 pb-6 text-center">
+        <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-4 text-paper-2 ring-1 ring-inset ring-paper/10">
           <UserPlus className="h-5 w-5" aria-hidden="true" />
         </span>
-        <p className="mt-4 font-serif text-[16px] font-semibold">还没有角色</p>
-        <p className="mt-1.5 text-[12.5px] leading-relaxed text-paper-3">
-          添加角色并选好心法，这里就会显示它要用的宏和奇穴。
-        </p>
+        <p className="text-[13.5px] text-paper-2">还没有角色</p>
         <Btn
           variant="primary"
           size="md"
-          className="mt-5"
           onClick={onAdd}
           icon={<Plus className="h-4 w-4" />}
         >
-          添加第一个角色
+          添加角色
         </Btn>
       </div>
     </div>
@@ -535,148 +452,120 @@ function Onboarding() {
       return;
     }
     if (!actions.joinTeam(code)) {
-      setError(
-        "邀请码无效或已过期。检查一下有没有输错，或者找管理员要一个新的。"
-      );
+      setError("邀请码无效或已过期");
       return;
     }
-    actions.toast(
-      "panel",
-      "success",
-      `已加入「${SEED_TEAM.name}」。你现在是只读成员，管理员可以改成编辑。`
-    );
+    actions.toast("panel", "success", `已加入「${SEED_TEAM.name}」`);
   };
   const create = () => {
     const n = name.trim();
     if (!n) {
-      setNameError("给亲友团起个名字");
+      setNameError("先填名字");
       return;
     }
     if (n.length > 12) {
-      setNameError("名字最多 12 个字");
+      setNameError("最多 12 个字");
       return;
     }
     actions.createTeam(n);
-    actions.toast(
-      "panel",
-      "success",
-      `已创建「${n}」。去管理窗口复制邀请码发给亲友。`
-    );
+    actions.toast("panel", "success", `已创建「${n}」`);
   };
+
+  const inputCls = (err: string) =>
+    cn(
+      "h-9 min-w-0 flex-1 rounded-md bg-ink px-3 text-[13px] text-paper placeholder:text-paper-3/70 ring-1 ring-inset focus:outline-none focus:ring-2",
+      err
+        ? "ring-cinnabar/70 focus:ring-cinnabar"
+        : "ring-paper/12 focus:ring-cinnabar-text/60"
+    );
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="flex h-[56px] shrink-0 items-center border-b border-paper/[0.07] px-4">
+      <header className="flex h-12 shrink-0 items-center border-b border-paper/[0.07] px-4">
         <Wordmark size="sm" />
-        <span className="ml-auto text-[12px] text-paper-3">已登录 · 八八</span>
+        <span className="ml-auto text-[12px] text-paper-3">八八</span>
       </header>
-      <div className="scroll-thin flex-1 overflow-y-auto px-5 pb-5 pt-6">
-        <h2 className="font-serif text-[19px] font-semibold leading-snug">
-          技改一次，
-          <br />
-          所有角色一起对齐。
-        </h2>
-        <p className="mt-2 text-[12.5px] leading-relaxed text-paper-2">
-          和亲友共用一套宏和奇穴。有人更新方案，你的角色会自动标成待同步。
+      <div className="flex flex-1 flex-col justify-center px-5 pb-8">
+        <label
+          htmlFor="invite"
+          className="text-[12.5px] font-medium text-paper"
+        >
+          加入亲友团
+        </label>
+        <div className="mt-1.5 flex gap-2">
+          <input
+            id="invite"
+            value={code}
+            onChange={e => {
+              setCode(e.target.value);
+              setError("");
+            }}
+            onKeyDown={e => e.key === "Enter" && join()}
+            placeholder="邀请码 TD-XXXX-XXXX"
+            aria-invalid={!!error}
+            aria-describedby="invite-msg"
+            className={cn(
+              inputCls(error),
+              "font-mono uppercase tracking-wider placeholder:font-sans placeholder:normal-case placeholder:tracking-normal"
+            )}
+          />
+          <Btn variant="primary" size="md" onClick={join}>
+            加入
+          </Btn>
+        </div>
+        <p
+          id="invite-msg"
+          className={cn(
+            "mt-1.5 min-h-[18px] text-[12px]",
+            error ? "text-cinnabar-text" : "text-paper-3"
+          )}
+        >
+          {error || (
+            <>
+              演示码{" "}
+              <button
+                type="button"
+                className="font-mono text-paper-2 underline decoration-paper/30 underline-offset-2 hover:text-paper"
+                onClick={() => setCode(SEED_TEAM.inviteCode)}
+              >
+                {SEED_TEAM.inviteCode}
+              </button>
+            </>
+          )}
         </p>
 
-        <div className="mt-6">
-          <label
-            htmlFor="invite"
-            className="text-[12.5px] font-medium text-paper"
-          >
-            用邀请码加入亲友团
-          </label>
-          <div className="mt-1.5 flex gap-2">
-            <input
-              id="invite"
-              value={code}
-              onChange={e => {
-                setCode(e.target.value);
-                setError("");
-              }}
-              onKeyDown={e => e.key === "Enter" && join()}
-              placeholder="TD-XXXX-XXXX"
-              aria-invalid={!!error}
-              aria-describedby="invite-msg"
-              className={cn(
-                "h-9 min-w-0 flex-1 rounded-md bg-ink px-3 font-mono text-[13px] uppercase tracking-wider text-paper placeholder:normal-case placeholder:tracking-normal placeholder:text-paper-3/70 ring-1 ring-inset focus:outline-none focus:ring-2",
-                error
-                  ? "ring-cinnabar/70 focus:ring-cinnabar"
-                  : "ring-paper/12 focus:ring-cinnabar-text/60"
-              )}
-            />
-            <Btn variant="primary" size="md" onClick={join}>
-              加入
-            </Btn>
-          </div>
-          <p
-            id="invite-msg"
-            className={cn(
-              "mt-1.5 text-[12px] leading-relaxed",
-              error ? "text-cinnabar-text" : "text-paper-3"
-            )}
-          >
-            {error || (
-              <>
-                演示用邀请码：
-                <button
-                  type="button"
-                  className="font-mono text-paper-2 underline decoration-paper/30 underline-offset-2 hover:text-paper"
-                  onClick={() => setCode(SEED_TEAM.inviteCode)}
-                >
-                  {SEED_TEAM.inviteCode}
-                </button>
-              </>
-            )}
-          </p>
-        </div>
-
         <div className="my-5 flex items-center gap-3 text-[11.5px] text-paper-3">
-          <span className="h-px flex-1 bg-paper/10" />
-          或者
+          <span className="h-px flex-1 bg-paper/10" />或
           <span className="h-px flex-1 bg-paper/10" />
         </div>
 
-        <div>
-          <label
-            htmlFor="team-name"
-            className="text-[12.5px] font-medium text-paper"
-          >
-            创建新的亲友团
-          </label>
-          <div className="mt-1.5 flex gap-2">
-            <input
-              id="team-name"
-              value={name}
-              onChange={e => {
-                setName(e.target.value);
-                setNameError("");
-              }}
-              onKeyDown={e => e.key === "Enter" && create()}
-              placeholder="比如：夜雨听风"
-              maxLength={20}
-              aria-invalid={!!nameError}
-              className={cn(
-                "h-9 min-w-0 flex-1 rounded-md bg-ink px-3 text-[13px] text-paper placeholder:text-paper-3/70 ring-1 ring-inset focus:outline-none focus:ring-2",
-                nameError
-                  ? "ring-cinnabar/70 focus:ring-cinnabar"
-                  : "ring-paper/12 focus:ring-cinnabar-text/60"
-              )}
-            />
-            <Btn variant="secondary" size="md" onClick={create}>
-              创建
-            </Btn>
-          </div>
-          <p
-            className={cn(
-              "mt-1.5 text-[12px]",
-              nameError ? "text-cinnabar-text" : "text-paper-3"
-            )}
-          >
-            {nameError || "你会成为管理员，可以邀请亲友和设置权限。"}
-          </p>
+        <label
+          htmlFor="team-name"
+          className="text-[12.5px] font-medium text-paper"
+        >
+          创建亲友团
+        </label>
+        <div className="mt-1.5 flex gap-2">
+          <input
+            id="team-name"
+            value={name}
+            onChange={e => {
+              setName(e.target.value);
+              setNameError("");
+            }}
+            onKeyDown={e => e.key === "Enter" && create()}
+            placeholder="名字"
+            maxLength={20}
+            aria-invalid={!!nameError}
+            className={inputCls(nameError)}
+          />
+          <Btn variant="secondary" size="md" onClick={create}>
+            创建
+          </Btn>
         </div>
+        <p className="mt-1.5 min-h-[18px] text-[12px] text-cinnabar-text">
+          {nameError}
+        </p>
       </div>
     </div>
   );
@@ -689,32 +578,32 @@ function PanelSkeleton() {
       aria-busy="true"
       aria-label="正在加载"
     >
-      <div className="flex h-[56px] items-center gap-2.5 border-b border-paper/[0.07] px-3.5">
-        <span className="skeleton h-[34px] w-[34px]" />
-        <span className="flex flex-col gap-1.5">
-          <span className="skeleton h-3.5 w-20" />
-          <span className="skeleton h-2.5 w-28" />
+      <div className="flex h-12 items-center gap-2 border-b border-paper/[0.07] px-3">
+        <span className="skeleton h-7 w-7" />
+        <span className="skeleton h-3.5 w-20" />
+        <span className="ml-auto flex gap-1.5">
+          <span className="skeleton h-6 w-6" />
+          <span className="skeleton h-6 w-6" />
+          <span className="skeleton h-6 w-6" />
         </span>
       </div>
-      <div className="px-4 pt-3">
-        <span className="skeleton block h-6 w-28" />
-        <span className="skeleton mt-3 block h-[62px] w-full rounded-lg" />
+      <div className="flex h-10 items-center gap-4 border-b border-paper/[0.07] px-4">
+        <span className="skeleton h-3 w-6" />
+        <span className="skeleton h-3 w-8" />
+        <span className="skeleton ml-auto h-5 w-[86px]" />
       </div>
-      <div className="space-y-3 px-4 pt-5">
+      <div className="space-y-3 px-4 pt-4">
         {[0, 1, 2].map(i => (
           <div key={i} className="flex items-center gap-2.5">
-            <span className="skeleton h-[34px] w-[34px]" />
+            <span className="skeleton h-8 w-8" />
             <span className="flex flex-1 flex-col gap-1.5">
               <span className="skeleton h-3 w-2/5" />
               <span className="skeleton h-2.5 w-1/4" />
             </span>
-            <span className="skeleton h-7 w-[68px]" />
+            <span className="skeleton h-7 w-[64px]" />
           </div>
         ))}
       </div>
-      <p className="mt-auto pb-3 text-center text-[11.5px] text-paper-3">
-        正在同步方案…
-      </p>
     </div>
   );
 }

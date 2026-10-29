@@ -29,16 +29,12 @@ export function TeamView() {
   const onCopy = async () => {
     const ok = await copyText(team.inviteCode);
     if (!ok) {
-      actions.toast("manager", "error", "复制失败，请手动选中邀请码复制。");
+      actions.toast("manager", "error", "复制失败，请手动选中复制");
       return;
     }
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1500);
-    actions.toast(
-      "manager",
-      "success",
-      "邀请码已复制。发给亲友，让他们在同调面板里输入。"
-    );
+    actions.toast("manager", "success", "邀请码已复制");
   };
 
   const onRole = (m: Member, role: Role) => {
@@ -63,7 +59,7 @@ export function TeamView() {
     <div>
       <SectionHeader
         title={`亲友团 · ${team.name}`}
-        description={`${state.members.length} 位成员。大家共用方案，各自管理自己的角色。`}
+        description={`${state.members.length} 位成员`}
       />
 
       <div className="mb-6 flex flex-wrap items-center gap-4 rounded-xl bg-ink-3 px-5 py-4 ring-1 ring-inset ring-paper/8">
@@ -72,10 +68,7 @@ export function TeamView() {
           <p className="mt-1 select-all font-mono text-[22px] font-medium tracking-[0.12em] text-paper">
             {team.inviteCode}
           </p>
-          <p className="mt-1 text-[12px] text-paper-3">
-            新成员加入后默认是只读，管理员可以改成编辑。
-            {!isAdmin && "只有管理员能重新生成邀请码。"}
-          </p>
+          <p className="mt-1 text-[12px] text-paper-3">新成员默认只读</p>
         </div>
         <div className="flex items-center gap-2">
           <Btn
@@ -236,7 +229,7 @@ export function TeamView() {
         open={!!removing}
         onClose={() => setRemoving(null)}
         title={`移除 ${removing?.name}？`}
-        description="对方会退出亲友团，他的角色和同步记录也会删除。他保存过的方案版本会保留在技改记录里。"
+        description="对方的角色和同步记录会删除，保存过的版本保留。"
         footer={
           <>
             <Btn variant="ghost" size="md" onClick={() => setRemoving(null)}>
@@ -266,7 +259,7 @@ export function TeamView() {
         open={regen}
         onClose={() => setRegen(false)}
         title="重新生成邀请码？"
-        description="旧邀请码会立刻失效。已经加入的成员不受影响。"
+        description="旧邀请码会立刻失效。"
         footer={
           <>
             <Btn variant="ghost" size="md" onClick={() => setRegen(false)}>
@@ -278,11 +271,7 @@ export function TeamView() {
               onClick={() => {
                 actions.regenerateInvite();
                 setRegen(false);
-                actions.toast(
-                  "manager",
-                  "success",
-                  "已生成新的邀请码，旧的已失效。"
-                );
+                actions.toast("manager", "success", "已生成新邀请码");
               }}
             >
               重新生成

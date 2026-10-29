@@ -13,9 +13,12 @@ import {
   SEED_MEMBERS,
   SEED_TEAM,
   defaultTalents,
+  layersOf,
   rivalEdit,
   seedSchemes,
 } from "@/data/seed";
+import { MODES } from "@/data/types";
+import { diffVersions } from "@/lib/diff";
 import type {
   Character,
   DataState,
@@ -156,6 +159,44 @@ export function charPending(state: ProtoState, char: Character) {
 
 export function pendingCount(state: ProtoState) {
   return myCharacters(state).filter(c => charPending(state, c)).length;
+}
+
+/** 通知：我的角色里每个待同步的方案算一条 */
+export interface InboxItem {
+  key: string;
+  char: Character;
+  mode: Mode;
+  scheme: Scheme;
+  last: SchemeVersion;
+  /** 上次同步的版本；没同步过时为空 */
+  base?: SchemeVersion;
+  /** 上次同步之后的所有版本，按版本号升序 */
+  versions: SchemeVersion[];
+}
+
+export function inboxItems(state: ProtoState): InboxItem[] {
+  const items: InboxItem[] = [];
+  for (const char of myCharacters(state)) {
+    for (const mode of MODES) {
+      if (!isPending(statusOf(state, char, mode))) continue;
+      const scheme = findScheme(state, char.xinfa, mode)!;
+      const last = latest(scheme)!;
+      const synced = char.synced[mode];
+      items.push({
+        key: `${char.id}-${mode}`,
+        char,
+        mode,
+        scheme,
+        last,
+        base:
+          synced === undefined
+            ? undefined
+            : scheme.versions.find(v => v.version === synced),
+        versions: scheme.versions.filter(v => v.version > (synced ?? 0)),
+      });
+    }
+  }
+  return items.sort((a, b) => b.last.at.localeCompare(a.last.at));
 }
 
 export function me(state: ProtoState): Member | undefined {
@@ -320,6 +361,20 @@ function useActions(
         }));
         return { name: char.name, version: last.version };
       },
+      markAllSynced: () => {
+        const items = inboxItems(stateRef.current);
+        if (!items.length) return 0;
+        update(st => ({
+          characters: st.characters.map(c => {
+            const mine = items.filter(i => i.char.id === c.id);
+            if (!mine.length) return c;
+            const synced = { ...c.synced };
+            for (const i of mine) synced[i.mode] = i.last.version;
+            return { ...c, synced };
+          }),
+        }));
+        return items.length;
+      },
 
       // 管理窗口
       openManager: (
@@ -401,12 +456,27 @@ function useActions(
           authorId: ME_ID,
           at: new Date().toISOString(),
         };
+        // 只改了备注：游戏里不用动，已同步的角色继续算已同步
+        const noGameChange =
+          !!last &&
+          diffVersions(last, version, layersOf(draft.xinfa)).total === 0;
         update(st => {
           const drafts = { ...st.drafts };
           delete drafts[schemeId];
           return {
             schemes: appendVersion(st.schemes, schemeId, version, draft),
             drafts,
+            characters: noGameChange
+              ? st.characters.map(c =>
+                  c.xinfa === draft.xinfa &&
+                  c.synced[draft.mode] === last!.version
+                    ? {
+                        ...c,
+                        synced: { ...c.synced, [draft.mode]: version.version },
+                      }
+                    : c
+                )
+              : st.characters,
           };
         });
         return "saved";

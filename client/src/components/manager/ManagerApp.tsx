@@ -161,9 +161,6 @@ function NoTeam({ onOpenPanel }: { onOpenPanel?: () => void }) {
       <p className="mt-4 font-serif text-[17px] font-semibold">
         还没加入亲友团
       </p>
-      <p className="mt-1.5 max-w-[360px] text-[13px] leading-relaxed text-paper-3">
-        在托盘面板里输入亲友给你的邀请码，或者创建一个新的亲友团。
-      </p>
       {onOpenPanel && (
         <Btn variant="primary" size="md" className="mt-5" onClick={onOpenPanel}>
           打开面板

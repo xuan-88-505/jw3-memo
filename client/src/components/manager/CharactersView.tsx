@@ -40,7 +40,6 @@ export function CharactersView() {
     <div>
       <SectionHeader
         title="我的角色"
-        description="同步状态只属于你自己。在游戏里改好后，点「标记」把角色设成已同步。"
         right={
           mine.length > 0 && (
             <>
@@ -70,7 +69,6 @@ export function CharactersView() {
         <EmptyState
           icon={<UserPlus className="h-5 w-5" />}
           title="还没有角色"
-          description="添加角色并选好心法。之后有人更新这个心法的方案，角色会自动标成待同步。"
           action={
             <Btn
               variant="primary"
@@ -86,7 +84,6 @@ export function CharactersView() {
         <EmptyState
           icon={<CheckCircle2 className="h-5 w-5 text-jade" />}
           title="全部已同步"
-          description="所有角色都是最新方案。有人更新方案时，这里会出现待同步的角色。"
         />
       ) : (
         <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-paper/8">
@@ -146,7 +143,7 @@ export function CharactersView() {
         open={!!removing}
         onClose={() => setRemoving(null)}
         title={`删除「${removing?.name}」？`}
-        description="只会删掉这个角色和它的同步记录。方案不受影响，亲友那边也不受影响。"
+        description="只删除角色和它的同步记录，方案不受影响。"
         footer={
           <>
             <Btn variant="ghost" size="md" onClick={() => setRemoving(null)}>
@@ -254,7 +251,7 @@ function AddCharacterDialog({
       "success",
       hasScheme
         ? `已添加「${n}」。去面板里看它要用的宏和奇穴。`
-        : `已添加「${n}」。${xinfa}还没有方案，可以去方案库新建。`
+        : `已添加「${n}」，${xinfa}还没有方案`
     );
     onClose();
   };
@@ -264,7 +261,6 @@ function AddCharacterDialog({
       open={open}
       onClose={onClose}
       title="添加角色"
-      description="角色只属于你。同一个心法的方案，亲友团里大家共用。"
       footer={
         <>
           <Btn variant="ghost" size="md" onClick={onClose}>
@@ -311,11 +307,7 @@ function AddCharacterDialog({
               ))}
             </select>
           </Field>
-          <Field
-            label="心法"
-            htmlFor="char-xinfa"
-            hint="原型里只有 4 个心法的示例数据"
-          >
+          <Field label="心法" htmlFor="char-xinfa" hint="原型只有 4 个心法">
             <select
               id="char-xinfa"
               value={xinfa}

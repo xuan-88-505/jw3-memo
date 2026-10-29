@@ -129,6 +129,16 @@ export const SEED_CHARACTERS: Character[] = [
   },
 ];
 
+/** 示例备注：模拟用户自己填写的内容，空字符串表示没填 */
+const MACRO_NOTES: Record<string, string> = {
+  "紫霞功-m0": "紫气期间一直按",
+  "紫霞功-m1": "会神亮了再按",
+  "紫霞功-m2": "开怪前按一次",
+  "冰心诀-m0": "日常本用",
+  "山海心诀-m0": "日常一键循环",
+  "山海心诀-m1": "橙武特效亮了按",
+};
+
 /** 取真实宏，可选替换内容 */
 function real(
   xinfa: string,
@@ -141,6 +151,7 @@ function real(
     name: m.name,
     icon: m.icon,
     content: edit ? edit(m.content) : m.content,
+    note: MACRO_NOTES[`${xinfa}-m${index}`] ?? "",
   };
 }
 
@@ -158,7 +169,7 @@ function v(
 const sq = (xinfa: string) => [...JX3_SAMPLE.xinfa[xinfa].talentSq];
 
 // 紫霞功：循环宏带一行注释，用来演示"复制时去掉注释"
-const withComment = (s: string) => `// 紫气开出后一直按这个\n${s}`;
+const withComment = (s: string) => `// 气点阈值跟着技改调\n${s}`;
 
 function ziXia(): Scheme {
   const now = sq("紫霞功");

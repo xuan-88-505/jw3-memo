@@ -120,7 +120,13 @@ function sameContent(
   if (a.macros.length !== b.macros.length) return false;
   return a.macros.every((m, i) => {
     const o = b.macros[i];
-    return o && o.id === m.id && o.name === m.name && o.content === m.content;
+    return (
+      o &&
+      o.id === m.id &&
+      o.name === m.name &&
+      o.content === m.content &&
+      (o.note ?? "") === (m.note ?? "")
+    );
   });
 }
 
@@ -143,11 +149,9 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
         <p className="mt-4 font-serif text-[17px] font-semibold">
           {xinfa}还没有 {mode} 方案
         </p>
-        <p className="mt-1.5 max-w-[360px] text-[13px] leading-relaxed text-paper-3">
-          {editable
-            ? `新建后，亲友团里 ${users.length} 个${xinfa}角色都能用这个方案。`
-            : "你是只读成员，不能新建方案。需要的话请找管理员或编辑。"}
-        </p>
+        {!editable && (
+          <p className="mt-1.5 text-[13px] text-paper-3">只读成员不能新建</p>
+        )}
         {editable && (
           <Btn
             variant="primary"
@@ -172,7 +176,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
   );
   const nameMissing = view.macros.some(m => !m.name.trim());
   const blockReason = !online
-    ? "离线时不能保存，修改会先留在本机"
+    ? "离线时不能保存"
     : view.macros.length === 0
       ? "至少要有一个宏"
       : nameMissing
@@ -197,6 +201,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
           name: `新宏 ${d.macros.length + 1}`,
           icon: 13,
           content: "/cast ",
+          note: "",
         },
       ],
     }));
@@ -257,7 +262,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
         {!editable && (
           <div className="mt-4 flex items-center gap-2 rounded-lg bg-paper/[0.04] px-3 py-2 text-[12.5px] text-paper-2 ring-1 ring-inset ring-paper/8">
             <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            你是只读成员，只能查看和复制。需要修改请找管理员把你设成编辑。
+            只读成员不能修改
           </div>
         )}
 
@@ -281,7 +286,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
           <div className="mt-2.5 space-y-2.5">
             {view.macros.length === 0 && (
               <p className="rounded-lg border border-dashed border-paper/12 px-4 py-6 text-center text-[12.5px] text-paper-3">
-                还没有宏。点右上角「添加宏」。
+                还没有宏
               </p>
             )}
             {view.macros.map(m => (
@@ -320,17 +325,11 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
           />
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-medium text-paper">
-              {last
-                ? `有未保存的修改 · 基于 v${last.version}`
-                : "新方案 · 还没保存"}
+              {last ? "未保存的修改" : "新方案，未保存"}
             </p>
-            {blockReason ? (
+            {blockReason && (
               <p className="truncate text-[12px] text-cinnabar-text">
                 {blockReason}
-              </p>
-            ) : (
-              <p className="text-[12px] text-paper-3">
-                保存后，用这个心法的角色会变成待同步。
               </p>
             )}
           </div>
@@ -389,7 +388,10 @@ function MacroEditor({
   );
   const modified =
     hasBase &&
-    (!base || base.content !== macro.content || base.name !== macro.name);
+    (!base ||
+      base.content !== macro.content ||
+      base.name !== macro.name ||
+      (base.note ?? "") !== (macro.note ?? ""));
   const over = cleaned.length > MACRO_LIMIT;
 
   return (
@@ -430,7 +432,16 @@ function MacroEditor({
           </IconBtn>
         )}
       </div>
-      <div className="px-3 pb-3 pt-2">
+      <div className="px-3 pb-3 pt-1">
+        <input
+          value={macro.note ?? ""}
+          readOnly={!editable}
+          onChange={e => onChange({ note: e.target.value })}
+          maxLength={30}
+          aria-label={`${macro.name} 的备注`}
+          placeholder={editable ? "备注（显示在面板里，可不填）" : ""}
+          className="mb-2 h-7 w-full rounded-md bg-transparent px-1.5 text-[12.5px] text-paper-2 placeholder:text-paper-3/70 hover:bg-paper/[0.03] focus:bg-ink focus:outline-none focus:ring-1 focus:ring-paper/20 read-only:hover:bg-transparent"
+        />
         <textarea
           value={macro.content}
           readOnly={!editable}
@@ -582,7 +593,7 @@ function SaveDialog({
               error ? "text-cinnabar-text" : "text-paper-3"
             )}
           >
-            {error || `会显示在技改记录和亲友的面板上 · ${note.length}/60`}
+            {error || `亲友会在通知里看到 · ${note.length}/60`}
           </p>
         </div>
 
@@ -739,9 +750,7 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
             )}
           </div>
         ))}
-        <p className="pt-1 text-[12px] text-paper-3">
-          选「以我的为准」时，两份都会留在技改记录里，以后可以对照。
-        </p>
+        <p className="pt-1 text-[12px] text-paper-3">两份都会留在技改记录里</p>
       </div>
     </InlineModal>
   );

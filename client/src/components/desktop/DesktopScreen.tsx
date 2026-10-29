@@ -237,17 +237,15 @@ export function DesktopScreen() {
           )}
           style={{ left: coachLeft }}
         >
-          点这里打开同调面板，
-          <br />
-          或者按 {hotkeyKeys(state.platform).join(" + ")}。
+          点这里打开面板，或按 {hotkeyKeys(state.platform).join(" + ")}
         </DemoNote>
       )}
       {full && !state.panelOpen && (
         <DemoNote className="absolute left-1/2 top-6 z-30 w-[520px] -translate-x-1/2 text-center">
-          游戏全屏中，任务栏被盖住了。按 Alt + Q 呼出面板。
+          游戏全屏中，按 Alt + Q 呼出面板
           <br />
           <span className="text-gold/75">
-            游戏需要设成「无边框窗口」或「窗口模式」；独占全屏时面板会被盖住（实机待验证）。
+            需设为无边框窗口，独占全屏会被盖住（实机待验证）
           </span>
         </DemoNote>
       )}

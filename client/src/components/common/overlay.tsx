@@ -178,9 +178,7 @@ export function OfflineBar({ compact }: { compact?: boolean }) {
       )}
     >
       <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-      <span className="min-w-0 flex-1">
-        网络连接失败，正在显示上次同步的内容。复制宏不受影响。
-      </span>
+      <span className="min-w-0 flex-1">离线，显示的是上次同步的内容</span>
       <button
         type="button"
         onClick={actions.retry}

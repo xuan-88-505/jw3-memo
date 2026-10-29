@@ -23,7 +23,7 @@ export default function Home() {
           交互原型 · 示例数据
         </span>
         <p className="text-[12.5px] text-paper-3">
-          不连后台，刷新后数据会恢复。宏和奇穴来自魔盒公开数据。
+          不连后台，刷新后复原 · 宏和奇穴来自魔盒
         </p>
         <nav className="ml-auto flex items-center gap-1 text-[12.5px]">
           <Link
@@ -140,18 +140,17 @@ export default function Home() {
 
         <section className="grid gap-x-8 gap-y-3 py-6 text-[13px] leading-relaxed text-paper-2 md:grid-cols-2 xl:grid-cols-4">
           <Tip n="1" title="打开面板">
-            {mac ? "点菜单栏右上角的同调图标" : "点任务栏右下角的同调图标"}
-            ，或者先点一下画面再按 {hk}。面板打开时按数字键 1–4 切换角色。
+            点{mac ? "菜单栏" : "任务栏"}的同调图标，或按 {hk}。数字键 1–4
+            切角色。
           </Tip>
-          <Tip n="2" title="复制宏">
-            点「复制」。注释和空行会自动去掉。展开宏可以看到哪几行是这次技改改的。
+          <Tip n="2" title="通知">
+            点铃铛，看哪些角色要同步、改了什么。游戏里改好后点「标记已同步」。
           </Tip>
-          <Tip n="3" title="置顶和拖动">
-            点图钉后，点面板外面不会收起，按住顶部可以拖动。切到「游戏 ·
-            全屏」试试。
+          <Tip n="3" title="置顶">
+            点图钉后不会自动收起，按住顶部可以拖动。
           </Tip>
           <Tip n="4" title="改方案">
-            点面板右上角打开管理窗口，改一个奇穴并保存。打开「模拟亲友同时编辑」可以看到冲突提示。
+            在管理窗口改宏、备注或奇穴。打开「模拟亲友同时编辑」再保存，可以看冲突提示。
           </Tip>
         </section>
       </div>

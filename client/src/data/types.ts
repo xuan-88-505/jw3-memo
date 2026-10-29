@@ -49,6 +49,8 @@ export interface Macro {
   name: string;
   icon: number;
   content: string;
+  /** 用户自己写的备注，显示在面板的宏名下面。只改备注不算技改 */
+  note?: string;
 }
 
 export interface SchemeVersion {
