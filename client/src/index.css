@@ -186,21 +186,6 @@
     background-clip: padding-box;
   }
 
-  /* 标题下方的一小段朱砂线 */
-  .cinnabar-rule {
-    position: relative;
-  }
-  .cinnabar-rule::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    bottom: -6px;
-    width: 18px;
-    height: 2px;
-    border-radius: 2px;
-    background: var(--color-cinnabar);
-  }
-
   /* 面板的半透明底，叠在游戏上 */
   .glass-ink {
     background: rgb(24 23 20 / 0.94);
