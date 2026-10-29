@@ -10,19 +10,6 @@ import { MACRO_LIMIT, cleanMacro, isCommentLine } from "@/lib/macro";
 import { useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
 
-/** 改动标记：面板里统一用这个小方块表示"这次有变化" */
-export function ChangeDot({ className }: { className?: string }) {
-  return (
-    <span
-      className={cn(
-        "h-1.5 w-1.5 shrink-0 rounded-[1.5px] bg-cinnabar",
-        className
-      )}
-      aria-label="有变化"
-    />
-  );
-}
-
 // ---------- 变化列表（通知里用） ----------
 
 export function ChangeList({ diff }: { diff: SchemeDiff }) {
@@ -134,7 +121,6 @@ export function MacroCard({
       prev ? changedLines(prev.content, macro.content) : new Set<number>(),
     [prev, macro.content]
   );
-  const updated = isNew || changed.size > 0;
   const over = cleaned.length > MACRO_LIMIT;
   const note = macro.note?.trim();
 
@@ -169,9 +155,6 @@ export function MacroCard({
         >
           <span className="relative shrink-0">
             <Jx3Icon id={macro.icon} name={macro.name} size={32} />
-            {updated && (
-              <ChangeDot className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-[2.5px] ring-2 ring-ink-2" />
-            )}
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[13.5px] font-medium text-paper">
@@ -269,11 +252,9 @@ export function MacroCode({
 export function TalentList({
   xinfa,
   talents,
-  base,
 }: {
   xinfa: string;
   talents: number[];
-  base?: SchemeVersion;
 }) {
   const layers = layersOf(xinfa);
   const [openLayer, setOpenLayer] = useState<number | null>(null);
@@ -283,7 +264,6 @@ export function TalentList({
       {talents.map((pos, i) => {
         const o = layers[i]?.options.find(x => x.pos === pos);
         if (!o) return null;
-        const changed = !!base && base.talents[i] !== pos;
         const open = openLayer === i;
         return (
           <li key={i}>
@@ -304,7 +284,6 @@ export function TalentList({
                 <span className="truncate text-[13px] text-paper">
                   {o.name}
                 </span>
-                {changed && <ChangeDot />}
               </span>
               <ChevronDown
                 className={cn(

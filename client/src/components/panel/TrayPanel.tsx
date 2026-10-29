@@ -27,7 +27,6 @@ import {
   type Mode,
 } from "@/data/types";
 import {
-  charPending,
   findScheme,
   inboxItems,
   isPending,
@@ -42,7 +41,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Inbox } from "./Inbox";
 import { NoteView } from "./NotePad";
-import { ChangeDot, MacroList, TalentList } from "./PanelContent";
+import { MacroList, TalentList } from "./PanelContent";
 
 export interface TrayPanelProps {
   /** 钉住后拖动面板用 */
@@ -129,28 +128,17 @@ function PanelMain({
     const scheme = findScheme(state, x, mode);
     const last = latest(scheme);
     const status = statusOf(state, char, mode, x);
-    // 只在"有更新还没同步"时标出变化；从没同步过的不逐条标
+    // 有更新还没改时，展开宏能高亮改过的行；从没改过的不逐行标
     const base =
       status === "pending"
         ? scheme?.versions.find(v => v.version === char.synced[x]?.[mode])
         : undefined;
-    const macroChanged =
-      !!base &&
-      !!last &&
-      last.macros.some(m => {
-        const p = base.macros.find(y => y.id === m.id);
-        return !p || p.content !== m.content;
-      });
-    const talentChanged =
-      !!base && !!last && base.talents.some((p, i) => p !== last.talents[i]);
     return {
       xinfa: x,
       scheme,
       last,
       status,
       base,
-      macroChanged,
-      talentChanged,
     };
   });
   // 有方案的心法在前，还没有方案的放最后
@@ -193,9 +181,6 @@ function PanelMain({
       />
     );
   }
-
-  const macroChanged = sections.some(x => x.macroChanged);
-  const talentChanged = sections.some(x => x.talentChanged);
 
   return (
     <>
@@ -275,11 +260,7 @@ function PanelMain({
               tab === "macro" ? (
                 <MacroList macros={sec.last!.macros} base={sec.base} />
               ) : (
-                <TalentList
-                  xinfa={sec.xinfa}
-                  talents={sec.last!.talents}
-                  base={sec.base}
-                />
+                <TalentList xinfa={sec.xinfa} talents={sec.last!.talents} />
               );
             // 只玩一个心法时不加小标题
             if (!multi) return <div key={sec.xinfa}>{list}</div>;
@@ -296,9 +277,6 @@ function PanelMain({
                   id={id}
                   xinfa={sec.xinfa}
                   version={sec.last!.version}
-                  changed={
-                    tab === "macro" ? sec.macroChanged : sec.talentChanged
-                  }
                 />
                 {list}
               </section>
@@ -327,10 +305,10 @@ function PanelMain({
         >
           {(
             [
-              ["macro", "宏", macroChanged],
-              ["talent", "奇穴", talentChanged],
+              ["macro", "宏"],
+              ["talent", "奇穴"],
             ] as const
-          ).map(([key, label, changed]) => (
+          ).map(([key, label]) => (
             <button
               key={key}
               role="tab"
@@ -345,7 +323,6 @@ function PanelMain({
               )}
             >
               {label}
-              {changed && <ChangeDot />}
             </button>
           ))}
         </div>
@@ -356,17 +333,7 @@ function PanelMain({
               size="xs"
               value={mode}
               onChange={m => actions.setMode(char.id, m)}
-              options={modes.map(m => ({
-                value: m,
-                label: (
-                  <span className="inline-flex items-center gap-1">
-                    {m}
-                    {xinfas.some(x =>
-                      isPending(statusOf(state, char, m, x))
-                    ) && <ChangeDot />}
-                  </span>
-                ),
-              }))}
+              options={modes.map(m => ({ value: m, label: m }))}
             />
           </div>
         )}
@@ -380,12 +347,10 @@ function SectionHeading({
   id,
   xinfa,
   version,
-  changed,
 }: {
   id: string;
   xinfa: string;
   version: number;
-  changed: boolean;
 }) {
   return (
     <h3
@@ -396,12 +361,6 @@ function SectionHeading({
         <XinfaMark xinfa={xinfa} size={16} />
       </span>
       <span className="truncate">{xinfa}</span>
-      {changed && (
-        <>
-          <ChangeDot />
-          <span className="sr-only">有改动</span>
-        </>
-      )}
       <span className="ml-auto shrink-0 text-[11px] font-normal tabular-nums text-paper-3">
         v{version}
       </span>
@@ -495,7 +454,6 @@ function CharacterSwitcher({
           <ul role="listbox" aria-label="我的角色">
             {characters.map((c, i) => {
               const active = c.id === current.id;
-              const pending = charPending(state, c);
               return (
                 <li key={c.id}>
                   <button
@@ -519,8 +477,6 @@ function CharacterSwitcher({
                         {schoolLabel(c)}
                       </span>
                     </span>
-                    {pending && <span className="sr-only">有更新</span>}
-                    {pending && <ChangeDot className="h-2 w-2 rounded-[2px]" />}
                   </button>
                 </li>
               );
