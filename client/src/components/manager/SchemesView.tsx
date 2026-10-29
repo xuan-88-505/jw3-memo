@@ -10,7 +10,13 @@ import {
 } from "lucide-react";
 import { Jx3Icon, XinfaMark } from "@/components/brand/Marks";
 import { InlineModal } from "@/components/common/overlay";
-import { Btn, IconBtn, SectionLabel, Segmented } from "@/components/common/ui";
+import {
+  Avatar,
+  Btn,
+  IconBtn,
+  SectionLabel,
+  Segmented,
+} from "@/components/common/ui";
 import { ME_ID, XINFA_LIST, layersOf } from "@/data/seed";
 import { MODES, type Macro, type Mode, type SchemeVersion } from "@/data/types";
 import { diffVersions } from "@/lib/diff";
@@ -319,7 +325,10 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
   const online = isOnline(state);
   const [saving, setSaving] = useState(false);
 
-  const users = state.characters.filter(c => c.xinfa === xinfa);
+  /** 只有自己一个人时，不显示创建人 */
+  const solo = !state.team || state.members.length <= 1;
+  const creatorId = scheme?.versions[0]?.authorId;
+  const creator = state.members.find(m => m.id === creatorId);
   const other: Mode = mode === "PVE" ? "PVP" : "PVE";
   const otherExists =
     !!latest(findScheme(state, xinfa, other)) ||
@@ -408,28 +417,25 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
             <h1 className="font-serif text-[20px] font-semibold leading-tight">
               {xinfa} · {mode}
             </h1>
-            <p
-              className="mt-1 text-[12.5px] text-paper-3"
-              title={last ? absoluteTime(last.at) : undefined}
-            >
+            <p className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-paper-3">
               {last ? (
                 <>
-                  当前 v{last.version} · {memberName(state, last.authorId)}{" "}
-                  {relativeTime(last.at)}更新
+                  {!solo && (
+                    <>
+                      {creator && <Avatar member={creator} size={16} />}
+                      <span className="text-paper-2">
+                        {creator?.name ?? memberName(state, creatorId ?? "")}
+                      </span>
+                      <span>创建</span>
+                      <span aria-hidden="true">·</span>
+                    </>
+                  )}
+                  <span title={absoluteTime(last.at)}>
+                    {relativeTime(last.at)}更新
+                  </span>
                 </>
               ) : (
                 "新方案，还没保存"
-              )}
-              {users.length > 0 && (
-                <>
-                  {" · "}用这个心法的角色：
-                  {users
-                    .map(
-                      c =>
-                        `${c.name}${c.ownerId === ME_ID ? "（你）" : `（${memberName(state, c.ownerId)}）`}`
-                    )
-                    .join("、")}
-                </>
               )}
             </p>
           </div>

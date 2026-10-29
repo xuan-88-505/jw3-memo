@@ -59,38 +59,49 @@ export function TeamView() {
     <div>
       <SectionHeader
         title={<TeamName name={team.name} editable={isAdmin} online={online} />}
-      />
-
-      <div className="mb-6 rounded-xl bg-ink-3 px-5 py-4 ring-1 ring-inset ring-paper/8">
-        <p className="text-[12px] text-paper-3">邀请码</p>
-        <div className="mt-1 flex items-center gap-1">
-          <p className="mr-2 select-all font-mono text-[22px] font-medium tracking-[0.12em] text-paper">
-            {team.inviteCode}
-          </p>
-          <IconBtn
-            label={copied ? "已复制" : "复制邀请码"}
-            onClick={onCopy}
-            className={cn("h-8 w-8", copied && "text-jade hover:text-jade")}
+        right={
+          <div
+            role="group"
+            aria-label="邀请码"
+            title="把邀请码发给亲友。新成员默认只读"
+            className="flex h-9 items-center rounded-lg bg-ink pl-3 pr-1 ring-1 ring-inset ring-paper/12"
           >
-            {copied ? (
-              <Check className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />
-            ) : (
-              <Copy className="h-4 w-4" aria-hidden="true" />
-            )}
-          </IconBtn>
-          {isAdmin && (
+            <span className="text-[12px] text-paper-3">邀请码</span>
+            <span className="ml-2.5 select-all font-mono text-[14px] font-medium tracking-[0.08em] text-paper">
+              {team.inviteCode}
+            </span>
+            <span
+              className="ml-2.5 mr-1 h-4 w-px bg-paper/[0.12]"
+              aria-hidden="true"
+            />
             <IconBtn
-              label={online ? "重新生成邀请码" : "离线时不能重新生成"}
-              onClick={() => setRegen(true)}
-              disabled={!online}
-              className="h-8 w-8"
+              label={copied ? "已复制" : "复制邀请码"}
+              onClick={onCopy}
+              className={cn("h-7 w-7", copied && "text-jade hover:text-jade")}
             >
-              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              {copied ? (
+                <Check
+                  className="h-3.5 w-3.5"
+                  strokeWidth={2.4}
+                  aria-hidden="true"
+                />
+              ) : (
+                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
             </IconBtn>
-          )}
-        </div>
-        <p className="mt-1 text-[12px] text-paper-3">新成员默认只读</p>
-      </div>
+            {isAdmin && (
+              <IconBtn
+                label={online ? "重新生成邀请码" : "离线时不能重新生成"}
+                onClick={() => setRegen(true)}
+                disabled={!online}
+                className="h-7 w-7"
+              >
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              </IconBtn>
+            )}
+          </div>
+        }
+      />
 
       <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-paper/8">
         <table className="w-full text-left text-[13px]">
