@@ -18,12 +18,14 @@ import {
   StickyNote,
   Volume2,
   Wifi,
+  X,
 } from "lucide-react";
 import { HuangjiLaugh } from "@/components/brand/Marks";
 import { ManagerApp } from "@/components/manager/ManagerApp";
 import { TrayPanel } from "@/components/panel/TrayPanel";
 import { pendingCount, myCharacters, useProto } from "@/state/store";
-import { hotkeyText, matchHotkey } from "@/lib/hotkey";
+import { hotkeyParts, hotkeyText, matchHotkey } from "@/lib/hotkey";
+import { Kbd } from "@/components/common/ui";
 import { cn } from "@/lib/utils";
 import {
   DemoNote,
@@ -77,7 +79,7 @@ export function DesktopScreen() {
   const gameWindow = !mac && state.scene === "game-window";
   const pending = state.team ? pendingCount(state) : 0;
   const [macAnchor, setMacAnchor] = useState(260);
-  const [coachLeft, setCoachLeft] = useState(SCREEN_W - 240);
+  const [coachRight, setCoachRight] = useState(120);
 
   // 快捷键：用户设置的组合开关面板；Esc 收起；1–9 切换角色
   const hotkey = state.hotkeys[state.platform];
@@ -153,9 +155,9 @@ export function DesktopScreen() {
     const left = offsetLeftIn(el);
     const right = SCREEN_W - (left + el.offsetWidth);
     if (mac) setMacAnchor(Math.max(8, right - 8));
-    setCoachLeft(
-      Math.min(SCREEN_W - 232, Math.max(8, left + el.offsetWidth / 2 - 190))
-    );
+    // 气泡的小三角中心距气泡右边 COACH_CARET 像素，正对图标中心
+    const center = left + el.offsetWidth / 2;
+    setCoachRight(Math.max(8, SCREEN_W - center - COACH_CARET));
   }, [mac, state.platform, state.scene]);
 
   const panelStyle: React.CSSProperties = mac
@@ -231,16 +233,14 @@ export function DesktopScreen() {
       )}
 
       {/* 演示说明 */}
+      {/* 首次使用提示：只出现一次 */}
       {!state.panelOpen && !state.coachSeen && !full && (
-        <DemoNote
-          className={cn(
-            "absolute z-30 w-[220px]",
-            mac ? "top-[40px]" : "bottom-[62px]"
-          )}
-          style={{ left: coachLeft }}
-        >
-          点这里打开面板，或按 {hk}
-        </DemoNote>
+        <CoachMark
+          mac={mac}
+          right={coachRight}
+          keys={hotkeyParts(hotkey, state.platform)}
+          onClose={actions.dismissCoach}
+        />
       )}
       {full && !state.panelOpen && (
         <DemoNote className="absolute left-1/2 top-6 z-30 w-[520px] -translate-x-1/2 text-center">
@@ -439,6 +439,60 @@ function MacDock() {
           {a.icon}
         </span>
       ))}
+    </div>
+  );
+}
+
+/** 小三角中心到气泡右边的距离 */
+const COACH_CARET = 21;
+
+/** 首次使用提示：贴着托盘图标，小三角指向图标 */
+function CoachMark({
+  mac,
+  right,
+  keys,
+  onClose,
+}: {
+  mac: boolean;
+  right: number;
+  keys: string[];
+  onClose: () => void;
+}) {
+  return (
+    <div
+      role="status"
+      className={cn(
+        "absolute z-30",
+        mac ? "top-[36px] animate-panel-down" : "bottom-[56px] animate-panel-up"
+      )}
+      style={{ right }}
+    >
+      <div className="relative flex items-start gap-2 rounded-xl bg-ink-2 py-2.5 pl-3.5 pr-1.5 shadow-[0_12px_32px_-8px_rgb(0_0_0/0.65)] ring-1 ring-paper/12">
+        <div className="whitespace-nowrap">
+          <p className="text-[13px] font-medium text-paper">点这里打开面板</p>
+          <p className="mt-1 flex items-center gap-1.5 text-[12px] text-paper-3">
+            或按 <Kbd keys={keys} />
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="关闭提示"
+          className="-mt-1 grid h-6 w-6 place-items-center rounded-md text-paper-3 transition-colors hover:bg-paper/[0.08] hover:text-paper"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute h-2.5 w-2.5 rotate-45 bg-ink-2",
+            mac
+              ? "-top-[5px] border-l border-t border-paper/12"
+              : "-bottom-[5px] border-b border-r border-paper/12"
+          )}
+          style={{ right: COACH_CARET - 5 }}
+        />
+      </div>
     </div>
   );
 }

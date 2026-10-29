@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useReducer,
   useRef,
@@ -106,6 +107,19 @@ function seedData() {
   };
 }
 
+/** 托盘提示"看过"的本地记录；必须在 initialState 之前定义 */
+const COACH_KEY = "tongdiao.coachSeen";
+
+function readCoachSeen() {
+  try {
+    return (
+      typeof window !== "undefined" && localStorage.getItem(COACH_KEY) === "1"
+    );
+  } catch {
+    return false;
+  }
+}
+
 const initialState: ProtoState = {
   ...seedData(),
   platform: "win",
@@ -115,7 +129,7 @@ const initialState: ProtoState = {
   panelOpen: false,
   pinned: false,
   panelOffset: { x: 0, y: 0 },
-  coachSeen: false,
+  coachSeen: readCoachSeen(),
   managerOpen: false,
   managerSection: "schemes",
   managerIntent: null,
@@ -333,6 +347,8 @@ function useActions(
           if (dataState === "onboarding") {
             return {
               dataState,
+              // 模拟新用户：托盘提示重新出现
+              coachSeen: false,
               team: null,
               members: [],
               characters: [],
@@ -350,6 +366,7 @@ function useActions(
       },
 
       // 面板
+      dismissCoach: () => patch({ coachSeen: true }),
       togglePanel: () =>
         update(s => ({ panelOpen: !s.panelOpen, coachSeen: true })),
       setPanelOpen: (open: boolean) =>
@@ -637,6 +654,15 @@ export function ProtoProvider({
   const stateRef = useRef(state);
   stateRef.current = state;
   const actions = useActions(dispatch, stateRef);
+  // 托盘提示看过一次就记下来，刷新后也不再出现
+  useEffect(() => {
+    try {
+      if (state.coachSeen) localStorage.setItem(COACH_KEY, "1");
+      else localStorage.removeItem(COACH_KEY);
+    } catch {
+      /* 浏览器禁用本地存储时，只在本次打开期间记住 */
+    }
+  }, [state.coachSeen]);
   const value = useMemo(() => ({ state, actions }), [state, actions]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -647,7 +673,7 @@ export function useProto() {
   return v;
 }
 
-/** 新角色默认用一个自己还没用过的黄鸡表情；8 种都用过就按顺序轮换 */
+/** 新角色默认用一个自己还没用过的黄鸡表情；全部用过就按顺序轮换 */
 export function nextMood(mine: Character[]): HuangjiMood {
   const used = new Set(
     mine.flatMap(c => (c.avatar?.kind === "preset" ? [c.avatar.mood] : []))
