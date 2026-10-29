@@ -1,5 +1,5 @@
 import type { Attr, AttrGain } from "./gear";
-import { STONES } from "./stones";
+import { STONES, STONES_LV5 } from "./stones";
 
 /**
  * 小附魔、大附魔、五彩石（原型）。
@@ -298,12 +298,32 @@ export function bigDelta(big: BigEnchants): StatDelta {
 
 /* ---------------- 五彩石 ---------------- */
 
+/** 五彩石等级，写在名称后面：彩·灭气·激流·月华(陆) */
+export const STONE_LEVELS = ["壹", "贰", "叁", "肆", "伍", "陆"] as const;
+export type StoneLevel = 1 | 2 | 3 | 4 | 5 | 6;
+
 export interface StoneDef {
   name: string;
-  /** 去掉"彩·"和"(陆)"，例如"灭气·激流·月华" */
+  /** 去掉"彩·"和等级，例如"灭气·激流·月华" */
   short: string;
+  /** 带等级的短名，例如"灭气·激流·月华(陆)" */
+  label: string;
+  /** 名称里的三个词，依次对应三条属性 */
+  words: string[];
+  level: StoneLevel;
+  /** 壹到肆级是按五级比例换算的 */
+  estimated: boolean;
   attrs: { label: string; value: string }[];
   delta: StatDelta;
+}
+
+/** 同一种石头的 6 个等级（levels[0] 是壹级） */
+export interface StoneFamily {
+  short: string;
+  words: string[];
+  /** 三条属性的名称，例如 ["破防", "攻击", "会效"] */
+  labels: string[];
+  levels: StoneDef[];
 }
 
 const PRIMARY_KEYS = ["根骨", "元气", "身法", "力道"];
@@ -343,24 +363,62 @@ function stoneAttr(
   return { label, value: `+${v}`, delta: { [k]: v } as StatDelta };
 }
 
+/**
+ * 某一级的数值。陆、伍是计算器的真实数据；壹到肆按五级 × k / 5 换算。
+ * 魔盒物品库里各级数值约为六级的 k/6，和计算器五级 = 六级 × 5/6 一致；
+ * 只有主属性百分比（81 → 71）不按 5/6，所以统一以五级为基准。
+ */
+function levelValue(v6: number, v5: number | undefined, k: StoneLevel) {
+  if (k === 6) return v6;
+  const five = v5 ?? Math.round((v6 * 5) / 6);
+  if (k === 5) return five;
+  return Math.max(1, Math.round((five * k) / 5));
+}
+
+const familyCache = new Map<Attr, StoneFamily[]>();
+
+/** 这个主属性能用的五彩石，按石头分组（带别的主属性的不列） */
+export function stoneFamilies(main: Attr): StoneFamily[] {
+  const hit = familyCache.get(main);
+  if (hit) return hit;
+  const kind = isOuter(main) ? "外功" : "内功";
+  const list: StoneFamily[] = [];
+  for (const [name, attrs] of STONES[kind]) {
+    const probe = attrs.map(([k, v]) => stoneAttr(k, v));
+    if (probe.some(p => p.primaryOf && p.primaryOf !== main)) continue;
+    const base = name.replace(/\(陆\)$/, "");
+    const v5 = STONES_LV5[kind][base];
+    const short = base.replace(/^彩·/, "");
+    const words = short.split("·");
+    const levels = ([1, 2, 3, 4, 5, 6] as StoneLevel[]).map(k => {
+      const parts = attrs.map(([key, v], i) =>
+        stoneAttr(key, levelValue(v, v5?.[i], k))
+      );
+      const lv = STONE_LEVELS[k - 1];
+      return {
+        name: `${base}(${lv})`,
+        short,
+        label: `${short}(${lv})`,
+        words,
+        level: k,
+        estimated: k < 5,
+        attrs: parts.map(p => ({ label: p.label, value: p.value })),
+        delta: parts.reduce<StatDelta>((d, p) => addDelta(d, p.delta), {}),
+      };
+    });
+    list.push({ short, words, labels: probe.map(p => p.label), levels });
+  }
+  familyCache.set(main, list);
+  return list;
+}
+
 const stoneCache = new Map<Attr, StoneDef[]>();
 
-/** 这个主属性能用的六级五彩石（带别的主属性的不列） */
+/** 这个主属性能用的全部五彩石（6 个等级都列） */
 export function stonesFor(main: Attr): StoneDef[] {
   const hit = stoneCache.get(main);
   if (hit) return hit;
-  const rows = STONES[isOuter(main) ? "外功" : "内功"];
-  const list: StoneDef[] = [];
-  for (const [name, attrs] of rows) {
-    const parts = attrs.map(([k, v]) => stoneAttr(k, v));
-    if (parts.some(p => p.primaryOf && p.primaryOf !== main)) continue;
-    list.push({
-      name,
-      short: name.replace(/^彩·/, "").replace(/\(陆\)$/, ""),
-      attrs: parts.map(p => ({ label: p.label, value: p.value })),
-      delta: parts.reduce<StatDelta>((d, p) => addDelta(d, p.delta), {}),
-    });
-  }
+  const list = stoneFamilies(main).flatMap(f => f.levels);
   stoneCache.set(main, list);
   return list;
 }

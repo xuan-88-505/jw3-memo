@@ -1,5 +1,5 @@
 import { Sparkles } from "lucide-react";
-import { useId, useMemo } from "react";
+import { useCallback, useId, useMemo } from "react";
 import {
   BIG_LEVEL_LABEL,
   BIG_SLOTS,
@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SelectBox, inputCls } from "../shared";
 import { Delta, fmt } from "./Dashboard";
+import { StonePicker } from "./StonePicker";
 
 const selectCls = cn(inputCls(), "h-8 pl-2.5 text-[12.5px]");
 
@@ -46,14 +47,14 @@ export function EnchantEditor({
   const gainOf = (next: GearConfig) =>
     statDeltaDpsPct(preview, configDelta(main, value, next));
 
-  const stones = useMemo(() => {
-    return stonesFor(main)
-      .map(s => ({ s, p: gainOf({ ...value, stone: s.name }) }))
-      .sort((a, b) => b.p - a.p);
-    // gainOf 只依赖 preview 和 value
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [main, preview, value]);
-
+  const stoneGain = useCallback(
+    (name: string | null) =>
+      statDeltaDpsPct(
+        preview,
+        configDelta(main, value, { ...value, stone: name })
+      ),
+    [preview, main, value]
+  );
   const recommend = () => {
     let next: GearConfig = {
       ...value,
@@ -233,22 +234,15 @@ export function EnchantEditor({
         >
           五彩石
         </label>
-        <SelectBox
-          id={`${uid}-stone`}
-          value={value.stone ?? ""}
-          onChange={e => onChange({ ...value, stone: e.target.value || null })}
-          wrapClassName="mt-2 w-full"
-          className={selectCls}
-        >
-          {stones.map(({ s, p }, i) => (
-            <option key={s.name} value={s.name}>
-              {s.short}　{s.attrs.map(a => `${a.label}${a.value}`).join(" ")}
-              {s.name === value.stone ? "" : pctText(p)}
-              {i === 0 && s.name !== value.stone ? "（最佳）" : ""}
-            </option>
-          ))}
-          <option value="">不镶</option>
-        </SelectBox>
+        <div className="mt-2">
+          <StonePicker
+            id={`${uid}-stone`}
+            main={main}
+            value={value.stone}
+            gain={stoneGain}
+            onChange={stone => onChange({ ...value, stone })}
+          />
+        </div>
       </div>
 
       {changed && (

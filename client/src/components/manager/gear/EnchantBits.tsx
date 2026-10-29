@@ -119,7 +119,7 @@ export function ExtrasLine({
           title={x.stone ? `五彩石 ${x.stone.name}` : undefined}
         >
           <Gem className="h-3 w-3 shrink-0" aria-hidden="true" />
-          <span className="truncate">{x.stone?.short ?? "未镶五彩石"}</span>
+          <span className="truncate">{x.stone?.label ?? "未镶五彩石"}</span>
         </span>
       )}
     </span>
