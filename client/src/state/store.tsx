@@ -129,10 +129,10 @@ export interface ProtoState {
   navOrder: NavSection[] | null;
   toasts: UiToast[];
   /**
-   * 便签：按角色 id 存。只属于本人，不进亲友团共享的数据，管理窗口也不显示。
+   * 便签：全局一份，和角色、心法无关。只属于本人，不进亲友团共享的数据。
    * 原型存在浏览器本地；正式版跟着账号同步到自己的其他电脑。
    */
-  notes: Record<string, CharNote>;
+  note: Note | null;
   /**
    * 配装与木桩：按配装 id 存，和便签一样只属于本人。
    * 配装按心法建，关联角色是可选的（Loadout.charId）。
@@ -162,30 +162,43 @@ function seedData() {
   };
 }
 
-export interface CharNote {
+export interface Note {
   text: string;
   /** 最后编辑时间 */
   at: string;
 }
 export const NOTE_MAX = 2000;
 /** 便签的本地记录；必须在 initialState 之前定义 */
-const NOTES_KEY = "tongdiao.notes.v1";
-const SEED_NOTES: Record<string, CharNote> = {
-  c1: {
-    text: "周三、周日 20:00 打 25 人英雄，团长 YY 88123\n还缺：腰坠、暗器\n每周一记得领帮会资源",
-    at: "2026-10-28T21:12:00+08:00",
-  },
+const NOTE_KEY = "tongdiao.note.v2";
+/** 旧版：每个角色一份 */
+const OLD_NOTES_KEY = "tongdiao.notes.v1";
+const SEED_NOTE: Note = {
+  text: "周三、周日 20:00 打 25 人英雄，团长 YY 88123\n还缺：腰坠、暗器\n每周一记得领帮会资源",
+  at: "2026-10-28T21:12:00+08:00",
 };
-function readNotes(): Record<string, CharNote> {
+function readNote(): Note | null {
+  if (typeof window === "undefined") return SEED_NOTE;
   try {
-    const raw =
-      typeof window !== "undefined" ? localStorage.getItem(NOTES_KEY) : null;
-    return raw ? (JSON.parse(raw) as Record<string, CharNote>) : SEED_NOTES;
+    const raw = localStorage.getItem(NOTE_KEY);
+    if (raw !== null) return JSON.parse(raw) as Note | null;
+    // 旧版按角色存：按时间先后合并成一份，不丢内容
+    const old = localStorage.getItem(OLD_NOTES_KEY);
+    if (old === null) return SEED_NOTE;
+    const list = Object.values(JSON.parse(old) as Record<string, Note>)
+      .filter(n => n?.text?.trim())
+      .sort((x, y) => x.at.localeCompare(y.at));
+    if (!list.length) return null;
+    return {
+      text: list
+        .map(n => n.text.trim())
+        .join("\n\n")
+        .slice(0, NOTE_MAX),
+      at: list[list.length - 1].at,
+    };
   } catch {
-    return SEED_NOTES;
+    return SEED_NOTE;
   }
 }
-
 /** 侧栏默认顺序；「设置」固定在底部，不参与排序 */
 export type NavSection = Exclude<ManagerSection, "settings">;
 export const DEFAULT_NAV: NavSection[] = [
@@ -243,7 +256,7 @@ function readCoachSeen() {
 
 const initialState: ProtoState = {
   ...seedData(),
-  notes: readNotes(),
+  note: readNote(),
   loadouts: { lo1: seedLoadoutZixia(), lo2: seedLoadoutZixiaAlt() },
   activeLoadoutId: "lo1",
   platform: "win",
@@ -1061,25 +1074,17 @@ function useActions(
           if (!lo) return {};
           return { loadouts: { ...st.loadouts, [loId]: { ...lo, buffs } } };
         }),
-      /** 写便签。空内容直接删掉这条记录 */
-      setNote: (charId: string, text: string) =>
-        update(s => {
-          const notes = { ...s.notes };
-          if (text.trim())
-            notes[charId] = { text, at: new Date().toISOString() };
-          else delete notes[charId];
-          return { notes };
-        }),
+      /** 写便签。空内容直接清掉 */
+      setNote: (text: string) =>
+        update(() => ({
+          note: text.trim() ? { text, at: new Date().toISOString() } : null,
+        })),
       removeCharacter: (id: string) =>
         update(s => {
           const characters = s.characters.filter(c => c.id !== id);
           const mine = characters.filter(c => c.ownerId === ME_ID);
-          // 角色删了，它的便签也一起删
-          const notes = { ...s.notes };
-          delete notes[id];
-          // 配装不跟着删，只解除关联
+          // 便签是全局的，不受影响；配装不跟着删，只解除关联
           return {
-            notes,
             loadouts: unlinkLoadouts(s.loadouts, id),
             characters,
             activeCharId:
@@ -1213,11 +1218,12 @@ export function ProtoProvider({
   // 便签存到本地，刷新后还在
   useEffect(() => {
     try {
-      localStorage.setItem(NOTES_KEY, JSON.stringify(state.notes));
+      localStorage.setItem(NOTE_KEY, JSON.stringify(state.note));
+      localStorage.removeItem(OLD_NOTES_KEY);
     } catch {
       /* 浏览器禁用本地存储时，只在本次打开期间记住 */
     }
-  }, [state.notes]);
+  }, [state.note]);
   // 关注的心法存到本地；没改过时不写，继续用默认值
   useEffect(() => {
     try {

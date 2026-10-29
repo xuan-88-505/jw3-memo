@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Pin,
   Plus,
+  StickyNote,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -17,7 +18,7 @@ import { CharAvatar } from "@/components/brand/CharAvatar";
 import { Wordmark, XinfaMark } from "@/components/brand/Marks";
 import { OfflineBar, ToastStack } from "@/components/common/overlay";
 import { Btn, IconBtn, Segmented } from "@/components/common/ui";
-import { SEED_TEAM, XINFA_META, schoolLabel, xinfasOf } from "@/data/seed";
+import { SEED_TEAM, schoolLabel, xinfasOf } from "@/data/seed";
 import {
   MODES,
   type Character,
@@ -39,7 +40,7 @@ import {
 } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { Inbox } from "./Inbox";
-import { NotePad } from "./NotePad";
+import { NoteView } from "./NotePad";
 import { ChangeDot, MacroList, TalentList } from "./PanelContent";
 
 export interface TrayPanelProps {
@@ -108,8 +109,8 @@ function PanelMain({
   showPin: boolean;
 }) {
   const { state, actions } = useProto();
-  const [view, setView] = useState<"main" | "inbox">("main");
-  const [tab, setTab] = useState<"macro" | "talent" | "note">("macro");
+  const [view, setView] = useState<"main" | "inbox" | "note">("main");
+  const [tab, setTab] = useState<"macro" | "talent">("macro");
   const mine = myCharacters(state);
   const char = mine.find(c => c.id === state.activeCharId) ?? mine[0];
   // 多心法角色（双心法、学了流派）在面板里切着看
@@ -147,6 +148,17 @@ function PanelMain({
     );
   }
 
+  // 便签全局一份，和角色无关：从标题栏进二级页
+  if (view === "note") {
+    return (
+      <NoteView
+        onBack={() => setView("main")}
+        onHeaderPointerDown={onHeaderPointerDown}
+        dragging={draggable}
+      />
+    );
+  }
+
   const macroChanged =
     !!base &&
     !!last &&
@@ -175,6 +187,9 @@ function PanelMain({
           className="ml-auto flex items-center gap-0.5"
           onPointerDown={e => e.stopPropagation()}
         >
+          <IconBtn label="便签" onClick={() => setView("note")}>
+            <StickyNote className="h-4 w-4" />
+          </IconBtn>
           <IconBtn
             label={inboxCount ? `通知，${inboxCount} 条有更新` : "通知"}
             onClick={() => setView("inbox")}
@@ -210,6 +225,14 @@ function PanelMain({
 
       <OfflineBar compact />
 
+      {xinfas.length > 1 && (
+        <XinfaSwitch
+          char={char}
+          value={xinfa}
+          onChange={x => actions.setXinfa(char.id, x)}
+        />
+      )}
+
       <div className="flex h-10 shrink-0 items-center gap-4 border-b border-paper/[0.07] px-4">
         <div
           role="tablist"
@@ -220,83 +243,50 @@ function PanelMain({
             [
               ["macro", "宏", macroChanged],
               ["talent", "奇穴", talentChanged],
-              ["note", "便签", false],
             ] as const
-          ).map(([key, label, changed]) => {
-            // 没有方案时宏、奇穴不能点；便签和方案无关，一直能用
-            const enabled = key === "note" || !!last;
-            return (
-              <button
-                key={key}
-                role="tab"
-                type="button"
-                aria-selected={tab === key && enabled}
-                onClick={() => setTab(key)}
-                disabled={!enabled}
-                className={cn(
-                  "relative -mb-px flex items-center gap-1.5 border-b-2 text-[13px] font-medium transition-colors disabled:opacity-40",
-                  tab === key && enabled
-                    ? "border-cinnabar text-paper"
-                    : "border-transparent text-paper-3 hover:text-paper"
-                )}
-              >
-                {label}
-                {changed && <ChangeDot />}
-              </button>
-            );
-          })}
+          ).map(([key, label, changed]) => (
+            <button
+              key={key}
+              role="tab"
+              type="button"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              className={cn(
+                "relative -mb-px flex items-center gap-1.5 border-b-2 text-[13px] font-medium transition-colors",
+                tab === key
+                  ? "border-cinnabar text-paper"
+                  : "border-transparent text-paper-3 hover:text-paper"
+              )}
+            >
+              {label}
+              {changed && <ChangeDot />}
+            </button>
+          ))}
         </div>
-        {(xinfas.length > 1 || modes.length > 1) && (
-          <div className="ml-auto flex items-center gap-1.5">
-            {xinfas.length > 1 && (
-              <Segmented<string>
-                label="心法"
-                size="xs"
-                value={xinfa}
-                onChange={x => actions.setXinfa(char.id, x)}
-                options={xinfas.map(x => ({
-                  value: x,
-                  title: x,
-                  label: (
-                    <span className="inline-flex items-center gap-1">
-                      <span aria-hidden="true">
-                        {XINFA_META[x]?.short ?? x.slice(0, 1)}
-                      </span>
-                      <span className="sr-only">{x}</span>
-                      {MODES.some(m =>
-                        isPending(statusOf(state, char, m, x))
-                      ) && <ChangeDot />}
-                    </span>
-                  ),
-                }))}
-              />
-            )}
-            {modes.length > 1 && (
-              <Segmented<Mode>
-                label="方案类型"
-                size="xs"
-                value={mode}
-                onChange={m => actions.setMode(char.id, m)}
-                options={modes.map(m => ({
-                  value: m,
-                  label: (
-                    <span className="inline-flex items-center gap-1">
-                      {m}
-                      {isPending(statusOf(state, char, m, xinfa)) && (
-                        <ChangeDot />
-                      )}
-                    </span>
-                  ),
-                }))}
-              />
-            )}
+        {modes.length > 1 && (
+          <div className="ml-auto">
+            <Segmented<Mode>
+              label="方案类型"
+              size="xs"
+              value={mode}
+              onChange={m => actions.setMode(char.id, m)}
+              options={modes.map(m => ({
+                value: m,
+                label: (
+                  <span className="inline-flex items-center gap-1">
+                    {m}
+                    {isPending(statusOf(state, char, m, xinfa)) && (
+                      <ChangeDot />
+                    )}
+                  </span>
+                ),
+              }))}
+            />
           </div>
         )}
       </div>
 
-      {tab === "note" ? (
-        <NotePad key={char.id} char={char} />
-      ) : !scheme || !last ? (
+      {!scheme || !last ? (
         <NoScheme
           xinfa={xinfa}
           mode={mode}
@@ -315,6 +305,60 @@ function PanelMain({
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * 多心法角色（双心法、学了流派）的心法切换：单独一行，显示心法标识和全名。
+ * 有更新的心法后面带红点。
+ */
+function XinfaSwitch({
+  char,
+  value,
+  onChange,
+}: {
+  char: Character;
+  value: string;
+  onChange: (xinfa: string) => void;
+}) {
+  const { state } = useProto();
+  return (
+    <div className="shrink-0 border-b border-paper/[0.07] px-3 py-2">
+      <div
+        role="radiogroup"
+        aria-label="心法"
+        className="flex rounded-md bg-ink p-0.5 ring-1 ring-inset ring-paper/10"
+      >
+        {xinfasOf(char).map(x => {
+          const active = x === value;
+          const pending = MODES.some(m =>
+            isPending(statusOf(state, char, m, x))
+          );
+          return (
+            <button
+              key={x}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              title={pending ? `${x}有更新` : x}
+              onClick={() => onChange(x)}
+              className={cn(
+                "flex h-7 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[5px] px-2 text-[12.5px] font-medium transition-colors",
+                active
+                  ? "bg-ink-4 text-paper shadow-[0_1px_0_rgb(255_255_255/0.06)_inset]"
+                  : "text-paper-3 hover:text-paper"
+              )}
+            >
+              <span aria-hidden="true" className="inline-flex shrink-0">
+                <XinfaMark xinfa={x} size={16} />
+              </span>
+              <span className="truncate">{x}</span>
+              {pending && <ChangeDot />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -444,7 +488,7 @@ function NoScheme({
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-8 pb-6 text-center">
       <XinfaMark xinfa={xinfa} size={40} className="opacity-60" />
       <p className="text-[13.5px] text-paper-2">
-        {xinfa}没有 {mode} 方案
+        {xinfa}还没有 {mode} 方案
       </p>
       {viewer ? (
         <p className="text-[12px] text-paper-3">只读成员不能新建</p>
