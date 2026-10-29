@@ -1,5 +1,12 @@
-import { useEffect, useState } from "react";
-import { CheckCircle2, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  CheckCircle2,
+  ChevronDown,
+  Pencil,
+  Plus,
+  Trash2,
+  UserPlus,
+} from "lucide-react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { InlineModal } from "@/components/common/overlay";
 import { Btn, IconBtn, Segmented, StatusPill } from "@/components/common/ui";
@@ -16,6 +23,7 @@ import {
   statusOf,
   useProto,
 } from "@/state/store";
+import { cn } from "@/lib/utils";
 import { AvatarPicker } from "./AvatarPicker";
 import { EmptyState, Field, SectionHeader, inputCls } from "./shared";
 
@@ -121,13 +129,9 @@ export function CharactersView() {
                           <Pencil className="h-3.5 w-3.5 text-white" />
                         </span>
                       </button>
-                      <span>
-                        <span className="block font-medium text-paper">
-                          {c.name}
-                        </span>
-                        <span className="block text-[12px] text-paper-3">
-                          {c.xinfa}
-                        </span>
+                      <span className="flex min-w-0 flex-col items-start">
+                        <NameInput char={c} disabled={!online} />
+                        <XinfaSelect char={c} disabled={!online} />
                       </span>
                     </span>
                   </td>
@@ -189,6 +193,157 @@ export function CharactersView() {
         }
       />
     </div>
+  );
+}
+
+/** 角色名校验：添加和改名共用 */
+function nameError(
+  mine: Character[],
+  name: string,
+  server: string,
+  exceptId?: string
+) {
+  if (!name) return "填一下角色名";
+  if (name.length > 12) return "角色名最多 12 个字";
+  if (
+    mine.some(c => c.id !== exceptId && c.name === name && c.server === server)
+  )
+    return `${server} 已经有叫「${name}」的角色了`;
+  return "";
+}
+
+/** 角色名：看起来是文字，点击直接编辑。回车保存，Esc 取消，点别处也会保存 */
+function NameInput({ char, disabled }: { char: Character; disabled: boolean }) {
+  const { state, actions } = useProto();
+  const [value, setValue] = useState(char.name);
+  const [error, setError] = useState("");
+  const cancelRef = useRef(false);
+
+  useEffect(() => setValue(char.name), [char.name]);
+
+  const check = () =>
+    nameError(myCharacters(state), value.trim(), char.server, char.id);
+
+  const onBlur = () => {
+    const n = value.trim();
+    if (cancelRef.current || n === char.name) {
+      cancelRef.current = false;
+      setValue(char.name);
+      setError("");
+      return;
+    }
+    const err = check();
+    setError("");
+    if (err) {
+      setValue(char.name);
+      actions.toast(
+        "manager",
+        "error",
+        `${n ? err : "角色名不能为空"}，已恢复原名`
+      );
+      return;
+    }
+    actions.updateCharacter(char.id, { name: n });
+    actions.toast("manager", "success", `已改名为「${n}」`);
+  };
+
+  return (
+    <span className="relative -ml-1.5">
+      <input
+        value={value}
+        disabled={disabled}
+        maxLength={20}
+        spellCheck={false}
+        aria-label="角色名"
+        aria-invalid={!!error}
+        aria-describedby={error ? `name-err-${char.id}` : undefined}
+        title={disabled ? "离线时不能修改" : "点击修改角色名"}
+        onChange={e => {
+          setValue(e.target.value);
+          setError("");
+        }}
+        onKeyDown={e => {
+          if (e.key === "Enter") {
+            const err = check();
+            if (err) setError(err);
+            else e.currentTarget.blur();
+          } else if (e.key === "Escape") {
+            e.stopPropagation();
+            cancelRef.current = true;
+            e.currentTarget.blur();
+          }
+        }}
+        onBlur={onBlur}
+        className={cn(
+          "h-7 w-[176px] rounded-md bg-transparent px-1.5 text-[13px] font-medium text-paper outline-none transition-colors",
+          "hover:bg-paper/[0.05] focus:bg-ink-1 focus:ring-1 focus:ring-inset focus:ring-cinnabar-text/50",
+          "disabled:cursor-default disabled:hover:bg-transparent",
+          error &&
+            "ring-1 ring-inset ring-cinnabar-text/70 focus:ring-cinnabar-text/70"
+        )}
+      />
+      {error && (
+        <span
+          id={`name-err-${char.id}`}
+          role="alert"
+          className="absolute left-0 top-full z-10 mt-1 whitespace-nowrap rounded-md bg-ink-4 px-2 py-1 text-[12px] text-cinnabar-text shadow-lg ring-1 ring-inset ring-paper/10"
+        >
+          {error}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** 心法：下拉选择，选完立即生效 */
+function XinfaSelect({
+  char,
+  disabled,
+}: {
+  char: Character;
+  disabled: boolean;
+}) {
+  const { state, actions } = useProto();
+  const change = (x: string) => {
+    if (x === char.xinfa) return;
+    const { restored } = actions.updateCharacter(char.id, { xinfa: x });
+    const hasScheme = modesOf(state, x).length > 0;
+    actions.toast(
+      "manager",
+      "success",
+      restored
+        ? `「${char.name}」改回${x}，恢复了之前的同步记录`
+        : hasScheme
+          ? `「${char.name}」改成${x}，需要按新方案同步`
+          : `「${char.name}」改成${x}，${x}还没有方案`
+    );
+  };
+  return (
+    // 显示的文字决定宽度，上面盖一层透明的原生下拉框：点开仍是系统菜单，键盘和读屏照常可用
+    <span
+      className={cn(
+        "relative -ml-1.5 inline-flex h-6 items-center gap-1 rounded-md pl-1.5 pr-1 text-[12px] text-paper-3 transition-colors",
+        "has-[select:focus-visible]:ring-1 has-[select:focus-visible]:ring-inset has-[select:focus-visible]:ring-cinnabar-text/50",
+        !disabled && "hover:bg-paper/[0.05] hover:text-paper-2"
+      )}
+    >
+      <span aria-hidden="true">{char.xinfa}</span>
+      <ChevronDown className="h-3 w-3" aria-hidden="true" />
+      <select
+        value={char.xinfa}
+        disabled={disabled}
+        aria-label={`「${char.name}」的心法`}
+        title={disabled ? "离线时不能修改" : "修改心法"}
+        onChange={e => change(e.target.value)}
+        className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0 outline-none disabled:cursor-default"
+      >
+        {XINFA_LIST.map(x => (
+          <option key={x} value={x} className="bg-ink-3 text-paper">
+            {x}
+          </option>
+        ))}
+      </select>
+    </span>
   );
 }
 
@@ -275,11 +430,8 @@ function AddCharacterDialog({
 
   const submit = () => {
     const n = name.trim();
-    if (!n) return setError("填一下角色名");
-    if (n.length > 12) return setError("角色名最多 12 个字");
-    if (myCharacters(state).some(c => c.name === n && c.server === server)) {
-      return setError(`${server} 已经有叫「${n}」的角色了`);
-    }
+    const err = nameError(myCharacters(state), n, server);
+    if (err) return setError(err);
     actions.addCharacter({ name: n, server, xinfa });
     const hasScheme = !!findScheme(state, xinfa, "PVE");
     actions.toast(

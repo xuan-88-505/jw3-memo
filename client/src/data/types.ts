@@ -86,6 +86,8 @@ export interface Character {
   ownerId: string;
   /** 每个模式已同步到的版本号；没有表示从没同步过 */
   synced: Partial<Record<Mode, number>>;
+  /** 改心法时，旧心法的同步记录暂存在这里；改回去时恢复 */
+  syncedByXinfa?: Record<string, Partial<Record<Mode, number>>>;
   avatar?: CharacterAvatar;
 }
 

@@ -573,6 +573,35 @@ function useActions(
         }));
         return id;
       },
+      /** 改名或改心法。改心法时按心法分开保存同步记录，改回去会恢复 */
+      updateCharacter: (
+        id: string,
+        p: { name?: string; xinfa?: string }
+      ): { restored: boolean } => {
+        const char = stateRef.current.characters.find(c => c.id === id);
+        if (!char) return { restored: false };
+        let next: Character = { ...char, ...(p.name ? { name: p.name } : {}) };
+        let restored = false;
+        if (p.xinfa && p.xinfa !== char.xinfa) {
+          const stash = {
+            ...(char.syncedByXinfa ?? {}),
+            [char.xinfa]: char.synced,
+          };
+          const back = stash[p.xinfa];
+          delete stash[p.xinfa];
+          restored = !!back && Object.keys(back).length > 0;
+          next = {
+            ...next,
+            xinfa: p.xinfa,
+            synced: back ?? {},
+            syncedByXinfa: stash,
+          };
+        }
+        update(s => ({
+          characters: s.characters.map(c => (c.id === id ? next : c)),
+        }));
+        return { restored };
+      },
       setCharacterAvatar: (id: string, avatar: CharacterAvatar) =>
         update(s => ({
           characters: s.characters.map(c =>
