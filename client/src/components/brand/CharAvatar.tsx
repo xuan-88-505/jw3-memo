@@ -1,7 +1,7 @@
 import { XINFA_META } from "@/data/seed";
 import type { Character } from "@/data/types";
 import { cn } from "@/lib/utils";
-import { Huangji } from "./Huangji";
+import { HUANGJI_NATIVE, Huangji } from "./Huangji";
 
 /**
  * 角色头像：默认是黄鸡表情，底色取心法颜色，方便一眼分出心法；
@@ -10,14 +10,17 @@ import { Huangji } from "./Huangji";
 export function CharAvatar({
   character,
   size = 28,
+  animated = false,
   className,
 }: {
   character: Pick<Character, "xinfa" | "avatar"> & { name?: string };
   size?: number;
+  /** 播放黄鸡动图；默认静态 */
+  animated?: boolean;
   className?: string;
 }) {
   const color = XINFA_META[character.xinfa]?.color ?? "#968F82";
-  const av = character.avatar ?? { kind: "preset", mood: "laugh" };
+  const av = character.avatar ?? { kind: "preset", mood: "大笑" };
   const radius = Math.max(6, Math.round(size * 0.24));
   const title = character.name
     ? `${character.name} · ${character.xinfa}`
@@ -60,7 +63,14 @@ export function CharAvatar({
       }}
       title={title}
     >
-      <Huangji mood={av.mood} size={Math.round(size * 0.84)} />
+      <Huangji mood={av.mood} size={chickSize(size)} animated={animated} />
     </span>
   );
+}
+
+/** 头像框里黄鸡的尺寸：放得下就用原尺寸 30 或 2 倍 60，保持像素清晰；更小的框按比例缩小 */
+function chickSize(box: number) {
+  if (box >= 64) return HUANGJI_NATIVE * 2;
+  if (box >= 34) return HUANGJI_NATIVE;
+  return Math.round(box * 0.92);
 }

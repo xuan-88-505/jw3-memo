@@ -78,7 +78,7 @@ export const SEED_CHARACTERS: Character[] = [
     xinfa: "紫霞功",
     ownerId: ME_ID,
     synced: { PVE: 3 },
-    avatar: { kind: "preset", mood: "smug" },
+    avatar: { kind: "preset", mood: "大笑" },
   },
   {
     id: "c2",
@@ -87,7 +87,7 @@ export const SEED_CHARACTERS: Character[] = [
     xinfa: "冰心诀",
     ownerId: ME_ID,
     synced: { PVE: 2 },
-    avatar: { kind: "preset", mood: "smile" },
+    avatar: { kind: "preset", mood: "害羞" },
   },
   {
     id: "c3",
@@ -96,7 +96,7 @@ export const SEED_CHARACTERS: Character[] = [
     xinfa: "山海心诀",
     ownerId: ME_ID,
     synced: { PVE: 1 },
-    avatar: { kind: "preset", mood: "angry" },
+    avatar: { kind: "preset", mood: "发怒" },
   },
   {
     id: "c4",
@@ -105,7 +105,7 @@ export const SEED_CHARACTERS: Character[] = [
     xinfa: "花间游",
     ownerId: ME_ID,
     synced: { PVE: 2 },
-    avatar: { kind: "preset", mood: "love" },
+    avatar: { kind: "preset", mood: "色" },
   },
   {
     id: "f1",
@@ -114,7 +114,7 @@ export const SEED_CHARACTERS: Character[] = [
     xinfa: "冰心诀",
     ownerId: "xiaotao",
     synced: { PVE: 2 },
-    avatar: { kind: "preset", mood: "sleepy" },
+    avatar: { kind: "preset", mood: "嘤嘤" },
   },
   {
     id: "f2",
@@ -123,7 +123,7 @@ export const SEED_CHARACTERS: Character[] = [
     xinfa: "紫霞功",
     ownerId: "ajiu",
     synced: { PVE: 4 },
-    avatar: { kind: "preset", mood: "shock" },
+    avatar: { kind: "preset", mood: "晕" },
   },
   {
     id: "f3",
@@ -132,7 +132,7 @@ export const SEED_CHARACTERS: Character[] = [
     xinfa: "山海心诀",
     ownerId: "xiangcai",
     synced: { PVE: 3 },
-    avatar: { kind: "preset", mood: "cry" },
+    avatar: { kind: "preset", mood: "流汗" },
   },
 ];
 

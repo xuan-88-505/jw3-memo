@@ -101,7 +101,7 @@ export function TrayGlyph({
 
 /** 托盘 / 菜单栏图标：黄鸡大笑 */
 export function HuangjiLaugh({ size = 22 }: { size?: number }) {
-  return <Huangji mood="laugh" size={size} />;
+  return <Huangji mood="大笑" size={size} />;
 }
 
 /** 心法标记：方印里一个字 */

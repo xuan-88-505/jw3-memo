@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, ImagePlus, Loader2 } from "lucide-react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
-import { HUANGJI_MOODS } from "@/components/brand/Huangji";
+import { HUANGJI_MOODS, type HuangjiMood } from "@/components/brand/Huangji";
 import { InlineModal } from "@/components/common/overlay";
 import { Btn } from "@/components/common/ui";
 import type { Character, CharacterAvatar } from "@/data/types";
@@ -9,7 +9,7 @@ import { AVATAR_MAX_MB, AVATAR_TYPES, fileToAvatar } from "@/lib/image";
 import { isOnline, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
 
-const DEFAULT_AVATAR: CharacterAvatar = { kind: "preset", mood: "laugh" };
+const DEFAULT_AVATAR: CharacterAvatar = { kind: "preset", mood: "大笑" };
 
 function sameAvatar(a?: CharacterAvatar, b?: CharacterAvatar) {
   const x = a ?? DEFAULT_AVATAR;
@@ -34,6 +34,7 @@ export function AvatarPicker({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [hovered, setHovered] = useState<HuangjiMood | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // 每次打开时回到角色当前的头像
@@ -73,7 +74,7 @@ export function AvatarPicker({
   };
 
   const tile =
-    "flex flex-col items-center gap-1.5 rounded-lg py-2.5 text-[12px] transition-colors ring-1 ring-inset";
+    "flex flex-col items-center gap-1 rounded-lg py-2 text-[12px] transition-colors ring-1 ring-inset";
   const tileState = (selected: boolean) =>
     selected
       ? "bg-cinnabar/[0.08] text-paper ring-2 ring-cinnabar-text/70"
@@ -109,7 +110,11 @@ export function AvatarPicker({
     >
       <div className="pb-1">
         <div className="flex items-center gap-3.5">
-          <CharAvatar character={{ ...character, avatar: choice }} size={56} />
+          <CharAvatar
+            character={{ ...character, avatar: choice }}
+            size={64}
+            animated
+          />
           <div className="min-w-0">
             <p className="truncate font-serif text-[16px] font-semibold text-paper">
               {character.name}
@@ -121,7 +126,10 @@ export function AvatarPicker({
         </div>
 
         <p className="mb-2 mt-5 text-[12px] text-paper-3">黄鸡表情</p>
-        <div className="grid grid-cols-4 gap-2">
+        <div
+          className="grid grid-cols-6 gap-1.5"
+          onMouseLeave={() => setHovered(null)}
+        >
           {HUANGJI_MOODS.map(m => {
             const selected = choice.kind === "preset" && choice.mood === m.key;
             return (
@@ -129,6 +137,9 @@ export function AvatarPicker({
                 key={m.key}
                 type="button"
                 aria-pressed={selected}
+                aria-label={m.key}
+                onMouseEnter={() => setHovered(m.key)}
+                onFocus={() => setHovered(m.key)}
                 onClick={() => {
                   setChoice({ kind: "preset", mood: m.key });
                   setError("");
@@ -140,9 +151,10 @@ export function AvatarPicker({
                     xinfa: character.xinfa,
                     avatar: { kind: "preset", mood: m.key },
                   }}
-                  size={40}
+                  size={36}
+                  animated={selected || hovered === m.key}
                 />
-                {m.label}
+                {m.key}
               </button>
             );
           })}
@@ -166,7 +178,7 @@ export function AvatarPicker({
                   xinfa: character.xinfa,
                   avatar: { kind: "upload", src: upload },
                 }}
-                size={40}
+                size={36}
               />
               我的图片
             </button>
