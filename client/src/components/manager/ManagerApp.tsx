@@ -54,13 +54,8 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
   return (
     <div className="relative flex h-full w-full overflow-hidden bg-ink-2 text-paper">
       <aside className="flex w-[200px] shrink-0 flex-col border-r border-paper/[0.07] bg-ink">
-        <div className="px-4 pb-4 pt-5">
+        <div className="px-4 pb-5 pt-5">
           <Wordmark size="md" />
-          <p className="mt-3 truncate text-[12px] text-paper-3">
-            {state.team
-              ? `${state.team.name} · ${state.members.length} 人`
-              : "还没加入亲友团"}
-          </p>
         </div>
         <nav aria-label="管理窗口导航" className="flex-1 px-2">
           <ul className="space-y-0.5">
