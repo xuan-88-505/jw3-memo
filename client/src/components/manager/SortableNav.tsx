@@ -16,10 +16,12 @@ export interface NavItem {
   icon: LucideIcon;
 }
 
-/** 按住多久进入拖动 */
+/** 按住多久进入拖动（不移动也会浮起） */
 const LONG_PRESS_MS = 350;
-/** 按住期间移动超过这个距离（屏幕像素），就当作普通点击或滑动，不进入拖动 */
-const MOVE_TOLERANCE = 6;
+/** 鼠标、触控板：按下后移动超过这个距离（屏幕像素）就开始拖动 */
+const MOUSE_DRAG_START = 4;
+/** 触摸屏：长按前移动超过这个距离，当作滑动，不进入拖动 */
+const TOUCH_TOLERANCE = 8;
 
 interface DragState {
   key: ManagerSection;
@@ -37,7 +39,8 @@ function moveItem<T>(list: T[], from: number, to: number): T[] {
 }
 
 /**
- * 侧栏导航。长按一项后拖动排序，松手生效，拖动中按 Esc 取消。
+ * 侧栏导航。按住一项拖动排序，松手生效，拖动中按 Esc 取消。
+ * 鼠标、触控板按下后一移动就开始拖；触摸屏要长按，避免和滑动冲突。
  * 不显示拖动图标；键盘用 Alt + ↑/↓ 移动当前项。
  */
 export function SortableNav({
@@ -60,10 +63,14 @@ export function SortableNav({
     index: number;
     key: ManagerSection;
     pointerId: number;
+    touch: boolean;
+    target: HTMLButtonElement;
     x: number;
     y: number;
     timer: number;
   } | null>(null);
+  /** 已经开始拖动（state 更新前的同步标记） */
+  const started = useRef(false);
   /** 拖动结束后紧跟着的 click 不算导航 */
   const swallowClick = useRef(false);
   /** 每一格的高度（布局像素）、屏幕缩放比例、开始拖动时的指针位置 */
@@ -78,6 +85,34 @@ export function SortableNav({
   const clearPress = () => {
     if (press.current) window.clearTimeout(press.current.timer);
     press.current = null;
+    started.current = false;
+  };
+
+  /** 进入拖动：记下格高、缩放比例和按下的位置 */
+  const startDrag = () => {
+    const p = press.current;
+    const list = listRef.current;
+    if (!p || !list || started.current) return;
+    started.current = true;
+    window.clearTimeout(p.timer);
+    const lis = Array.from(list.children) as HTMLElement[];
+    const first = lis[0];
+    // 模拟桌面整体做了缩放：屏幕像素 ÷ 缩放比例 = 布局像素
+    const scale = first.getBoundingClientRect().height / first.offsetHeight;
+    geo.current = {
+      slot:
+        lis.length > 1
+          ? lis[1].offsetTop - first.offsetTop
+          : first.offsetHeight,
+      scale: scale || 1,
+      startY: p.y,
+    };
+    try {
+      p.target.setPointerCapture(p.pointerId);
+    } catch {
+      /* 指针已经抬起 */
+    }
+    setDrag({ key: p.key, from: p.index, over: p.index, dy: 0 });
   };
 
   const commit = (from: number, to: number) => {
@@ -110,35 +145,13 @@ export function SortableNav({
   ) => {
     swallowClick.current = false;
     if (disabled || e.button !== 0) return;
-    const target = e.currentTarget;
-    const pointerId = e.pointerId;
-    const timer = window.setTimeout(() => {
-      const p = press.current;
-      const list = listRef.current;
-      if (!p || !list) return;
-      const lis = Array.from(list.children) as HTMLElement[];
-      const first = lis[0];
-      // 模拟桌面整体做了缩放：屏幕像素 ÷ 缩放比例 = 布局像素
-      const scale = first.getBoundingClientRect().height / first.offsetHeight;
-      geo.current = {
-        slot:
-          lis.length > 1
-            ? lis[1].offsetTop - first.offsetTop
-            : first.offsetHeight,
-        scale: scale || 1,
-        startY: p.y,
-      };
-      try {
-        target.setPointerCapture(pointerId);
-      } catch {
-        /* 指针已经抬起 */
-      }
-      setDrag({ key, from: index, over: index, dy: 0 });
-    }, LONG_PRESS_MS);
+    const timer = window.setTimeout(startDrag, LONG_PRESS_MS);
     press.current = {
       index,
       key,
-      pointerId,
+      pointerId: e.pointerId,
+      touch: e.pointerType === "touch",
+      target: e.currentTarget,
       x: e.clientX,
       y: e.clientY,
       timer,
@@ -148,23 +161,27 @@ export function SortableNav({
   const onPointerMove = (e: PointerEvent<HTMLButtonElement>) => {
     const p = press.current;
     if (!p) return;
-    if (!drag) {
-      if (Math.hypot(e.clientX - p.x, e.clientY - p.y) > MOVE_TOLERANCE)
-        clearPress();
-      return;
+    if (!started.current) {
+      const moved = Math.hypot(e.clientX - p.x, e.clientY - p.y);
+      if (p.touch) {
+        // 触摸屏要长按；没到时间就移动，当作滑动
+        if (moved > TOUCH_TOLERANCE) clearPress();
+        return;
+      }
+      if (moved <= MOUSE_DRAG_START) return;
+      startDrag();
     }
+    if (!drag && !started.current) return;
+    const from = drag?.from ?? p.index;
     const { slot, scale, startY } = geo.current;
     const n = items.length;
     const raw = (e.clientY - startY) / scale;
     // 最多拖出列表首尾半格
     const dy = Math.max(
-      -(drag.from + 0.5) * slot,
-      Math.min((n - 1 - drag.from + 0.5) * slot, raw)
+      -(from + 0.5) * slot,
+      Math.min((n - 1 - from + 0.5) * slot, raw)
     );
-    const over = Math.max(
-      0,
-      Math.min(n - 1, Math.round(drag.from + dy / slot))
-    );
+    const over = Math.max(0, Math.min(n - 1, Math.round(from + dy / slot)));
     setDrag(d => (d ? { ...d, dy, over } : d));
   };
 
@@ -266,7 +283,7 @@ export function SortableNav({
         })}
       </ul>
       <p id="nav-sort-hint" className="sr-only">
-        长按拖动可以调整顺序，也可以按 Alt 加上下方向键移动
+        按住拖动可以调整顺序，也可以按 Alt 加上下方向键移动
       </p>
       <p className="sr-only" aria-live="polite">
         {announce}
