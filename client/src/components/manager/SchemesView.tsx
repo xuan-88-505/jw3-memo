@@ -138,12 +138,16 @@ function SchemeList() {
                   const last = latest(findScheme(state, x, m));
                   const draft = state.drafts[id];
                   const active = activeId === id;
+                  const meta = last
+                    ? `v${last.version} · ${memberName(state, last.authorId)} · ${relativeTime(last.at)}`
+                    : "新建中，未保存";
                   return (
                     <li key={m}>
                       <button
                         type="button"
                         onClick={() => actions.selectScheme(id)}
                         aria-current={active ? "page" : undefined}
+                        aria-label={`${x} ${m} · ${meta}${draft ? " · 有未保存的修改" : ""}`}
                         className={cn(
                           "flex w-full items-center gap-2 rounded-md py-1.5 pl-[36px] pr-2 text-left text-[12.5px] transition-colors",
                           active
@@ -151,19 +155,33 @@ function SchemeList() {
                             : "text-paper-2 hover:bg-paper/[0.04] hover:text-paper"
                         )}
                       >
-                        <span className="w-8 font-medium">{m}</span>
-                        <span className="min-w-0 flex-1 truncate text-[11.5px] text-paper-3">
-                          {last
-                            ? `v${last.version} · ${memberName(state, last.authorId)} · ${relativeTime(last.at)}`
-                            : "新建中，未保存"}
+                        <span
+                          className={cn(
+                            "min-w-0 flex-1 truncate text-[11.5px]",
+                            active ? "text-paper-2" : "text-paper-3"
+                          )}
+                        >
+                          {meta}
                         </span>
-                        {draft && (
-                          <span
-                            className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold"
-                            aria-label="有未保存的修改"
-                            title="有未保存的修改"
-                          />
-                        )}
+                        <span
+                          className={cn(
+                            "shrink-0 rounded px-1.5 py-px text-[10.5px] font-medium tracking-wide",
+                            active
+                              ? "bg-paper/[0.1] text-paper"
+                              : "bg-paper/[0.05] text-paper-2"
+                          )}
+                        >
+                          {m}
+                        </span>
+                        {/* 圆点固定占位，各行的模式标签才能对齐 */}
+                        <span
+                          className={cn(
+                            "h-1.5 w-1.5 shrink-0 rounded-full",
+                            draft && "bg-gold"
+                          )}
+                          aria-hidden="true"
+                          title={draft ? "有未保存的修改" : undefined}
+                        />
                       </button>
                     </li>
                   );
