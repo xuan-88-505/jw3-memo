@@ -159,27 +159,28 @@ export function SectionHeader({
   title: ReactNode;
   description?: ReactNode;
   right?: ReactNode;
-  /** 二级页：标题上方显示「‹ 上一级」 */
+  /** 二级页：标题左边一个 ‹，点了回上一级；上一级的名字只放在提示里 */
   back?: { label: string; onClick: () => void };
 }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3 pb-5">
       <div className="min-w-0">
-        {back && (
-          <button
-            type="button"
-            onClick={back.onClick}
-            aria-label={`返回${back.label}`}
-            title={`返回${back.label}`}
-            className="-ml-1.5 mb-1.5 inline-flex h-7 items-center gap-0.5 rounded-md pl-0.5 pr-2 text-[12.5px] text-paper-3 transition-colors hover:bg-paper/[0.05] hover:text-paper"
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-            {back.label}
-          </button>
-        )}
-        <h1 className="text-[20px] font-semibold leading-tight tracking-[-0.01em] text-paper">
-          {title}
-        </h1>
+        <div className="flex items-center gap-0.5">
+          {back && (
+            <button
+              type="button"
+              onClick={back.onClick}
+              aria-label={`返回${back.label}`}
+              title={`返回${back.label}`}
+              className="-my-1 -ml-2.5 grid h-8 w-8 shrink-0 place-items-center rounded-md text-paper-2 transition-colors hover:bg-paper/[0.06] hover:text-paper"
+            >
+              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+            </button>
+          )}
+          <h1 className="text-[20px] font-semibold leading-tight tracking-[-0.01em] text-paper">
+            {title}
+          </h1>
+        </div>
         {description && (
           <p className="mt-1.5 text-[13px] text-paper-3">{description}</p>
         )}

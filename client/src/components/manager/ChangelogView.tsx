@@ -78,6 +78,11 @@ export function ChangelogView() {
     state.schemes
       .filter(s => s.xinfa === xinfa)
       .reduce((n, s) => n + s.versions.length, 0);
+  const total = state.schemes.reduce((n, s) => n + s.versions.length, 0);
+  // 没有记录的心法筛了也是空的，不放进筛选；当前选中的除外
+  const shownChips = chips.filter(x => x === filter || countOf(x) > 0);
+  // 没内容时不显示筛选：一条记录都没有，或者关注的心法都没有记录
+  const showFilter = total > 0 && (filter !== "全部" || entries.length > 0);
 
   return (
     <div>
@@ -86,46 +91,58 @@ export function ChangelogView() {
         back={{ label: "方案库", onClick: actions.closeChangelog }}
       />
 
-      <div
-        className="mb-5 flex flex-wrap items-center gap-1.5"
-        role="group"
-        aria-label="按心法筛选"
-      >
-        <FilterChip
-          label="全部"
-          selected={filter === "全部"}
-          onSelect={() => actions.setChangelogFilter("全部")}
-        />
-        {chips.map(x => (
-          <FilterChip
-            key={x}
-            label={x}
-            xinfa={x}
-            selected={filter === x}
-            onSelect={() => actions.setChangelogFilter(x)}
-            removeLabel={`不再关注${x}`}
-            onRemove={() =>
-              followed.includes(x)
-                ? actions.unfollowXinfa(x)
-                : actions.setChangelogFilter("全部")
-            }
-          />
-        ))}
-        <button
-          type="button"
-          onClick={() => setPicking(true)}
-          aria-label="添加关注的心法"
-          title="添加关注的心法"
-          className="inline-grid h-7 w-7 place-items-center rounded-full border border-dashed border-paper/20 text-paper-3 transition-colors hover:border-paper/35 hover:text-paper"
+      {showFilter && (
+        <div
+          className="mb-5 flex flex-wrap items-center gap-1.5"
+          role="group"
+          aria-label="按心法筛选"
         >
-          <Plus className="h-3.5 w-3.5" />
-        </button>
-      </div>
+          <FilterChip
+            label="全部"
+            selected={filter === "全部"}
+            onSelect={() => actions.setChangelogFilter("全部")}
+          />
+          {shownChips.map(x => (
+            <FilterChip
+              key={x}
+              label={x}
+              xinfa={x}
+              selected={filter === x}
+              onSelect={() => actions.setChangelogFilter(x)}
+              removeLabel={`不再关注${x}`}
+              onRemove={() =>
+                followed.includes(x)
+                  ? actions.unfollowXinfa(x)
+                  : actions.setChangelogFilter("全部")
+              }
+            />
+          ))}
+          <button
+            type="button"
+            onClick={() => setPicking(true)}
+            aria-label="添加关注的心法"
+            title="添加关注的心法"
+            className="inline-grid h-7 w-7 place-items-center rounded-full border border-dashed border-paper/20 text-paper-3 transition-colors hover:border-paper/35 hover:text-paper"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
-      {filter === "全部" && followed.length === 0 ? (
+      {total === 0 ? (
         <EmptyState
           icon={<History className="h-5 w-5" />}
-          title="还没有关注的心法"
+          title="还没有修改记录"
+        />
+      ) : filter === "全部" && entries.length === 0 ? (
+        // 别的心法有记录，但没关注
+        <EmptyState
+          icon={<History className="h-5 w-5" />}
+          title={
+            followed.length === 0
+              ? "还没有关注的心法"
+              : "关注的心法还没有修改记录"
+          }
           action={
             <Btn
               variant="primary"
@@ -206,7 +223,9 @@ export function ChangelogView() {
                               {relativeTime(e.version.at)} ·{" "}
                               {e.prev
                                 ? diffSummary(diff)
-                                : `${e.version.macros.length} 个宏 · 9 层奇穴`}
+                                : e.version.macros.length
+                                  ? `${e.version.macros.length} 个宏 · 9 层奇穴`
+                                  : "9 层奇穴"}
                             </p>
                             {e.version.note && (
                               <p className="mt-1.5 text-[13px] leading-relaxed text-paper">

@@ -259,7 +259,11 @@ function PanelMain({
             const id = `panel-sec-${char.id}-${sec.xinfa}`;
             const list =
               tab === "macro" ? (
-                <MacroList macros={sec.last!.macros} base={sec.base} />
+                <MacroList
+                  macros={sec.last!.macros}
+                  base={sec.base}
+                  compact={multi}
+                />
               ) : (
                 <TalentList xinfa={sec.xinfa} talents={sec.last!.talents} />
               );

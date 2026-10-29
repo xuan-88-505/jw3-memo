@@ -27,6 +27,7 @@ import {
   activeSchemeId,
   canEdit,
   findScheme,
+  followedXinfa,
   isOnline,
   latest,
   memberName,
@@ -74,7 +75,11 @@ function SchemeList() {
       m => latest(findScheme(state, x, m)) || state.drafts[`${x}-${m}`]
     )
   );
-  const versionCount = state.schemes.reduce((n, s) => n + s.versions.length, 0);
+  // 和修改记录「全部」看到的一致：只数关注的心法
+  const followed = followedXinfa(state);
+  const versionCount = state.schemes
+    .filter(s => followed.includes(s.xinfa))
+    .reduce((n, s) => n + s.versions.length, 0);
   return (
     <div className="flex w-[236px] shrink-0 flex-col border-r border-paper/[0.07]">
       <nav
@@ -412,15 +417,14 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
       .map(l => `${m.name || "未命名宏"}：${l.text}`)
   );
   const nameMissing = view.macros.some(m => !m.name.trim());
+  // 可以只存奇穴，不要求有宏
   const blockReason = !online
     ? "离线时不能保存"
-    : view.macros.length === 0
-      ? "至少要有一个宏"
-      : nameMissing
-        ? "有宏没写名字"
-        : errors.length
-          ? errors[0]
-          : "";
+    : nameMissing
+      ? "有宏没写名字"
+      : errors.length
+        ? errors[0]
+        : "";
 
   const edit = (fn: (d: Draft) => Draft) => actions.editDraft(schemeId, fn);
   const setMacro = (id: string, patch: Partial<Macro>) =>

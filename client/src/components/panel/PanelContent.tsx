@@ -69,9 +69,12 @@ export function ChangeList({ diff }: { diff: SchemeDiff }) {
 export function MacroList({
   macros,
   base,
+  compact,
 }: {
   macros: Macro[];
   base?: SchemeVersion;
+  /** 多心法分段时：没有宏只占一行 */
+  compact?: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const baseMap = useMemo(
@@ -80,7 +83,12 @@ export function MacroList({
   );
   if (!macros.length) {
     return (
-      <p className="px-4 py-10 text-center text-[12.5px] text-paper-3">
+      <p
+        className={cn(
+          "px-4 text-[12.5px] text-paper-3",
+          compact ? "pb-3 pt-1" : "py-10 text-center"
+        )}
+      >
         没有宏
       </p>
     );
