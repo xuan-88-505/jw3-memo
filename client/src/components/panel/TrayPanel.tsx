@@ -7,6 +7,7 @@ import {
 import {
   AppWindow,
   Bell,
+  BookOpen,
   ChevronDown,
   Pin,
   Plus,
@@ -306,13 +307,13 @@ function PanelMain({
         )}
       </div>
 
-      {!multi && missing.length ? (
+      {missing.length && (!multi || ready.length === 0) ? (
         <NoScheme
-          xinfa={xinfas[0]}
+          xinfa={multi ? undefined : xinfas[0]}
           mode={mode}
           onCreate={() =>
             openManager("schemes", undefined, {
-              newScheme: { xinfa: xinfas[0], mode },
+              newScheme: { xinfa: missing[0].xinfa, mode },
             })
           }
         />
@@ -357,25 +358,15 @@ function PanelMain({
             );
           })}
           {multi && missing.length > 0 && (
-            <div
-              className={cn(
-                "py-1",
-                ready.length > 0 && "border-t border-paper/[0.06]"
-              )}
-            >
-              {missing.map(sec => (
-                <MissingRow
-                  key={sec.xinfa}
-                  xinfa={sec.xinfa}
-                  mode={modes.length > 1 ? mode : undefined}
-                  onCreate={() =>
-                    openManager("schemes", undefined, {
-                      newScheme: { xinfa: sec.xinfa, mode },
-                    })
-                  }
-                />
-              ))}
-            </div>
+            <NewSchemeRow
+              missing={missing.map(x => x.xinfa)}
+              mode={mode}
+              onCreate={() =>
+                openManager("schemes", undefined, {
+                  newScheme: { xinfa: missing[0].xinfa, mode },
+                })
+              }
+            />
           )}
         </div>
       )}
@@ -417,39 +408,29 @@ function SectionHeading({
   );
 }
 
-/** 多心法角色里还没有方案的心法：一行，放在列表最后 */
-function MissingRow({
-  xinfa,
+/** 多心法角色里有心法还没方案：列表最后一行「新建方案」，不逐个列出 */
+function NewSchemeRow({
+  missing,
   mode,
   onCreate,
 }: {
-  xinfa: string;
-  /** 角色有 PVE/PVP 两种时写明是哪种 */
-  mode?: Mode;
+  missing: string[];
+  mode: Mode;
   onCreate: () => void;
 }) {
   const { state } = useProto();
-  const viewer = me(state)?.role === "viewer";
+  if (me(state)?.role === "viewer") return null;
   return (
-    <div className="flex h-9 items-center gap-2 px-4 text-[12px]">
-      <span aria-hidden="true" className="inline-flex shrink-0 opacity-60">
-        <XinfaMark xinfa={xinfa} size={16} />
-      </span>
-      <span className="truncate text-paper-2">{xinfa}</span>
-      <span className="shrink-0 text-paper-3">
-        还没有{mode ? ` ${mode} ` : ""}方案
-      </span>
-      {!viewer && (
-        <button
-          type="button"
-          onClick={onCreate}
-          aria-label={`新建${xinfa}${mode ? ` ${mode}` : ""}方案`}
-          className="ml-auto inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-paper-2 transition-colors hover:bg-paper/[0.06] hover:text-paper"
-        >
-          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-          新建
-        </button>
-      )}
+    <div className="border-t border-paper/[0.06] px-2 py-1.5">
+      <button
+        type="button"
+        onClick={onCreate}
+        title={`${missing.join("、")}还没有 ${mode} 方案`}
+        className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[12.5px] text-paper-3 transition-colors hover:bg-paper/[0.06] hover:text-paper"
+      >
+        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+        新建方案
+      </button>
     </div>
   );
 }
@@ -570,7 +551,8 @@ function NoScheme({
   mode,
   onCreate,
 }: {
-  xinfa: string;
+  /** 只玩一个心法时写心法名；多心法角色一个方案都没有时不写 */
+  xinfa?: string;
   mode: Mode;
   onCreate: () => void;
 }) {
@@ -578,9 +560,15 @@ function NoScheme({
   const viewer = me(state)?.role === "viewer";
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-8 pb-6 text-center">
-      <XinfaMark xinfa={xinfa} size={40} className="opacity-60" />
+      {xinfa ? (
+        <XinfaMark xinfa={xinfa} size={40} className="opacity-60" />
+      ) : (
+        <span className="grid h-10 w-10 place-items-center rounded-lg bg-ink-4 text-paper-3 ring-1 ring-inset ring-paper/10">
+          <BookOpen className="h-[18px] w-[18px]" aria-hidden="true" />
+        </span>
+      )}
       <p className="text-[13.5px] text-paper-2">
-        {xinfa}还没有 {mode} 方案
+        {xinfa ?? ""}还没有 {mode} 方案
       </p>
       {viewer ? (
         <p className="text-[12px] text-paper-3">只读成员不能新建</p>

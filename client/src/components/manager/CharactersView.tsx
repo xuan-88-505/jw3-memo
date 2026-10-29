@@ -161,13 +161,16 @@ export function CharactersView() {
                     <SyncCell char={c} />
                   </td>
                   <td className={cn(TD, "text-right")}>
-                    <IconBtn
-                      label={`删除角色 ${c.name}`}
-                      onClick={() => setRemoving(c)}
-                      disabled={!online}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </IconBtn>
+                    <span className="inline-flex items-center gap-0.5">
+                      <NewSchemeBtn char={c} disabled={!online} />
+                      <IconBtn
+                        label={`删除角色 ${c.name}`}
+                        onClick={() => setRemoving(c)}
+                        disabled={!online}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </IconBtn>
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -377,61 +380,62 @@ function SchoolCell({
 
 /**
  * 每个心法一行，只玩一个心法时不写心法名。
- * 每行只列出这个心法已有的模式；方案库里还没有时给「新建」入口
+ * 只列出已有方案的心法；还没有方案的不显示，新建入口在行尾（悬停出现）
  */
 function SyncCell({ char }: { char: Character }) {
-  const { state, actions } = useProto();
+  const { state } = useProto();
   const xs = xinfasOf(char);
   const multi = xs.length > 1;
-  const editable = canEdit(state);
+  const ready = xs.filter(x => modesOf(state, x).length > 0);
+  if (ready.length === 0) return null;
   return (
     <div className="flex flex-col gap-2.5">
-      {xs.map(x => {
+      {ready.map(x => {
         const modes = modesOf(state, x);
         return (
           <div key={x} className="flex items-start gap-2">
             {multi && (
-              <span
-                className={cn(
-                  "w-[62px] shrink-0 whitespace-nowrap text-[12px] leading-5",
-                  modes.length ? "text-paper-2" : "text-paper-3"
-                )}
-              >
+              <span className="w-[62px] shrink-0 whitespace-nowrap text-[12px] leading-5 text-paper-2">
                 {x}
               </span>
             )}
-            {modes.length === 0 ? (
-              <span className="flex items-center gap-1.5 text-[12px] leading-5 text-paper-3">
-                还没有方案
-                {editable && (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        actions.openManager("schemes", undefined, {
-                          newScheme: { xinfa: x, mode: "PVE" },
-                        })
-                      }
-                      aria-label={`新建${x}方案`}
-                      className="rounded text-paper-2 underline-offset-2 transition-colors hover:text-paper hover:underline"
-                    >
-                      新建
-                    </button>
-                  </>
-                )}
-              </span>
-            ) : (
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                {modes.map(m => (
-                  <ModeCell key={m} char={char} xinfa={x} mode={m} />
-                ))}
-              </div>
-            )}
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              {modes.map(m => (
+                <ModeCell key={m} char={char} xinfa={x} mode={m} />
+              ))}
+            </div>
           </div>
         );
       })}
     </div>
+  );
+}
+
+/** 行尾的新建方案：只在有心法还没方案时存在，悬停整行或键盘聚焦时出现 */
+function NewSchemeBtn({
+  char,
+  disabled,
+}: {
+  char: Character;
+  disabled: boolean;
+}) {
+  const { state, actions } = useProto();
+  const missing = xinfasOf(char).filter(x => modesOf(state, x).length === 0);
+  if (!canEdit(state) || missing.length === 0) return null;
+  return (
+    <span className="opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100">
+      <IconBtn
+        label={`新建方案，${missing.join("、")}还没有`}
+        onClick={() =>
+          actions.openManager("schemes", undefined, {
+            newScheme: { xinfa: missing[0], mode: "PVE" },
+          })
+        }
+        disabled={disabled}
+      >
+        <Plus className="h-4 w-4" />
+      </IconBtn>
+    </span>
   );
 }
 
