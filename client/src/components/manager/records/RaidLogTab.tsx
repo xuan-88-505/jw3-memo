@@ -21,7 +21,7 @@ import {
   type GameRole,
   type RaidLog,
 } from "@/data/records";
-import { ME_ID, schoolLabel } from "@/data/seed";
+import { ME_ID } from "@/data/seed";
 import { cn } from "@/lib/utils";
 import { canEdit, isOnline, memberName, useProto, isSolo } from "@/state/store";
 import { EmptyState, Field, inputCls, SelectBox } from "../shared";
@@ -497,7 +497,7 @@ function RaidLogDialog({
               <optgroup label="我的">
                 {mine.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.name} · {schoolLabel(c)}
+                    {c.name}
                   </option>
                 ))}
               </optgroup>
@@ -506,7 +506,7 @@ function RaidLogDialog({
               <optgroup label="亲友">
                 {others.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.name} · {memberName(state, c.ownerId)}
+                    {c.name}
                   </option>
                 ))}
               </optgroup>
