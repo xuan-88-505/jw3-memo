@@ -31,7 +31,7 @@ export const Btn = forwardRef<
         variant === "primary" &&
           "bg-cinnabar-fill text-[#FFF7F0] hover:bg-cinnabar active:bg-[#a9361f]",
         variant === "secondary" &&
-          "bg-ink-4 text-paper ring-1 ring-inset ring-paper/10 hover:bg-ink-5 active:bg-ink-4",
+          "bg-paper/[0.06] text-paper ring-1 ring-inset ring-paper/10 hover:bg-paper/[0.10] active:bg-paper/[0.08]",
         variant === "ghost" &&
           "text-paper-2 hover:bg-paper/[0.07] hover:text-paper",
         variant === "quiet" && "text-paper-3 hover:text-paper",
@@ -92,7 +92,7 @@ export function Segmented<T extends string>({
     <div
       role="radiogroup"
       aria-label={label}
-      className="inline-flex shrink-0 rounded-md bg-ink p-0.5 ring-1 ring-inset ring-paper/10"
+      className="inline-flex shrink-0 rounded-md bg-paper/[0.04] p-0.5 ring-1 ring-inset ring-paper/10"
     >
       {options.map(o => {
         const active = o.value === value;
@@ -111,7 +111,7 @@ export function Segmented<T extends string>({
                 ? "h-5 px-2 text-[11.5px]"
                 : "h-6 px-2.5 text-[12.5px]",
               active
-                ? "bg-ink-4 text-paper shadow-[0_1px_0_rgb(255_255_255/0.06)_inset]"
+                ? "bg-paper/[0.10] text-paper shadow-[0_1px_0_rgb(255_255_255/0.05)_inset]"
                 : "text-paper-3 hover:text-paper"
             )}
           >
@@ -135,7 +135,7 @@ export function Kbd({
       {keys.map(k => (
         <kbd
           key={k}
-          className="inline-grid h-[18px] min-w-[18px] place-items-center rounded-[4px] bg-ink-4 px-1 font-sans text-[10.5px] font-medium text-paper-2 ring-1 ring-inset ring-paper/12"
+          className="inline-grid h-[18px] min-w-[18px] place-items-center rounded-[4px] bg-paper/[0.06] px-1 font-sans text-[10.5px] font-medium text-paper-2 ring-1 ring-inset ring-paper/12"
         >
           {k}
         </kbd>
@@ -161,7 +161,7 @@ export function Avatar({
   if (av.kind === "upload") {
     return (
       <span
-        className="relative inline-block shrink-0 overflow-hidden rounded-full bg-ink-4"
+        className="relative inline-block shrink-0 overflow-hidden rounded-full bg-paper/[0.06]"
         style={{ width: size, height: size }}
         aria-hidden="true"
       >

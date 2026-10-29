@@ -98,7 +98,7 @@ export function TalentPicker({
                       "flex items-center gap-2 rounded-lg px-2 py-1.5 text-left ring-1 ring-inset transition-colors",
                       slot === i && !disabled
                         ? "bg-cinnabar/[0.10] ring-cinnabar/60"
-                        : "bg-ink ring-paper/10 hover:ring-paper/20"
+                        : "bg-paper/[0.04] ring-paper/10 hover:ring-paper/[0.18]"
                     )}
                   >
                     {o && <Jx3Icon id={o.icon} name={o.name} size={26} />}
@@ -152,7 +152,7 @@ export function TalentPicker({
       </div>
 
       <aside
-        className="hidden self-start rounded-lg bg-ink px-3 py-3 ring-1 ring-inset ring-paper/8 lg:block"
+        className="hidden self-start rounded-lg bg-paper/[0.04] px-3 py-3 ring-1 ring-inset ring-paper/10 lg:block"
         aria-live="polite"
       >
         {detail ? (
@@ -219,7 +219,7 @@ function Tile({
         compact ? "flex-col px-1 py-1.5" : "px-1.5 py-1.5",
         selected
           ? "bg-cinnabar/[0.10] ring-cinnabar/70"
-          : "bg-ink ring-paper/8 hover:ring-paper/25",
+          : "bg-paper/[0.04] ring-paper/10 hover:ring-paper/[0.22]",
         disabled && !selected && "opacity-40",
         disabled && "cursor-default"
       )}
@@ -240,7 +240,7 @@ function Tile({
         {opt.name}
       </span>
       {badge && (
-        <span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-[3px] bg-ink-5 font-serif text-[10px] text-paper-2">
+        <span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-[3px] bg-ink-3/90 font-serif text-[10px] text-paper-2 ring-1 ring-paper/12">
           {badge}
         </span>
       )}

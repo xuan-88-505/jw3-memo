@@ -1,4 +1,5 @@
 import type { ReactNode, SelectHTMLAttributes } from "react";
+import { EMPTY_ICON } from "@/components/common/surface";
 import { ChevronDown } from "lucide-react";
 import { Jx3Icon } from "@/components/brand/Marks";
 import type { SchemeDiff } from "@/lib/diff";
@@ -83,7 +84,7 @@ export function DiffDetails({
                   </span>
                 </p>
                 {m.ops.length > 0 && (m.kind === "changed" || !compact) && (
-                  <pre className="scroll-thin overflow-x-auto rounded-md bg-ink py-1 font-mono text-[11.5px] leading-[1.7] ring-1 ring-inset ring-paper/8">
+                  <pre className="scroll-thin overflow-x-auto rounded-md bg-paper/[0.04] py-1 font-mono text-[11.5px] leading-[1.7] ring-1 ring-inset ring-paper/10">
                     {m.ops
                       .filter(o => !compact || o.type !== "same")
                       .map((o, i) => (
@@ -209,10 +210,10 @@ export function Field({
 
 export const inputCls = (error?: boolean) =>
   cn(
-    "h-9 w-full rounded-md bg-ink px-3 text-[13px] text-paper placeholder:text-paper-3/70 ring-1 ring-inset focus:outline-none focus:ring-2 disabled:opacity-50",
+    "h-9 w-full rounded-md bg-paper/[0.04] px-3 text-[13px] text-paper placeholder:text-paper-3/70 ring-1 ring-inset focus:outline-none focus:ring-2 disabled:opacity-50",
     error
       ? "ring-cinnabar/70 focus:ring-cinnabar"
-      : "ring-paper/12 focus:ring-cinnabar-text/60"
+      : "ring-paper/10 hover:ring-paper/[0.18] focus:ring-cinnabar-text/60"
   );
 
 export function EmptyState({
@@ -227,13 +228,9 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-paper/12 px-6 py-12 text-center">
-      <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-4 text-paper-2 ring-1 ring-inset ring-paper/10">
-        {icon}
-      </span>
-      <p className="mt-4 font-serif text-[15px] font-semibold text-paper">
-        {title}
-      </p>
+    <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
+      <span className={EMPTY_ICON}>{icon}</span>
+      <p className="mt-3.5 text-[14px] font-medium text-paper">{title}</p>
       {description && (
         <p className="mt-1.5 max-w-[340px] text-[12.5px] leading-relaxed text-paper-3">
           {description}

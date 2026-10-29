@@ -254,59 +254,6 @@ function PanelMain({
 
       <OfflineBar compact />
 
-      <div className="flex h-10 shrink-0 items-center gap-4 border-b border-paper/[0.07] px-4">
-        <div
-          role="tablist"
-          aria-label="内容"
-          className="flex h-full items-stretch gap-4"
-        >
-          {(
-            [
-              ["macro", "宏", macroChanged],
-              ["talent", "奇穴", talentChanged],
-            ] as const
-          ).map(([key, label, changed]) => (
-            <button
-              key={key}
-              role="tab"
-              type="button"
-              aria-selected={tab === key}
-              onClick={() => setTab(key)}
-              className={cn(
-                "relative -mb-px flex items-center gap-1.5 border-b-2 text-[13px] font-medium transition-colors",
-                tab === key
-                  ? "border-cinnabar text-paper"
-                  : "border-transparent text-paper-3 hover:text-paper"
-              )}
-            >
-              {label}
-              {changed && <ChangeDot />}
-            </button>
-          ))}
-        </div>
-        {modes.length > 1 && (
-          <div className="ml-auto">
-            <Segmented<Mode>
-              label="方案类型"
-              size="xs"
-              value={mode}
-              onChange={m => actions.setMode(char.id, m)}
-              options={modes.map(m => ({
-                value: m,
-                label: (
-                  <span className="inline-flex items-center gap-1">
-                    {m}
-                    {xinfas.some(x =>
-                      isPending(statusOf(state, char, m, x))
-                    ) && <ChangeDot />}
-                  </span>
-                ),
-              }))}
-            />
-          </div>
-        )}
-      </div>
-
       {missing.length && (!multi || ready.length === 0) ? (
         <NoScheme
           xinfa={multi ? undefined : xinfas[0]}
@@ -370,6 +317,60 @@ function PanelMain({
           )}
         </div>
       )}
+
+      {/* 底栏：宏 / 奇穴，离托盘图标近 */}
+      <div className="flex h-11 shrink-0 items-center gap-4 border-t border-paper/[0.07] px-4">
+        <div
+          role="tablist"
+          aria-label="内容"
+          className="flex h-full items-stretch gap-4"
+        >
+          {(
+            [
+              ["macro", "宏", macroChanged],
+              ["talent", "奇穴", talentChanged],
+            ] as const
+          ).map(([key, label, changed]) => (
+            <button
+              key={key}
+              role="tab"
+              type="button"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              className={cn(
+                "relative -mt-px flex items-center gap-1.5 border-t-2 text-[13px] font-medium transition-colors",
+                tab === key
+                  ? "border-cinnabar text-paper"
+                  : "border-transparent text-paper-3 hover:text-paper"
+              )}
+            >
+              {label}
+              {changed && <ChangeDot />}
+            </button>
+          ))}
+        </div>
+        {modes.length > 1 && (
+          <div className="ml-auto">
+            <Segmented<Mode>
+              label="方案类型"
+              size="xs"
+              value={mode}
+              onChange={m => actions.setMode(char.id, m)}
+              options={modes.map(m => ({
+                value: m,
+                label: (
+                  <span className="inline-flex items-center gap-1">
+                    {m}
+                    {xinfas.some(x =>
+                      isPending(statusOf(state, char, m, x))
+                    ) && <ChangeDot />}
+                  </span>
+                ),
+              }))}
+            />
+          </div>
+        )}
+      </div>
     </>
   );
 }
@@ -421,7 +422,7 @@ function NewSchemeRow({
   const { state } = useProto();
   if (me(state)?.role === "viewer") return null;
   return (
-    <div className="border-t border-paper/[0.06] px-2 py-1.5">
+    <div className="border-t border-paper/[0.07] px-2 py-1.5">
       <button
         type="button"
         onClick={onCreate}
@@ -490,7 +491,7 @@ function CharacterSwitcher({
       </button>
 
       {open && (
-        <div className="absolute inset-x-2 top-[46px] z-30 animate-panel-down rounded-xl bg-ink-3 p-1 shadow-[0_18px_44px_-10px_rgb(0_0_0/0.75)] ring-1 ring-paper/12">
+        <div className="absolute inset-x-2 top-[46px] z-30 animate-panel-down rounded-xl bg-ink-3 p-1 shadow-[0_18px_48px_-12px_rgb(0_0_0/0.7)] ring-1 ring-paper/12">
           <ul role="listbox" aria-label="我的角色">
             {characters.map((c, i) => {
               const active = c.id === current.id;
@@ -563,7 +564,7 @@ function NoScheme({
       {xinfa ? (
         <XinfaMark xinfa={xinfa} size={40} className="opacity-60" />
       ) : (
-        <span className="grid h-10 w-10 place-items-center rounded-lg bg-ink-4 text-paper-3 ring-1 ring-inset ring-paper/10">
+        <span className="grid h-10 w-10 place-items-center rounded-full bg-paper/[0.05] text-paper-3">
           <BookOpen className="h-[18px] w-[18px]" aria-hidden="true" />
         </span>
       )}
@@ -601,7 +602,7 @@ function NoCharacters({ onAdd }: { onAdd: () => void }) {
       </header>
       <OfflineBar compact />
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 pb-6 text-center">
-        <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink-4 text-paper-2 ring-1 ring-inset ring-paper/10">
+        <span className="grid h-10 w-10 place-items-center rounded-full bg-paper/[0.05] text-paper-3">
           <UserPlus className="h-5 w-5" aria-hidden="true" />
         </span>
         <p className="text-[13.5px] text-paper-2">还没有角色</p>

@@ -69,7 +69,7 @@ export function RoleName({
     if (!fallbackName) return <span className="text-paper-3">—</span>;
     return (
       <span className="flex min-w-0 items-center gap-2">
-        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-[5px] bg-ink-4 text-[11px] text-paper-3 ring-1 ring-inset ring-paper/10">
+        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-[5px] bg-paper/[0.06] text-[11px] text-paper-3 ring-1 ring-inset ring-paper/10">
           ?
         </span>
         <span
@@ -182,7 +182,7 @@ export function RoleLookup({
     const lastFormer = value.formerNames[value.formerNames.length - 1];
     return (
       <div>
-        <div className="flex items-start gap-3 rounded-lg bg-ink px-3 py-2.5 ring-1 ring-inset ring-paper/12">
+        <div className="flex items-start gap-3 rounded-lg bg-paper/[0.04] px-3 py-2.5 ring-1 ring-inset ring-paper/10">
           <SchoolMark school={value.school} size={32} className="mt-0.5" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13.5px] font-medium text-paper">

@@ -128,7 +128,7 @@ export function Anchored({
         maxHeight: pos.maxHeight,
       }}
       className={cn(
-        "z-50 flex animate-fade flex-col overflow-hidden rounded-xl bg-ink-3 shadow-[0_18px_48px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-paper/12",
+        "z-50 flex animate-fade flex-col overflow-hidden rounded-xl bg-ink-3 shadow-[0_18px_48px_-12px_rgb(0_0_0/0.7)] ring-1 ring-paper/12",
         className
       )}
     >

@@ -247,9 +247,9 @@ export function EnchantEditor({
 
       {changed && (
         // 固定在弹窗滚动区底部，改哪一项都能马上看到结果
-        <div className="sticky bottom-0 -mb-2 bg-ink-2 pb-2 pt-1">
+        <div className="sticky bottom-0 -mb-2 bg-ink-3 pb-2 pt-1">
           <p
-            className="flex flex-wrap items-baseline gap-x-2 rounded-lg bg-ink px-3 py-2 text-[12.5px] text-paper-3 ring-1 ring-inset ring-paper/8"
+            className="flex flex-wrap items-baseline gap-x-2 rounded-lg bg-paper/[0.04] px-3 py-2 text-[12.5px] text-paper-3 ring-1 ring-inset ring-paper/10"
             aria-live="polite"
           >
             秒伤

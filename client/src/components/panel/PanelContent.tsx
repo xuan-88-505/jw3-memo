@@ -156,9 +156,7 @@ export function MacroCard({
     <li
       className={cn(
         "rounded-lg transition-colors",
-        open
-          ? "bg-ink-3 ring-1 ring-inset ring-paper/10"
-          : "hover:bg-paper/[0.035]"
+        open ? "bg-paper/[0.04]" : "hover:bg-paper/[0.035]"
       )}
     >
       <div className="flex items-center gap-2 py-1 pl-1 pr-2">
@@ -234,7 +232,7 @@ export function MacroCode({
   const raw = content.split("\n");
   return (
     <div className="animate-fade px-2 pb-2">
-      <pre className="rounded-md bg-ink py-1.5 font-mono text-[11.5px] leading-[1.7] ring-1 ring-inset ring-paper/8">
+      <pre className="rounded-md bg-paper/[0.04] py-1.5 font-mono text-[11.5px] leading-[1.7] ring-1 ring-inset ring-paper/10">
         {raw.map((line, i) => {
           const comment = isCommentLine(line);
           const blank = line.trim() === "";
@@ -295,7 +293,7 @@ export function TalentList({
               aria-expanded={open}
               className={cn(
                 "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors",
-                open ? "bg-ink-3" : "hover:bg-paper/[0.035]"
+                open ? "bg-paper/[0.04]" : "hover:bg-paper/[0.035]"
               )}
             >
               <span className="w-4 shrink-0 text-center font-serif text-[12px] text-paper-3">

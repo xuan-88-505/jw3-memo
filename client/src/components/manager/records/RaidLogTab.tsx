@@ -182,7 +182,7 @@ export function RaidLogTab({
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-paper/8">
+        <div className="-mx-3">
           <table className="w-full table-fixed text-left text-[13px]">
             <colgroup>
               <col className="w-[112px]" />
@@ -193,14 +193,14 @@ export function RaidLogTab({
               <col className="w-[88px]" />
               <col />
             </colgroup>
-            <thead className="bg-ink-3 text-[12px] text-paper-3">
+            <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
               <tr>
                 <SortTh
                   label="时间"
                   sortKey="at"
                   sort={sort}
                   onSort={onSort}
-                  className="px-4"
+                  className="px-3"
                 />
                 <th className="px-3 py-2.5 font-normal">副本</th>
                 <th className="px-3 py-2.5 font-normal">团牌</th>
@@ -214,10 +214,10 @@ export function RaidLogTab({
                   className="px-3"
                   alignRight
                 />
-                <th className="px-4 py-2.5 font-normal">备注</th>
+                <th className="px-3 py-2.5 font-normal">备注</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-paper/[0.06]">
+            <tbody className="divide-y divide-paper/[0.07]">
               {rows.map(r => {
                 const w = fmtWhen(r.at);
                 const char = state.characters.find(c => c.id === r.charId);
@@ -231,7 +231,7 @@ export function RaidLogTab({
                     onClick={writable ? () => onEdit(r.id) : undefined}
                     className={cn(
                       "group",
-                      writable && "cursor-pointer hover:bg-paper/[0.03]"
+                      writable && "cursor-pointer hover:bg-paper/[0.025]"
                     )}
                     title={
                       isSolo(state)
@@ -243,7 +243,7 @@ export function RaidLogTab({
                           : `${memberName(state, r.by)} 记录`
                     }
                   >
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-2.5">
                       <button
                         type="button"
                         disabled={!writable}
@@ -293,7 +293,7 @@ export function RaidLogTab({
                       {nf.format(r.wage)}
                     </td>
                     <td
-                      className="truncate px-4 py-2.5 text-paper-2"
+                      className="truncate px-3 py-2.5 text-paper-2"
                       title={r.note || undefined}
                     >
                       {r.note || <span className="text-paper-3">—</span>}

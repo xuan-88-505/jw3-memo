@@ -221,7 +221,7 @@ export function EquipPicker({
           <div
             role="radiogroup"
             aria-label="排序"
-            className="flex shrink-0 rounded-md bg-ink-2 p-0.5 ring-1 ring-inset ring-paper/8"
+            className="flex shrink-0 rounded-md bg-paper/[0.04] p-0.5 ring-1 ring-inset ring-paper/10"
           >
             {(
               [

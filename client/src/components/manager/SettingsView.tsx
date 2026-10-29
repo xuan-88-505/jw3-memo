@@ -41,7 +41,7 @@ export function SettingsView() {
   return (
     <div>
       <SectionHeader title="设置" />
-      <div className="space-y-7">
+      <div className="divide-y divide-paper/[0.07]">
         <SettingGroup title="快捷键">
           <HotkeyRow />
         </SettingGroup>
@@ -281,7 +281,7 @@ function HotkeyRow() {
         )}
       </SettingRow>
       <div id="hk-msg" aria-live="polite">
-        {message && <div className="-mt-1 px-5 pb-3.5">{message}</div>}
+        {message && <div className="-mt-1 pb-3.5">{message}</div>}
       </div>
     </div>
   );
@@ -297,13 +297,9 @@ function SettingGroup({
   children: ReactNode;
 }) {
   return (
-    <section>
-      <h2 className="mb-2 px-1 text-[12px] font-medium text-paper-3">
-        {title}
-      </h2>
-      <div className="divide-y divide-paper/[0.06] rounded-xl bg-ink-3 ring-1 ring-inset ring-paper/8">
-        {children}
-      </div>
+    <section className="py-6 first:pt-0">
+      <h2 className="text-[12px] font-medium text-paper-3">{title}</h2>
+      <div className="divide-y divide-paper/[0.07]">{children}</div>
     </section>
   );
 }
@@ -320,7 +316,7 @@ function SettingRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-[64px] items-center gap-6 px-5 py-3">
+    <div className="flex min-h-[60px] items-center gap-6 py-3">
       <div className="min-w-0 flex-1">
         <h3 id={titleId} className="text-[14px] font-medium text-paper">
           {title}
@@ -350,10 +346,10 @@ function Toggle({
       onClick={() => onChange(!checked)}
       className={cn(
         "relative inline-flex h-[22px] w-[38px] shrink-0 items-center rounded-full transition-colors duration-150",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cinnabar-text/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-3",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cinnabar-text/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-2",
         checked
           ? "bg-cinnabar-fill"
-          : "bg-ink-5 ring-1 ring-inset ring-paper/15"
+          : "bg-paper/[0.12] ring-1 ring-inset ring-paper/12"
       )}
     >
       <span
@@ -373,7 +369,7 @@ function KeyChips({ keys }: { keys: string[] }) {
       {keys.map((k, i) => (
         <kbd
           key={`${k}-${i}`}
-          className="inline-grid h-6 min-w-6 place-items-center rounded-[5px] bg-ink-4 px-1.5 font-sans text-[12px] font-medium text-paper ring-1 ring-inset ring-paper/15"
+          className="inline-grid h-6 min-w-6 place-items-center rounded-[5px] bg-paper/[0.08] px-1.5 font-sans text-[12px] font-medium text-paper ring-1 ring-inset ring-paper/12"
         >
           {k}
         </kbd>

@@ -168,7 +168,7 @@ export function Jx3Icon({
   return (
     <span
       className={cn(
-        "relative inline-grid shrink-0 place-items-center overflow-hidden rounded-[6px] bg-ink-4 ring-1 ring-inset ring-paper/10",
+        "relative inline-grid shrink-0 place-items-center overflow-hidden rounded-[6px] bg-paper/[0.06] ring-1 ring-inset ring-paper/10",
         dim && "opacity-45 grayscale",
         className
       )}

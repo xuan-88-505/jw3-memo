@@ -171,7 +171,7 @@ export function ChangelogView() {
                       <div
                         className={cn(
                           "rounded-lg px-3 py-2.5 transition-colors",
-                          open ? "bg-ink-3" : "hover:bg-paper/[0.03]"
+                          open ? "bg-paper/[0.04]" : "hover:bg-paper/[0.025]"
                         )}
                       >
                         <div className="flex items-start gap-2.5">
@@ -287,7 +287,7 @@ function FollowPicker({
         </Btn>
       }
     >
-      <ul className="divide-y divide-paper/[0.05]">
+      <ul className="divide-y divide-paper/[0.07]">
         {XINFA_GROUPS.map(g => (
           <li key={g.school} className="flex items-start gap-3 py-2">
             <span className="w-[72px] shrink-0 pt-1 text-[12px] text-paper-3">

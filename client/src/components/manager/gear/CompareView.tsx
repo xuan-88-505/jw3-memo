@@ -196,11 +196,11 @@ export function CompareView({
   const changed = slotPairs.filter(partDiffers);
   const listedSlots = showAll ? slotPairs : changed;
 
-  const cell = "px-4 py-2.5 text-right tabular-nums";
+  const cell = "px-3 py-2.5 text-right tabular-nums";
 
   return (
-    <div className="space-y-4">
-      <div className="overflow-hidden rounded-xl bg-ink-3 ring-1 ring-inset ring-paper/8">
+    <div className="space-y-6">
+      <div className="-mx-3">
         <table className="w-full table-fixed text-[13px]">
           <caption className="sr-only">
             {a.name} 和 {b.name} 的属性对比，差值是 B 减 A
@@ -213,7 +213,7 @@ export function CompareView({
           </colgroup>
           <thead>
             <tr className="border-b border-paper/[0.07] align-top">
-              <th scope="col" className="px-4 pb-3 pt-4 text-left">
+              <th scope="col" className="px-3 pb-3 pt-4 text-left">
                 <span className="sr-only">属性</span>
                 <IconBtn
                   label="交换 A 和 B"
@@ -223,7 +223,7 @@ export function CompareView({
                   <ArrowLeftRight className="h-3.5 w-3.5" />
                 </IconBtn>
               </th>
-              <th scope="col" className="px-4 pb-3 pt-4 text-right font-normal">
+              <th scope="col" className="px-3 pb-3 pt-4 text-right font-normal">
                 <div className="flex items-center justify-end gap-2">
                   <span className="text-[11px] font-semibold text-paper-3">
                     A
@@ -237,7 +237,7 @@ export function CompareView({
                   {charName(a) ?? "未关联角色"} · {buffLabel(a.buffs)}
                 </p>
               </th>
-              <th scope="col" className="px-4 pb-3 pt-4 text-right font-normal">
+              <th scope="col" className="px-3 pb-3 pt-4 text-right font-normal">
                 <div className="flex items-center justify-end gap-2">
                   <span className="text-[11px] font-semibold text-paper-3">
                     B
@@ -271,7 +271,7 @@ export function CompareView({
               </th>
               <th
                 scope="col"
-                className="px-4 pb-3 pt-4 text-right text-[11.5px] font-normal text-paper-3"
+                className="px-3 pb-3 pt-4 text-right text-[11.5px] font-normal text-paper-3"
               >
                 <div className="flex justify-end">
                   <Segmented
@@ -301,7 +301,7 @@ export function CompareView({
             <tr className="border-b border-paper/[0.07]">
               <th
                 scope="row"
-                className="px-4 py-3.5 text-left font-normal text-paper-2"
+                className="px-3 py-3.5 text-left font-normal text-paper-2"
               >
                 秒伤
               </th>
@@ -335,11 +335,11 @@ export function CompareView({
               return (
                 <tr
                   key={r.key}
-                  className="border-b border-paper/[0.05] last:border-0"
+                  className="border-b border-paper/[0.07] last:border-0"
                 >
                   <th
                     scope="row"
-                    className="px-4 py-2.5 text-left font-normal text-paper-2"
+                    className="px-3 py-2.5 text-left font-normal text-paper-2"
                   >
                     {r.label}
                   </th>
@@ -371,10 +371,10 @@ export function CompareView({
 
       <section
         aria-label="装备差异"
-        className="rounded-xl bg-ink-3 ring-1 ring-inset ring-paper/8"
+        className="border-t border-paper/[0.07] pt-6"
       >
-        <div className="flex items-center justify-between px-4 pb-2 pt-3.5">
-          <h3 className="text-[13px] font-medium text-paper">
+        <div className="flex items-center justify-between pb-2">
+          <h3 className="text-[14px] font-medium text-paper">
             {changed.length
               ? `${changed.length} 个部位不同`
               : "装备和附魔完全相同"}
@@ -391,7 +391,7 @@ export function CompareView({
           )}
         </div>
         {listedSlots.length > 0 && (
-          <ul className="px-1.5 pb-2">
+          <ul className="-mx-2.5">
             {listedSlots.map(p => {
               const diff = partDiffers(p);
               return (

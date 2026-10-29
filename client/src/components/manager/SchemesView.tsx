@@ -495,7 +495,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
         </div>
 
         {!editable && (
-          <div className="mt-4 flex items-center gap-2 rounded-lg bg-paper/[0.04] px-3 py-2 text-[12.5px] text-paper-2 ring-1 ring-inset ring-paper/8">
+          <div className="mt-4 flex items-center gap-2 rounded-lg bg-paper/[0.04] px-3 py-2 text-[12.5px] text-paper-2 ring-1 ring-inset ring-paper/10">
             <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             只读成员不能修改
           </div>
@@ -518,9 +518,9 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
           >
             宏 · {view.macros.length}
           </SectionLabel>
-          <div className="mt-2.5 space-y-2.5">
+          <div className="mt-1 divide-y divide-paper/[0.07]">
             {view.macros.length === 0 && (
-              <p className="rounded-lg border border-dashed border-paper/12 px-4 py-6 text-center text-[12.5px] text-paper-3">
+              <p className="py-6 text-center text-[12.5px] text-paper-3">
                 还没有宏
               </p>
             )}
@@ -553,7 +553,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
       </div>
 
       {draft && (dirty || !last) && (
-        <div className="sticky bottom-0 z-10 flex items-center gap-3 border-t border-paper/[0.08] bg-ink-2/95 px-7 py-3 backdrop-blur">
+        <div className="sticky bottom-0 z-10 flex items-center gap-3 border-t border-paper/[0.07] bg-ink-2/95 px-7 py-3 backdrop-blur">
           <span
             className="h-2 w-2 shrink-0 rounded-full bg-gold"
             aria-hidden="true"
@@ -635,13 +635,8 @@ function MacroEditor({
   const over = cleaned.length > MACRO_LIMIT;
 
   return (
-    <div
-      className={cn(
-        "rounded-xl bg-ink-3 ring-1 ring-inset",
-        modified ? "ring-gold/30" : "ring-paper/8"
-      )}
-    >
-      <div className="flex items-center gap-2.5 px-3 pt-2.5">
+    <div className="py-3.5">
+      <div className="flex items-center gap-2.5">
         <Jx3Icon id={macro.icon} name={macro.name || "宏"} size={30} />
         <input
           value={macro.name}
@@ -650,7 +645,7 @@ function MacroEditor({
           maxLength={20}
           aria-label="宏名称"
           placeholder="宏名称"
-          className="h-8 min-w-0 flex-1 rounded-md bg-transparent px-1.5 text-[14px] font-medium text-paper placeholder:text-paper-3 hover:bg-paper/[0.03] focus:bg-ink focus:outline-none focus:ring-1 focus:ring-paper/20 read-only:hover:bg-transparent"
+          className="h-8 min-w-0 flex-1 rounded-md bg-transparent px-1.5 text-[14px] font-medium text-paper placeholder:text-paper-3 hover:bg-paper/[0.04] focus:bg-paper/[0.04] focus:outline-none focus:ring-1 focus:ring-paper/20 read-only:hover:bg-transparent"
         />
         {modified && (
           <span className="text-[11.5px] text-gold">
@@ -672,7 +667,7 @@ function MacroEditor({
           </IconBtn>
         )}
       </div>
-      <div className="px-3 pb-3 pt-1">
+      <div className="pl-[40px] pt-1">
         <input
           value={macro.note ?? ""}
           readOnly={!editable}
@@ -680,7 +675,7 @@ function MacroEditor({
           maxLength={30}
           aria-label={`${macro.name} 的备注`}
           placeholder={editable ? "备注（显示在面板里，可不填）" : ""}
-          className="mb-2 h-7 w-full rounded-md bg-transparent px-1.5 text-[12.5px] text-paper-2 placeholder:text-paper-3/70 hover:bg-paper/[0.03] focus:bg-ink focus:outline-none focus:ring-1 focus:ring-paper/20 read-only:hover:bg-transparent"
+          className="mb-2 h-7 w-full rounded-md bg-transparent px-1.5 text-[12.5px] text-paper-2 placeholder:text-paper-3/70 hover:bg-paper/[0.04] focus:bg-paper/[0.04] focus:outline-none focus:ring-1 focus:ring-paper/20 read-only:hover:bg-transparent"
         />
         <textarea
           value={macro.content}
@@ -689,7 +684,7 @@ function MacroEditor({
           rows={rows}
           spellCheck={false}
           aria-label={`${macro.name} 的宏内容`}
-          className="scroll-thin block w-full resize-y rounded-md bg-ink px-3 py-2 font-mono text-[12.5px] leading-[1.7] text-paper ring-1 ring-inset ring-paper/10 focus:outline-none focus:ring-2 focus:ring-cinnabar-text/50"
+          className="scroll-thin block w-full resize-y rounded-md bg-paper/[0.04] px-3 py-2 font-mono text-[12.5px] leading-[1.7] text-paper ring-1 ring-inset ring-paper/10 hover:ring-paper/[0.18] focus:outline-none focus:ring-2 focus:ring-cinnabar-text/50"
         />
         {lints.length > 0 && (
           <ul className="mt-2 space-y-1">
@@ -966,7 +961,7 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
         ).map(([key, label, d]) => (
           <div
             key={key}
-            className="rounded-lg bg-ink px-3 py-2 ring-1 ring-inset ring-paper/8"
+            className="rounded-lg bg-paper/[0.04] px-3 py-2 ring-1 ring-inset ring-paper/10"
           >
             <button
               type="button"

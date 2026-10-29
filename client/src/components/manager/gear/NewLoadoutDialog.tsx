@@ -388,7 +388,7 @@ export function EditLoadoutDialog({
             onChange={setCharId}
           />
         </div>
-        <div className="border-t border-paper/[0.06] pt-5">
+        <div className="border-t border-paper/[0.07] pt-5">
           <EnchantEditor base={loadout} value={config} onChange={setConfig} />
         </div>
       </div>

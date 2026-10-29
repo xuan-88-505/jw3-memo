@@ -11,14 +11,13 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { OfflineBar, ToastStack } from "@/components/common/overlay";
-import { Avatar, SealBadge } from "@/components/common/ui";
+import { Avatar } from "@/components/common/ui";
 import type { ManagerSection } from "@/data/types";
 import { ROLE_LABEL } from "@/lib/format";
 import {
   me,
   myCharacters,
   navOrder,
-  pendingCount,
   useProto,
   type NavSection,
 } from "@/state/store";
@@ -73,9 +72,7 @@ export function ManagerApp() {
             onSelect={actions.setSection}
             onReorder={actions.setNavOrder}
             trailing={key =>
-              key === "characters" ? (
-                <SealBadge count={pendingCount(state)} />
-              ) : counts[key] ? (
+              counts[key] ? (
                 <span className="text-[11.5px] text-paper-3">
                   {counts[key]}
                 </span>

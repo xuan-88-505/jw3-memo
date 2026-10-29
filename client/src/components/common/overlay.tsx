@@ -67,7 +67,7 @@ export function InlineModal({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
-        className="flex max-h-full w-full flex-col overflow-hidden rounded-xl bg-ink-2 shadow-[0_24px_60px_-12px_rgb(0_0_0/0.7)] ring-1 ring-paper/12"
+        className="flex max-h-full w-full flex-col overflow-hidden rounded-xl bg-ink-3 shadow-[0_24px_60px_-12px_rgb(0_0_0/0.7)] ring-1 ring-paper/12"
         style={{ maxWidth: width }}
       >
         <div className="flex shrink-0 items-start gap-3 px-5 pb-2 pt-4">
@@ -144,7 +144,7 @@ export function ToastStack({
           key={t.id}
           role="status"
           className={cn(
-            "pointer-events-auto flex max-w-full animate-toast items-start gap-2 rounded-lg bg-ink-4 px-3 py-2 text-[12.5px] leading-snug text-paper shadow-[0_12px_32px_-8px_rgb(0_0_0/0.7)] ring-1",
+            "pointer-events-auto flex max-w-full animate-toast items-start gap-2 rounded-lg bg-ink-3 px-3 py-2 text-[12.5px] leading-snug text-paper shadow-[0_12px_32px_-8px_rgb(0_0_0/0.7)] ring-1",
             t.kind === "success" && "ring-jade/35",
             t.kind === "error" && "ring-cinnabar/50",
             t.kind === "info" && "ring-paper/15"

@@ -193,7 +193,7 @@ export function SchoolMenu({
           role="dialog"
           aria-label={`${label}：选门派和心法`}
           className={cn(
-            "absolute left-0 z-30 flex w-[340px] animate-fade flex-col overflow-hidden rounded-xl bg-ink-3 shadow-[0_18px_44px_-10px_rgb(0_0_0/0.75)] ring-1 ring-paper/12",
+            "absolute left-0 z-30 flex w-[340px] animate-fade flex-col overflow-hidden rounded-xl bg-ink-3 shadow-[0_18px_48px_-12px_rgb(0_0_0/0.7)] ring-1 ring-paper/12",
             up ? "bottom-full mb-1" : "top-full mt-1"
           )}
         >

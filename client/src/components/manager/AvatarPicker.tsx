@@ -71,7 +71,7 @@ export function AvatarChoices({
   const tileState = (selected: boolean) =>
     selected
       ? "bg-cinnabar/[0.08] text-paper ring-2 ring-cinnabar-text/70"
-      : "text-paper-2 ring-paper/8 hover:bg-paper/[0.04] hover:text-paper";
+      : "text-paper-2 ring-paper/10 hover:bg-paper/[0.04] hover:text-paper";
 
   return (
     <>

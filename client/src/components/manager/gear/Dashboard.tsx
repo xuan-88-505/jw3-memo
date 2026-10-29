@@ -26,7 +26,6 @@ export function Delta({ pct, className }: { pct: number; className?: string }) {
   );
 }
 
-const card = "rounded-xl bg-ink-3 p-4 ring-1 ring-inset ring-paper/8";
 const cardTitle = "text-[12px] font-medium text-paper-3";
 
 export function Dashboard({
@@ -70,9 +69,10 @@ export function Dashboard({
     : 0;
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-3">
-        <section className={card} aria-label="木桩秒伤">
+    <div>
+      {/* 不套卡片：同一行的几块用竖分隔线隔开，行之间用横分隔线 */}
+      <div className="grid grid-cols-3 divide-x divide-paper/[0.07] border-b border-paper/[0.07] pb-5">
+        <section className="pr-6" aria-label="木桩秒伤">
           <div className="flex items-center justify-between gap-2">
             <h3 className={cardTitle}>木桩秒伤</h3>
             <button
@@ -104,7 +104,7 @@ export function Dashboard({
           </p>
         </section>
 
-        <section className={card} aria-label="加速段位">
+        <section className="px-6" aria-label="加速段位">
           <h3 className={cardTitle}>加速段位</h3>
           <p className="mt-2 flex items-baseline gap-2">
             <span className="font-serif text-[24px] font-semibold leading-none text-paper">
@@ -147,7 +147,7 @@ export function Dashboard({
           </p>
         </section>
 
-        <section className={cn(card, "flex flex-col")} aria-label="下一步建议">
+        <section className="flex flex-col pl-6" aria-label="下一步建议">
           <h3 className={cardTitle}>下一步建议</h3>
           {best ? (
             <>
@@ -179,14 +179,15 @@ export function Dashboard({
       </div>
 
       <PanelStrip
+        className="border-b border-paper/[0.07]"
         xinfa={lo.xinfa}
         panel={lo.panel}
         hasteValue={lo.haste.value}
         note={buffed ? "不含增益" : undefined}
       />
 
-      <div className="grid grid-cols-[1fr_1.15fr] gap-3">
-        <section className={card} aria-label="属性收益">
+      <div className="grid grid-cols-[1fr_1.15fr] divide-x divide-paper/[0.07] pt-5">
+        <section className="pr-6" aria-label="属性收益">
           <div className="flex items-center gap-1.5">
             <h3 className={cardTitle}>属性收益</h3>
             <span title="每多一个该属性的附魔，秒伤增加多少。按收益从高到低排列。">
@@ -233,7 +234,7 @@ export function Dashboard({
           </p>
         </section>
 
-        <section className={cn(card, "flex flex-col")} aria-label="秒伤变化">
+        <section className="flex flex-col pl-6" aria-label="秒伤变化">
           <h3 className={cardTitle}>秒伤变化</h3>
           <div className="relative mt-1 min-h-[160px] flex-1">
             <div className="absolute inset-0">

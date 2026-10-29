@@ -226,7 +226,7 @@ export function GearEditor({
         {/* 宽窗口：属性面板跟秒伤一起吸顶 */}
         <div className="hidden @min-[880px]:block">
           <PanelStrip
-            className="mt-3"
+            className="mt-3 border-t border-paper/[0.07]"
             xinfa={lo.xinfa}
             panel={ev.panel}
             hasteValue={ev.hasteValue}
@@ -243,7 +243,7 @@ export function GearEditor({
       {/* 窄窗口：只吸顶秒伤，属性面板跟着内容滚动 */}
       <div className="@min-[880px]:hidden">
         <PanelStrip
-          className="mt-4"
+          className="border-b border-paper/[0.07]"
           xinfa={lo.xinfa}
           panel={ev.panel}
           hasteValue={ev.hasteValue}
@@ -293,9 +293,9 @@ export function GearEditor({
       {/* 表头：宽窗口才显示 */}
       <div
         aria-hidden="true"
-        className="mt-3 hidden items-center gap-2 px-2 text-[11.5px] text-paper-3 @min-[880px]:flex"
+        className="-mx-3 mt-3 hidden items-center gap-2 px-3 text-[11.5px] text-paper-3 @min-[880px]:flex"
       >
-        <span className="w-[64px] shrink-0 pl-3">部位</span>
+        <span className="w-[64px] shrink-0">部位</span>
         <span className="min-w-0 flex-1">装备</span>
         <span className="w-[150px] shrink-0">附魔</span>
         <span className="w-[80px] shrink-0">精炼</span>
@@ -304,7 +304,7 @@ export function GearEditor({
         <span className="w-7 shrink-0" />
       </div>
 
-      <div className="mt-1 divide-y divide-paper/[0.05]">
+      <div className="-mx-3 mt-1 divide-y divide-paper/[0.07]">
         {draft.slots.map(slot => {
           const saved = lo.slots.find(s => s.key === slot.key)!;
           const big = BIG_SLOTS.find(b => b.key === slot.key);
@@ -318,7 +318,7 @@ export function GearEditor({
                 rows.current[slot.key] = el;
               }}
               className={cn(
-                "group/row flex flex-col gap-1.5 rounded-lg px-2 py-2 transition-colors @min-[880px]:flex-row @min-[880px]:items-center @min-[880px]:gap-2",
+                "group/row relative flex flex-col gap-1.5 rounded-lg px-3 py-2 transition-colors @min-[880px]:flex-row @min-[880px]:items-center @min-[880px]:gap-2",
                 lit === slot.key &&
                   "bg-cinnabar/[0.08] ring-1 ring-inset ring-cinnabar/30"
               )}
@@ -326,13 +326,14 @@ export function GearEditor({
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <span
                   className={cn(
-                    "flex w-[64px] shrink-0 items-center gap-1.5 text-[12.5px]",
+                    "flex w-[64px] shrink-0 items-center text-[12.5px]",
                     changed ? "text-paper" : "text-paper-3"
                   )}
                 >
+                  {/* 改动圆点放在左侧留白里，部位名和页标题对齐 */}
                   <span
                     className={cn(
-                      "h-1.5 w-1.5 shrink-0 rounded-full",
+                      "absolute left-1 top-6 h-1.5 w-1.5 -translate-y-1/2 rounded-full @min-[880px]:top-1/2",
                       changed ? "bg-cinnabar" : "bg-transparent"
                     )}
                     aria-hidden="true"

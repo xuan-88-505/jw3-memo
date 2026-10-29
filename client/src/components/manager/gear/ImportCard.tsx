@@ -128,10 +128,10 @@ export function ImportField({
         aria-describedby={`${id}-msg`}
         placeholder={"粘贴茗伊插件导出的装备码\n也可以贴魔盒配装链接"}
         className={cn(
-          "mt-2 block w-full resize-none break-all rounded-lg bg-ink px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-paper placeholder:text-paper-3/70 ring-1 ring-inset focus:outline-none focus:ring-2",
+          "mt-2 block w-full resize-none break-all rounded-lg bg-paper/[0.04] px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-paper placeholder:text-paper-3/70 ring-1 ring-inset focus:outline-none focus:ring-2",
           showError
             ? "ring-cinnabar/70 focus:ring-cinnabar"
-            : "ring-paper/12 focus:ring-cinnabar-text/60"
+            : "ring-paper/10 hover:ring-paper/[0.18] focus:ring-cinnabar-text/60"
         )}
       />
 
@@ -223,10 +223,7 @@ export function ImportCard({
 
   if (computing) {
     return (
-      <div
-        className="rounded-xl bg-ink-3 px-6 py-10 ring-1 ring-inset ring-paper/8"
-        role="status"
-      >
+      <div className="max-w-[640px] py-4" role="status">
         <div className="flex items-center gap-2.5 text-[13.5px] text-paper">
           <Loader2
             className="h-4 w-4 animate-spin text-jade"
@@ -255,7 +252,7 @@ export function ImportCard({
   };
 
   return (
-    <div className="rounded-xl bg-ink-3 p-5 ring-1 ring-inset ring-paper/8">
+    <div className="max-w-[640px]">
       {notice && (
         <p className="mb-4 rounded-lg bg-gold/[0.08] px-3 py-2 text-[12.5px] text-gold ring-1 ring-inset ring-gold/20">
           {notice}
@@ -264,7 +261,7 @@ export function ImportCard({
       <ImportField
         input={input}
         label={title}
-        labelClassName="font-serif text-[15px] font-semibold text-paper"
+        labelClassName="text-[14px] font-medium text-paper"
         charName={charName}
         xinfa={xinfa}
         talentSource={talentSource}

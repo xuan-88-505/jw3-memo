@@ -71,7 +71,7 @@ function TeamDetail() {
             role="group"
             aria-label="邀请码"
             title="把邀请码发给亲友。新成员默认只读"
-            className="flex h-9 items-center rounded-lg bg-ink pl-3 pr-1 ring-1 ring-inset ring-paper/12"
+            className="flex h-9 items-center rounded-lg bg-paper/[0.04] pl-3 pr-1 ring-1 ring-inset ring-paper/10"
           >
             <span className="text-[12px] text-paper-3">邀请码</span>
             <span className="ml-2.5 select-all font-mono text-[14px] font-medium tracking-[0.08em] text-paper">
@@ -110,28 +110,31 @@ function TeamDetail() {
         }
       />
 
-      <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-paper/8">
+      <div className="-mx-3">
         <table className="w-full text-left text-[13px]">
-          <thead className="bg-ink-3 text-[12px] text-paper-3">
+          <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
             <tr>
-              <th className="px-4 py-2.5 font-normal">成员</th>
-              <th className="px-4 py-2.5 font-normal">权限</th>
-              <th className="px-4 py-2.5 font-normal">角色数</th>
-              <th className="px-4 py-2.5 font-normal">加入时间</th>
-              <th className="px-4 py-2.5 text-right font-normal">
+              <th className="px-3 py-2.5 font-normal">成员</th>
+              <th className="px-3 py-2.5 font-normal">权限</th>
+              <th className="px-3 py-2.5 font-normal">角色数</th>
+              <th className="px-3 py-2.5 font-normal">加入时间</th>
+              <th className="px-3 py-2.5 text-right font-normal">
                 <span className="sr-only">操作</span>
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-paper/[0.06]">
+          <tbody className="divide-y divide-paper/[0.07]">
             {state.members.map(m => {
               const count = state.characters.filter(
                 c => c.ownerId === m.id
               ).length;
               const isMe = m.id === ME_ID;
               return (
-                <tr key={m.id} className="hover:bg-paper/[0.02]">
-                  <td className="px-4 py-2.5">
+                <tr
+                  key={m.id}
+                  className="transition-colors hover:bg-paper/[0.025]"
+                >
+                  <td className="px-3 py-2.5">
                     <span className="flex items-center gap-2.5">
                       <Avatar member={m} size={28} />
                       <span className="font-medium text-paper">{m.name}</span>
@@ -142,14 +145,14 @@ function TeamDetail() {
                       )}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-3 py-2.5">
                     {isAdmin ? (
                       <SelectBox
                         value={m.role}
                         onChange={e => onRole(m, e.target.value as Role)}
                         disabled={!online}
                         aria-label={`${m.name} 的权限`}
-                        className="h-7 rounded-md bg-ink pl-2.5 text-[12.5px] text-paper ring-1 ring-inset ring-paper/12 focus:outline-none focus:ring-2 focus:ring-cinnabar-text/60 disabled:opacity-50"
+                        className="h-7 rounded-md bg-paper/[0.04] pl-2.5 text-[12.5px] text-paper ring-1 ring-inset ring-paper/10 hover:ring-paper/[0.18] focus:outline-none focus:ring-2 focus:ring-cinnabar-text/60 disabled:opacity-50"
                       >
                         {(Object.keys(ROLE_LABEL) as Role[]).map(r => (
                           <option key={r} value={r}>
@@ -167,15 +170,15 @@ function TeamDetail() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-paper-2">{count}</td>
+                  <td className="px-3 py-2.5 text-paper-2">{count}</td>
                   <td
-                    className="px-4 py-2.5 text-paper-3"
+                    className="px-3 py-2.5 text-paper-3"
                     title={absoluteTime(m.joinedAt)}
                   >
                     {new Date(m.joinedAt).getMonth() + 1}月
                     {new Date(m.joinedAt).getDate()}日
                   </td>
-                  <td className="px-4 py-2.5 text-right">
+                  <td className="px-3 py-2.5 text-right">
                     {isAdmin && !isMe && (
                       <Btn
                         variant="ghost"
@@ -195,27 +198,27 @@ function TeamDetail() {
         </table>
       </div>
 
-      <h2 className="mb-2 mt-8 text-[12px] tracking-[0.1em] text-paper-3">
+      <h2 className="mb-1 mt-7 border-t border-paper/[0.07] pt-7 text-[14px] font-medium text-paper">
         权限说明
       </h2>
-      <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-paper/8">
+      <div className="-mx-3">
         <table className="w-full text-[13px]">
-          <thead className="bg-ink-3 text-[12px] text-paper-3">
+          <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
             <tr>
-              <th className="px-4 py-2 text-left font-normal">可以做什么</th>
+              <th className="px-3 py-2 text-left font-normal">可以做什么</th>
               {(Object.keys(ROLE_LABEL) as Role[]).map(r => (
-                <th key={r} className="w-24 px-4 py-2 text-center font-normal">
+                <th key={r} className="w-24 px-3 py-2 text-center font-normal">
                   {ROLE_LABEL[r]}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-paper/[0.06]">
+          <tbody className="divide-y divide-paper/[0.07]">
             {PERMS.map(p => (
               <tr key={p.label}>
-                <td className="px-4 py-2 text-paper-2">{p.label}</td>
+                <td className="px-3 py-2 text-paper-2">{p.label}</td>
                 {(Object.keys(ROLE_LABEL) as Role[]).map(r => (
-                  <td key={r} className="px-4 py-2 text-center">
+                  <td key={r} className="px-3 py-2 text-center">
                     {p.roles.includes(r) ? (
                       <Check
                         className="mx-auto h-4 w-4 text-jade"
@@ -363,14 +366,14 @@ function TeamName({
           }}
           onBlur={finish}
           className={cn(
-            "-my-1 -ml-2 h-9 w-[300px] rounded-md bg-ink px-2 font-serif text-[20px] font-semibold text-paper outline-none ring-1 ring-inset",
+            "-my-1 -ml-2 h-9 w-[300px] rounded-md bg-paper/[0.04] px-2 font-serif text-[20px] font-semibold text-paper outline-none ring-1 ring-inset",
             error ? "ring-cinnabar-text/70" : "ring-cinnabar-text/50"
           )}
         />
         {error && (
           <span
             role="alert"
-            className="absolute left-0 top-full z-10 mt-2 whitespace-nowrap rounded-md bg-ink-4 px-2 py-1 font-sans text-[12px] font-normal text-cinnabar-text shadow-lg ring-1 ring-inset ring-paper/10"
+            className="absolute left-0 top-full z-10 mt-2 whitespace-nowrap rounded-md bg-ink-3 px-2 py-1 font-sans text-[12px] font-normal text-cinnabar-text shadow-[0_12px_32px_-8px_rgb(0_0_0/0.7)] ring-1 ring-paper/12"
           >
             {error}
           </span>

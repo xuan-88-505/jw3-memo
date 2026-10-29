@@ -86,7 +86,7 @@ export function Inbox({
             <p className="text-[13px]">没有新通知</p>
           </div>
         ) : (
-          <ul className="divide-y divide-paper/[0.06]">
+          <ul className="divide-y divide-paper/[0.07]">
             {items.map(it => (
               <InboxRow
                 key={it.key}
@@ -208,7 +208,7 @@ function InboxRow({
               />
             </button>
             {open && (
-              <div className="mt-1.5 rounded-md bg-ink px-2.5 py-2 ring-1 ring-inset ring-paper/8">
+              <div className="mt-1.5 rounded-md bg-paper/[0.04] px-2.5 py-2 ring-1 ring-inset ring-paper/10">
                 <ChangeList diff={diff} />
               </div>
             )}

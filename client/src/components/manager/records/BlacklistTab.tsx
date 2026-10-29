@@ -55,10 +55,7 @@ export function BlacklistTab({
 
   return (
     <div className="space-y-4">
-      <section
-        aria-label="查人"
-        className="rounded-xl bg-ink-3 p-4 ring-1 ring-inset ring-paper/8"
-      >
+      <section aria-label="查人">
         <div className="max-w-[640px]">
           <RoleLookup
             id="bl-check"
@@ -119,7 +116,7 @@ export function BlacklistTab({
           title="避雷名单是空的"
         />
       ) : (
-        <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-paper/8">
+        <div className="-mx-3">
           <table className="w-full table-fixed text-left text-[13px]">
             <colgroup>
               <col className="w-[168px]" />
@@ -128,16 +125,16 @@ export function BlacklistTab({
               <col />
               <col className="w-[132px]" />
             </colgroup>
-            <thead className="bg-ink-3 text-[12px] text-paper-3">
+            <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
               <tr>
-                <th className="px-4 py-2.5 font-normal">角色</th>
+                <th className="px-3 py-2.5 font-normal">角色</th>
                 <th className="px-3 py-2.5 font-normal">服务器</th>
                 <th className="px-3 py-2.5 font-normal">原因</th>
                 <th className="px-3 py-2.5 font-normal">说明</th>
-                <th className="px-4 py-2.5 font-normal">记录</th>
+                <th className="px-3 py-2.5 font-normal">记录</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-paper/[0.06]">
+            <tbody className="divide-y divide-paper/[0.07]">
               {rows.map(b => {
                 const by = state.members.find(m => m.id === b.by);
                 const role = roleByUid(b.uid);
@@ -146,10 +143,10 @@ export function BlacklistTab({
                     key={b.id}
                     onClick={writable ? () => onEdit({ id: b.id }) : undefined}
                     className={cn(
-                      writable && "cursor-pointer hover:bg-paper/[0.03]"
+                      writable && "cursor-pointer hover:bg-paper/[0.025]"
                     )}
                   >
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-2.5">
                       <button
                         type="button"
                         disabled={!writable}
@@ -180,7 +177,7 @@ export function BlacklistTab({
                     >
                       {b.reason || <span className="text-paper-3">—</span>}
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-2.5">
                       <span className="flex min-w-0 items-center gap-2">
                         {by && !isSolo(state) && (
                           <Avatar member={by} size={20} />
@@ -332,8 +329,8 @@ function BlackDialog({
         >
           {nameOnly ? (
             <div>
-              <div className="flex items-center gap-3 rounded-lg bg-ink px-3 py-2.5 ring-1 ring-inset ring-paper/12">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[6px] bg-ink-4 text-[13px] text-paper-3 ring-1 ring-inset ring-paper/10">
+              <div className="flex items-center gap-3 rounded-lg bg-paper/[0.04] px-3 py-2.5 ring-1 ring-inset ring-paper/10">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[6px] bg-paper/[0.06] text-[13px] text-paper-3 ring-1 ring-inset ring-paper/10">
                   ?
                 </span>
                 <p className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
@@ -450,7 +447,7 @@ function BlackDialog({
             maxLength={200}
             rows={3}
             onChange={e => setReason(e.target.value)}
-            className="w-full resize-none rounded-md bg-ink px-3 py-2 text-[13px] leading-relaxed text-paper ring-1 ring-inset ring-paper/12 placeholder:text-paper-3/70 focus:outline-none focus:ring-2 focus:ring-cinnabar-text/60"
+            className="w-full resize-none rounded-md bg-paper/[0.04] px-3 py-2 text-[13px] leading-relaxed text-paper ring-1 ring-inset ring-paper/10 hover:ring-paper/[0.18] placeholder:text-paper-3/70 focus:outline-none focus:ring-2 focus:ring-cinnabar-text/60"
           />
           <p className="mt-1 text-right text-[11.5px] tabular-nums text-paper-3">
             {reason.length}/200

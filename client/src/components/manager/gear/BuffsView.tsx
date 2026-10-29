@@ -27,9 +27,11 @@ import { cn } from "@/lib/utils";
 import { SelectBox } from "../shared";
 import { fmt } from "./Dashboard";
 
-const card = "rounded-xl bg-ink-3 p-4 ring-1 ring-inset ring-paper/8";
+/** 分区：不套卡片，分区之间用分隔线 */
+const section = "py-5 first:pt-0 last:pb-0";
+const sectionTitle = "text-[14px] font-medium text-paper";
 const selectCls =
-  "h-8 rounded-md bg-ink pl-2.5 text-[13px] text-paper ring-1 ring-inset ring-paper/10 focus:outline-none focus-visible:ring-cinnabar/60";
+  "h-8 rounded-md bg-paper/[0.04] pl-2.5 text-[13px] text-paper ring-1 ring-inset ring-paper/10 hover:ring-paper/[0.18] focus:outline-none focus-visible:ring-cinnabar/60";
 
 /** +1.23%：开着的用青色，没开的（潜在收益）用灰色 */
 function Gain({
@@ -108,7 +110,7 @@ function NumField({
           }
         }}
         className={cn(
-          "h-7 w-11 rounded-md bg-ink px-1.5 text-right text-[12.5px] tabular-nums text-paper ring-1 ring-inset focus:outline-none",
+          "h-7 w-11 rounded-md bg-paper/[0.04] px-1.5 text-right text-[12.5px] tabular-nums text-paper ring-1 ring-inset focus:outline-none",
           bad
             ? "ring-cinnabar/70"
             : "ring-paper/10 focus-visible:ring-cinnabar/60"
@@ -139,7 +141,7 @@ function CheckBox({
         "grid h-4 w-4 shrink-0 place-items-center rounded-[4px] ring-1 ring-inset transition-colors",
         checked
           ? "bg-cinnabar text-white ring-cinnabar"
-          : "bg-ink ring-paper/25 hover:ring-paper/40"
+          : "bg-paper/[0.04] ring-paper/25 hover:ring-paper/40"
       )}
     >
       {checked && <Check className="h-3 w-3" strokeWidth={3} />}
@@ -245,10 +247,10 @@ export function BuffsView({
   const presetValue = sel.preset ?? "";
 
   return (
-    <div className="space-y-3">
+    <div className="divide-y divide-paper/[0.07]">
       {/* 汇总：预设 + 估算秒伤 */}
       <section
-        className={cn(card, "flex flex-wrap items-center gap-x-4 gap-y-3")}
+        className={cn(section, "flex flex-wrap items-center gap-x-4 gap-y-3")}
         aria-label="增益汇总"
       >
         <div className="flex flex-wrap items-center gap-2">
@@ -304,16 +306,14 @@ export function BuffsView({
       </section>
 
       {/* 阵眼 */}
-      <section className={card} aria-label="阵眼">
+      <section className={section} aria-label="阵眼">
         <div className="flex items-center gap-3">
-          <h3 className="w-16 shrink-0 text-[13px] font-medium text-paper">
-            阵眼
-          </h3>
+          <h3 className={cn(sectionTitle, "w-16 shrink-0")}>阵眼</h3>
           {zhen ? (
             <Jx3Icon id={zhen.i} name={zhen.n} size={30} />
           ) : (
             <span
-              className="h-[30px] w-[30px] shrink-0 rounded-[6px] bg-ink ring-1 ring-inset ring-paper/10"
+              className="h-[30px] w-[30px] shrink-0 rounded-[6px] bg-paper/[0.04] ring-1 ring-inset ring-paper/10"
               aria-hidden="true"
             />
           )}
@@ -343,9 +343,9 @@ export function BuffsView({
       </section>
 
       {/* 小药小吃 */}
-      <section className={card} aria-label="小药小吃">
+      <section className={section} aria-label="小药小吃">
         <div className="mb-3 flex items-center gap-2">
-          <h3 className="text-[13px] font-medium text-paper">小药小吃</h3>
+          <h3 className={sectionTitle}>小药小吃</h3>
           <span className="text-[12px] tabular-nums text-paper-3">
             {eatenCount}/{foodsByCat.length}
           </span>
@@ -374,7 +374,7 @@ export function BuffsView({
                   <Jx3Icon id={cur.i} name={cur.n} size={30} />
                 ) : (
                   <span
-                    className="h-[30px] w-[30px] shrink-0 rounded-[6px] bg-ink ring-1 ring-inset ring-paper/10"
+                    className="h-[30px] w-[30px] shrink-0 rounded-[6px] bg-paper/[0.04] ring-1 ring-inset ring-paper/10"
                     aria-hidden="true"
                   />
                 )}
@@ -413,9 +413,9 @@ export function BuffsView({
       </section>
 
       {/* 团队增益 */}
-      <section className={card} aria-label="团队增益">
+      <section className={section} aria-label="团队增益">
         <div className="mb-3 flex items-center gap-2">
-          <h3 className="text-[13px] font-medium text-paper">团队增益</h3>
+          <h3 className={sectionTitle}>团队增益</h3>
           <span className="ml-auto text-[13px]">
             <Gain pct={est.team} hideZero />
           </span>
@@ -453,14 +453,14 @@ export function BuffsView({
         </div>
 
         {teamRows.length === 0 ? (
-          <div className="flex items-center justify-center gap-3 rounded-lg bg-ink/60 py-6 text-[12.5px] text-paper-3">
+          <div className="flex items-center justify-center gap-3 py-6 text-[12.5px] text-paper-3">
             还没开团队增益
             <Btn size="xs" onClick={() => setFilter("常用增益")}>
               看常用
             </Btn>
           </div>
         ) : (
-          <ul className="divide-y divide-paper/[0.06]">
+          <ul className="divide-y divide-paper/[0.07]">
             {teamRows.map(def => {
               const st = sel.team[def.n];
               const on = !!st?.on;

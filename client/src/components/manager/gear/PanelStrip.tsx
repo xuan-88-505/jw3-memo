@@ -47,15 +47,9 @@ export function PanelStrip({
   const core = rows.filter(r => r.core);
 
   return (
-    <section
-      aria-label="面板属性（不含增益）"
-      className={cn(
-        "rounded-xl bg-ink-3 ring-1 ring-inset ring-paper/8",
-        className
-      )}
-    >
+    <section aria-label="面板属性（不含增益）" className={className}>
       <div className="flex items-stretch">
-        <dl className="flex w-[124px] shrink-0 flex-col justify-center gap-1.5 border-r border-paper/[0.06] px-4 py-3">
+        <dl className="flex w-[116px] shrink-0 flex-col justify-center gap-1.5 border-r border-paper/[0.07] py-3 pr-4">
           {meta.map(r => {
             const diff = diffOf(r);
             return (

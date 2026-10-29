@@ -348,10 +348,10 @@ export function StonePicker({
         <div
           ref={panelRef}
           id={`${uid}-panel`}
-          className="mt-1.5 scroll-mb-16 overflow-hidden rounded-lg bg-ink ring-1 ring-inset ring-paper/12"
+          className="mt-1.5 scroll-mb-16 overflow-hidden rounded-lg bg-paper/[0.04] ring-1 ring-inset ring-paper/10"
         >
           {/* 搜索 */}
-          <div className="flex h-9 items-center gap-2 border-b border-paper/8 px-2.5">
+          <div className="flex h-9 items-center gap-2 border-b border-paper/[0.07] px-2.5">
             <Search
               className="h-3.5 w-3.5 shrink-0 text-paper-3"
               aria-hidden="true"
@@ -436,7 +436,7 @@ export function StonePicker({
               )}
             </div>
           ) : (
-            <div className="grid h-[244px] grid-cols-[1fr_1fr_1fr_76px] divide-x divide-paper/8">
+            <div className="grid h-[244px] grid-cols-[1fr_1fr_1fr_76px] divide-x divide-paper/[0.07]">
               {COLS.map((title, i) => {
                 const opts = optionsAt(i);
                 return (
@@ -539,7 +539,7 @@ export function StonePicker({
           )}
 
           {/* 预览 + 不镶 */}
-          <div className="flex h-9 items-center gap-2 border-t border-paper/8 pl-2.5 pr-1.5 text-[12px]">
+          <div className="flex h-9 items-center gap-2 border-t border-paper/[0.07] pl-2.5 pr-1.5 text-[12px]">
             {preview && !searching ? (
               <p className="flex min-w-0 items-center gap-2" aria-live="polite">
                 <span className="shrink-0 text-paper">{preview.label}</span>

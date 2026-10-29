@@ -34,7 +34,7 @@ export function CharAvatar({
     return (
       <span
         className={cn(
-          "relative inline-block shrink-0 overflow-hidden bg-ink-4",
+          "relative inline-block shrink-0 overflow-hidden bg-paper/[0.06]",
           className
         )}
         style={{ width: size, height: size, borderRadius: radius }}

@@ -35,7 +35,7 @@ export function TeamSetup() {
   return (
     <div>
       <SectionHeader title="亲友团" />
-      <div className="grid max-w-[760px] grid-cols-1 gap-4 min-[880px]:grid-cols-2">
+      <div className="grid max-w-[760px] grid-cols-1 divide-y divide-paper/[0.07] min-[880px]:grid-cols-2 min-[880px]:divide-x min-[880px]:divide-y-0">
         <Card
           icon={<Plus className="h-4 w-4" aria-hidden="true" />}
           title="创建亲友团"
@@ -149,12 +149,12 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl bg-paper/[0.02] p-5 ring-1 ring-inset ring-paper/8">
+    <section className="py-6 first:pt-0 last:pb-0 min-[880px]:px-7 min-[880px]:py-1 min-[880px]:first:pl-0 min-[880px]:last:pr-0">
       <label
         htmlFor={htmlFor}
         className="mb-3 flex items-center gap-2 text-[13.5px] font-medium text-paper"
       >
-        <span className="grid h-7 w-7 place-items-center rounded-md bg-ink-4 text-paper-2 ring-1 ring-inset ring-paper/10">
+        <span className="grid h-7 w-7 place-items-center rounded-md bg-paper/[0.06] text-paper-2">
           {icon}
         </span>
         {title}
