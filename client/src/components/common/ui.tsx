@@ -1,6 +1,7 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { Check, Circle } from "lucide-react";
 import type { Member, SyncStatus } from "@/data/types";
+import { Huangji, chickSize, moodFor } from "@/components/brand/Huangji";
 import { cn } from "@/lib/utils";
 
 type BtnVariant = "primary" | "secondary" | "ghost" | "danger" | "quiet";
@@ -143,27 +144,53 @@ export function Kbd({
   );
 }
 
+/**
+ * 成员头像：圆形（角色头像是圆角方形，一眼分清人和角色）。
+ * 默认是黄鸡表情，没设置时按名字稳定取一个；上传了图片就显示图片。
+ */
 export function Avatar({
   member,
   size = 24,
+  animated = false,
 }: {
-  member: Pick<Member, "name" | "color">;
+  member: Pick<Member, "name" | "color" | "avatar">;
   size?: number;
+  animated?: boolean;
 }) {
+  const av = member.avatar ?? { kind: "preset", mood: moodFor(member.name) };
+  if (av.kind === "upload") {
+    return (
+      <span
+        className="relative inline-block shrink-0 overflow-hidden rounded-full bg-ink-4"
+        style={{ width: size, height: size }}
+        aria-hidden="true"
+      >
+        <img
+          src={av.src}
+          alt=""
+          draggable={false}
+          className="h-full w-full object-cover"
+        />
+        <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-paper/15" />
+      </span>
+    );
+  }
   return (
     <span
-      className="inline-grid shrink-0 place-items-center rounded-full font-medium"
+      className="inline-grid shrink-0 place-items-center overflow-hidden rounded-full"
       style={{
         width: size,
         height: size,
-        fontSize: Math.round(size * 0.46),
-        color: member.color,
         background: `${member.color}26`,
         boxShadow: `inset 0 0 0 1px ${member.color}55`,
       }}
       aria-hidden="true"
     >
-      {member.name.slice(0, 1)}
+      <Huangji
+        mood={av.mood}
+        size={chickSize(size, true)}
+        animated={animated}
+      />
     </span>
   );
 }

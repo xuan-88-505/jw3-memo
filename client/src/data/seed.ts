@@ -1,6 +1,7 @@
 // 原型的初始数据。宏和奇穴是魔盒上的真实数据（当前版本）。
 // 历史版本、角色、亲友和更新说明是虚构的示例，用来演示"待同步"和"旧 → 新"。
 import { JX3_SAMPLE } from "./jx3Sample";
+import { TALENTS } from "./talents";
 import type {
   Character,
   Macro,
@@ -21,20 +22,59 @@ export const SERVERS = [
   "蝶恋花",
 ];
 
-export const XINFA_LIST = Object.keys(JX3_SAMPLE.xinfa);
+/** 全部心法，按门派排列（顺序同魔盒数据） */
+export const XINFA_LIST = Object.keys(TALENTS);
 
 export const XINFA_META: Record<
   string,
   { short: string; color: string; school: string }
 > = {
+  傲血战意: { short: "傲", color: "#C46A4F", school: "天策" },
+  铁牢律: { short: "牢", color: "#C46A4F", school: "天策" },
+  太虚剑意: { short: "剑", color: "#7F8FC9", school: "纯阳" },
   紫霞功: { short: "气", color: "#7F8FC9", school: "纯阳" },
-  冰心诀: { short: "冰", color: "#C98BA8", school: "七秀" },
-  山海心诀: { short: "灵", color: "#8FA86A", school: "万灵" },
+  离经易道: { short: "离", color: "#9A7FC0", school: "万花" },
   花间游: { short: "花", color: "#9A7FC0", school: "万花" },
+  易筋经: { short: "易", color: "#C9A35B", school: "少林" },
+  洗髓经: { short: "洗", color: "#C9A35B", school: "少林" },
+  问水诀: { short: "藏", color: "#CDB35E", school: "藏剑" },
+  焚影圣诀: { short: "焚", color: "#C9785B", school: "明教" },
+  明尊琉璃体: { short: "尊", color: "#C9785B", school: "明教" },
+  毒经: { short: "毒", color: "#5E9FB0", school: "五毒" },
+  补天诀: { short: "补", color: "#5E9FB0", school: "五毒" },
+  冰心诀: { short: "冰", color: "#C98BA8", school: "七秀" },
+  云裳心经: { short: "裳", color: "#C98BA8", school: "七秀" },
+  天罗诡道: { short: "罗", color: "#6C9B7E", school: "唐门" },
+  惊羽诀: { short: "羽", color: "#6C9B7E", school: "唐门" },
+  笑尘诀: { short: "丐", color: "#A8865E", school: "丐帮" },
+  铁骨衣: { short: "骨", color: "#9C6B5E", school: "苍云" },
+  分山劲: { short: "分", color: "#9C6B5E", school: "苍云" },
+  莫问: { short: "莫", color: "#6FA6A0", school: "长歌" },
+  相知: { short: "知", color: "#6FA6A0", school: "长歌" },
+  北傲诀: { short: "霸", color: "#8B84B8", school: "霸刀" },
+  凌海诀: { short: "海", color: "#6E9CC4", school: "蓬莱" },
+  隐龙诀: { short: "隐", color: "#A65D6B", school: "凌雪阁" },
+  太玄经: { short: "玄", color: "#8A7FAE", school: "衍天宗" },
+  灵素: { short: "素", color: "#7FA27A", school: "北天药宗" },
+  无方: { short: "方", color: "#7FA27A", school: "北天药宗" },
+  孤锋诀: { short: "锋", color: "#9AA5B1", school: "刀宗" },
+  山海心诀: { short: "灵", color: "#8FA86A", school: "万灵山庄" },
+  周天功: { short: "周", color: "#B7925E", school: "段氏" },
+  幽罗引: { short: "幽", color: "#A07BB0", school: "无相楼" },
 };
 
+/** 按门派分组，下拉框里用 */
+export const XINFA_GROUPS: { school: string; xinfa: string[] }[] =
+  XINFA_LIST.reduce<{ school: string; xinfa: string[] }[]>((acc, x) => {
+    const school = XINFA_META[x]?.school ?? "其他";
+    const g = acc.find(a => a.school === school);
+    if (g) g.xinfa.push(x);
+    else acc.push({ school, xinfa: [x] });
+    return acc;
+  }, []);
+
 export function layersOf(xinfa: string) {
-  return JX3_SAMPLE.xinfa[xinfa]?.layers ?? [];
+  return TALENTS[xinfa] ?? JX3_SAMPLE.xinfa[xinfa]?.layers ?? [];
 }
 
 export const SEED_TEAM: Team = { name: "夜雨听风", inviteCode: "TD-7K2M-9QX4" };
@@ -42,6 +82,7 @@ export const SEED_TEAM: Team = { name: "夜雨听风", inviteCode: "TD-7K2M-9QX4
 export const SEED_MEMBERS: Member[] = [
   {
     id: ME_ID,
+    avatar: { kind: "preset", mood: "嗷呜" },
     name: "八八",
     role: "admin",
     color: "#D2462F",
@@ -49,6 +90,7 @@ export const SEED_MEMBERS: Member[] = [
   },
   {
     id: "xiaotao",
+    avatar: { kind: "preset", mood: "害羞" },
     name: "小桃",
     role: "editor",
     color: "#C98BA8",
@@ -56,6 +98,7 @@ export const SEED_MEMBERS: Member[] = [
   },
   {
     id: "ajiu",
+    avatar: { kind: "preset", mood: "抠鼻" },
     name: "阿九",
     role: "editor",
     color: "#6F9A8B",
@@ -63,6 +106,7 @@ export const SEED_MEMBERS: Member[] = [
   },
   {
     id: "xiangcai",
+    avatar: { kind: "preset", mood: "呕吐" },
     name: "不吃香菜",
     role: "viewer",
     color: "#C9A35B",

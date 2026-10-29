@@ -45,3 +45,5 @@
 - 苍生铸世相对暗影千机，原型 4 个心法的奇穴都有变化：紫霞功（第2、4、6、7–9重）、冰心诀（第2、5、7–9重）、山海心诀（第3、5、6、7–9重）、花间游（第5重 风裳→丹青）。原型示例方案需要换成新数据（未做）。
 - 黄鸡原版表情（2026-10-29 15:21 UTC+8）：魔盒表情库 npm 包 @jx3box/jx3box-emotion 1.3.2，目录 https://data.jx3box.com/emotion/output/catalog.json，图片 https://img.jx3box.com/emotion/output/<filename>。玩家说的"黄鸡"是「萌鸡」组（group_id 1，18 个，emotion_id 95–112，#b害羞…#b再见，#b大笑=101），不是「默认」组（20×20 圆脸）。均为 30×30、2 帧 GIF，帧时长 100–600ms。版权归西山居，仅自用和亲友使用。
 - 托盘黄鸡动效（2026-10-29 15:52 UTC+8）：Tauri 2 `TrayIconEvent` 有 `Enter` / `Move` / `Leave` 事件（鼠标进入、移动、离开托盘图标），Windows 和 macOS 支持，Linux 不发这些事件。来源：https://docs.rs/tauri/latest/tauri/tray/enum.TrayIconEvent.html 。正式版做法：Enter 时开始用定时器调用 `TrayIcon::set_icon` 轮换两帧，Leave 时停下。萌鸡 GIF 为 2 帧、每帧 200ms、无限循环（本地 PIL 读取 client/public/huangji/hj-101.gif 确认）。
+- 全部心法（2026-10-29 16:00 UTC+8）：魔盒奇穴数据 v20260524 共 32 个心法（另有"其它"一项不算），由 /tmp/jx3/talent.json 生成 client/src/data/talents.ts（约 455 KB），原有 4 个心法与旧数据逐项比对一致。门派按魔盒数据顺序排列。
+- 幽罗引属于新流派"无相楼"（全门派可学，2025 年资料片"山海源流"）。来源：https://www.taptap.cn/moment/714447833356305769 、https://jx3tc.xoyobox.com/show-98-665-1.html 。

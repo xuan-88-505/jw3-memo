@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ChevronDown,
@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { Jx3Icon, XinfaMark } from "@/components/brand/Marks";
 import { InlineModal } from "@/components/common/overlay";
-import { Btn, IconBtn, SectionLabel } from "@/components/common/ui";
+import { Btn, IconBtn, SectionLabel, Segmented } from "@/components/common/ui";
 import { ME_ID, XINFA_LIST, layersOf } from "@/data/seed";
 import { MODES, type Macro, type Mode, type SchemeVersion } from "@/data/types";
 import { diffVersions } from "@/lib/diff";
@@ -22,11 +22,19 @@ import {
   isOnline,
   latest,
   memberName,
+  myCharacters,
   useProto,
   type Draft,
 } from "@/state/store";
 import { cn } from "@/lib/utils";
-import { DiffDetails, diffSummary, inputCls } from "./shared";
+import {
+  DiffDetails,
+  Field,
+  SelectBox,
+  XinfaOptions,
+  diffSummary,
+  inputCls,
+} from "./shared";
 import { TalentPicker } from "./TalentPicker";
 
 export function SchemesView() {
@@ -51,16 +59,51 @@ export function SchemesView() {
 function SchemeList() {
   const { state, actions } = useProto();
   const editable = canEdit(state);
+  const [creating, setCreating] = useState(false);
+  // 只列出有方案或正在新建的心法，按门派顺序
+  const listed = XINFA_LIST.filter(x =>
+    MODES.some(
+      m => latest(findScheme(state, x, m)) || state.drafts[`${x}-${m}`]
+    )
+  );
   return (
     <nav
       aria-label="方案列表"
-      className="scroll-thin w-[236px] shrink-0 overflow-y-auto border-r border-paper/[0.07] px-2.5 py-4"
+      className="scroll-thin w-[236px] shrink-0 overflow-y-auto border-r border-paper/[0.07] px-2.5 py-3"
     >
-      <p className="px-2 pb-2 text-[11.5px] tracking-[0.12em] text-paper-3">
-        方案库 · 旗舰 暗影千机
-      </p>
+      <div className="flex h-8 items-center justify-between pb-1 pl-2">
+        <p className="text-[11.5px] tracking-[0.12em] text-paper-3">
+          方案库 · 旗舰 暗影千机
+        </p>
+        {editable && listed.length > 0 && (
+          <Btn
+            variant="ghost"
+            size="xs"
+            icon={<Plus className="h-3.5 w-3.5" />}
+            onClick={() => setCreating(true)}
+          >
+            新建
+          </Btn>
+        )}
+      </div>
+      {listed.length === 0 && (
+        <div className="px-2 py-8 text-center">
+          <p className="text-[12.5px] text-paper-3">还没有方案</p>
+          {editable && (
+            <Btn
+              variant="primary"
+              size="sm"
+              className="mt-3"
+              icon={<Plus className="h-3.5 w-3.5" />}
+              onClick={() => setCreating(true)}
+            >
+              新建方案
+            </Btn>
+          )}
+        </div>
+      )}
       <ul className="space-y-3">
-        {XINFA_LIST.map(x => {
+        {listed.map(x => {
           // 只列出已保存或正在新建的模式；没玩的模式不显示
           const modes = MODES.filter(
             m => latest(findScheme(state, x, m)) || state.drafts[`${x}-${m}`]
@@ -73,7 +116,7 @@ function SchemeList() {
                 <span className="font-serif text-[13.5px] font-semibold text-paper">
                   {x}
                 </span>
-                {editable && modes.length > 0 && missing.length === 1 && (
+                {editable && missing.length === 1 && (
                   <IconBtn
                     label={`给${x}添加 ${missing[0]} 方案`}
                     onClick={() => actions.startDraft(x, missing[0])}
@@ -84,27 +127,6 @@ function SchemeList() {
                 )}
               </div>
               <ul className="mt-0.5">
-                {modes.length === 0 && (
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => actions.selectScheme(`${x}-PVE`)}
-                      aria-current={
-                        state.selectedSchemeId.startsWith(`${x}-`)
-                          ? "page"
-                          : undefined
-                      }
-                      className={cn(
-                        "flex w-full items-center rounded-md py-1.5 pl-[36px] pr-2 text-left text-[12px] transition-colors",
-                        state.selectedSchemeId.startsWith(`${x}-`)
-                          ? "bg-paper/[0.08] text-paper-2"
-                          : "text-paper-3 hover:bg-paper/[0.04] hover:text-paper-2"
-                      )}
-                    >
-                      还没有方案
-                    </button>
-                  </li>
-                )}
                 {modes.map(m => {
                   const id = `${x}-${m}`;
                   const last = latest(findScheme(state, x, m));
@@ -145,7 +167,126 @@ function SchemeList() {
           );
         })}
       </ul>
+      <NewSchemeDialog open={creating} onClose={() => setCreating(false)} />
     </nav>
+  );
+}
+
+/**
+ * 新建方案：选心法和模式。PVE、PVP 都有了的心法不能选；
+ * 默认选你角色在用、还缺方案的心法。
+ */
+function NewSchemeDialog({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { state, actions } = useProto();
+  const online = isOnline(state);
+  const has = (x: string, m: Mode) =>
+    !!latest(findScheme(state, x, m)) || !!state.drafts[`${x}-${m}`];
+  const firstMissing = (x: string) => MODES.find(m => !has(x, m)) ?? "PVE";
+  const pickDefault = () => {
+    const mine = Array.from(new Set(myCharacters(state).map(c => c.xinfa)));
+    return (
+      mine.find(x => MODES.some(m => !has(x, m))) ??
+      XINFA_LIST.find(x => MODES.some(m => !has(x, m))) ??
+      XINFA_LIST[0]
+    );
+  };
+  const [xinfa, setXinfa] = useState(XINFA_LIST[0]);
+  const [mode, setMode] = useState<Mode>("PVE");
+
+  // 每次打开时重新选默认值
+  useEffect(() => {
+    if (!open) return;
+    const x = pickDefault();
+    setXinfa(x);
+    setMode(firstMissing(x));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  if (!open) return null;
+
+  const full = MODES.every(m => has(xinfa, m));
+  const create = () => {
+    if (full || has(xinfa, mode)) return;
+    actions.startDraft(xinfa, mode);
+    onClose();
+  };
+
+  return (
+    <InlineModal
+      open
+      onClose={onClose}
+      title="新建方案"
+      width={420}
+      footer={
+        <>
+          {!online && (
+            <span className="mr-auto text-[12px] text-gold">
+              离线时不能新建
+            </span>
+          )}
+          <Btn variant="ghost" size="md" onClick={onClose}>
+            取消
+          </Btn>
+          <Btn
+            variant="primary"
+            size="md"
+            onClick={create}
+            disabled={full || has(xinfa, mode) || !online}
+          >
+            创建
+          </Btn>
+        </>
+      }
+    >
+      <div className="space-y-4 pb-1">
+        <Field label="心法" htmlFor="new-scheme-xinfa">
+          <SelectBox
+            id="new-scheme-xinfa"
+            data-autofocus
+            value={xinfa}
+            onChange={e => {
+              const x = e.target.value;
+              setXinfa(x);
+              // 换心法后回到第一个可用的模式（通常是 PVE）
+              setMode(firstMissing(x));
+            }}
+            wrapClassName="w-full"
+            className={inputCls()}
+          >
+            <XinfaOptions
+              disabledReason={x =>
+                MODES.every(m => has(x, m)) ? "PVE、PVP 都有了" : false
+              }
+            />
+          </SelectBox>
+        </Field>
+        <div>
+          <p className="mb-1.5 text-[12.5px] text-paper-2">模式</p>
+          <Segmented<Mode>
+            label="模式"
+            value={mode}
+            onChange={setMode}
+            options={MODES.map(m => ({
+              value: m,
+              label: m,
+              disabled: has(xinfa, m),
+              title: has(xinfa, m) ? `${xinfa}已经有 ${m} 方案` : undefined,
+            }))}
+          />
+          {MODES.some(m => has(xinfa, m)) && (
+            <p className="mt-1.5 text-[12px] text-paper-3">
+              {xinfa}已有 {MODES.filter(m => has(xinfa, m)).join("、")} 方案
+            </p>
+          )}
+        </div>
+      </div>
+    </InlineModal>
   );
 }
 

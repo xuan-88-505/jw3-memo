@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+import type { ReactNode, SelectHTMLAttributes } from "react";
+import { ChevronDown } from "lucide-react";
+import { XINFA_GROUPS } from "@/data/seed";
 import { Jx3Icon } from "@/components/brand/Marks";
 import type { SchemeDiff } from "@/lib/diff";
 import { LAYER_LABEL } from "@/lib/format";
@@ -193,6 +195,7 @@ export function Field({
       <div className="mt-1.5">{children}</div>
       {(error || hint) && (
         <p
+          role={error ? "alert" : undefined}
           className={cn(
             "mt-1.5 text-[12px]",
             error ? "text-cinnabar-text" : "text-paper-3"
@@ -239,5 +242,58 @@ export function EmptyState({
       )}
       {action && <div className="mt-4">{action}</div>}
     </div>
+  );
+}
+
+/**
+ * 统一的下拉框：去掉系统自带箭头，换成和图标一致的箭头，右边留出间距。
+ * 点开仍是系统菜单，键盘和读屏照常可用。
+ */
+export function SelectBox({
+  className,
+  wrapClassName,
+  children,
+  ...rest
+}: SelectHTMLAttributes<HTMLSelectElement> & { wrapClassName?: string }) {
+  return (
+    <span className={cn("relative inline-flex", wrapClassName)}>
+      <select
+        {...rest}
+        className={cn(
+          "w-full cursor-pointer appearance-none pr-8 disabled:cursor-default",
+          className
+        )}
+      >
+        {children}
+      </select>
+      <ChevronDown
+        className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-paper-3"
+        aria-hidden="true"
+      />
+    </span>
+  );
+}
+
+/** 心法选项：按门派分组。disabledReason 返回文字时，这个心法不能选，文字显示在括号里 */
+export function XinfaOptions({
+  disabledReason,
+}: {
+  disabledReason?: (xinfa: string) => string | false;
+}) {
+  return (
+    <>
+      {XINFA_GROUPS.map(g => (
+        <optgroup key={g.school} label={g.school}>
+          {g.xinfa.map(x => {
+            const reason = disabledReason?.(x);
+            return (
+              <option key={x} value={x} disabled={!!reason}>
+                {reason ? `${x}（${reason}）` : x}
+              </option>
+            );
+          })}
+        </optgroup>
+      ))}
+    </>
   );
 }

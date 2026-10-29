@@ -85,3 +85,22 @@ export function Huangji({
     />
   );
 }
+
+/** 按字符串稳定地取一个表情：同一个名字每次都一样 */
+export function moodFor(seed: string): HuangjiMood {
+  let h = 0;
+  for (const ch of seed) h = (h * 31 + ch.codePointAt(0)!) >>> 0;
+  return HUANGJI_MOODS[h % HUANGJI_MOODS.length].key;
+}
+
+/** 随机一个表情：新成员的默认头像 */
+export function randomMood(): HuangjiMood {
+  return HUANGJI_MOODS[Math.floor(Math.random() * HUANGJI_MOODS.length)].key;
+}
+
+/** 头像框里黄鸡的尺寸：放得下就用原尺寸 30 或 2 倍 60，保持像素清晰；更小的框按比例缩小 */
+export function chickSize(box: number, round = false) {
+  if (box >= 64) return HUANGJI_NATIVE * 2;
+  if (box >= 34) return HUANGJI_NATIVE;
+  return Math.round(box * (round ? 0.86 : 0.92));
+}

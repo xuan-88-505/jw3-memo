@@ -1,13 +1,13 @@
-import { useState } from "react";
-import { Check, Copy, Minus, RefreshCw, UserMinus } from "lucide-react";
+import { useRef, useState } from "react";
+import { Check, Copy, Minus, Pencil, RefreshCw, UserMinus } from "lucide-react";
 import { InlineModal } from "@/components/common/overlay";
-import { Avatar, Btn } from "@/components/common/ui";
+import { Avatar, Btn, IconBtn } from "@/components/common/ui";
 import { ME_ID } from "@/data/seed";
 import type { Member, Role } from "@/data/types";
 import { ROLE_LABEL, absoluteTime, copyText } from "@/lib/format";
 import { isOnline, me, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
-import { SectionHeader } from "./shared";
+import { SectionHeader, SelectBox } from "./shared";
 
 const PERMS: { label: string; roles: Role[] }[] = [
   { label: "查看方案、复制宏", roles: ["admin", "editor", "viewer"] },
@@ -58,8 +58,7 @@ export function TeamView() {
   return (
     <div>
       <SectionHeader
-        title={`亲友团 · ${team.name}`}
-        description={`${state.members.length} 位成员`}
+        title={<TeamName name={team.name} editable={isAdmin} online={online} />}
       />
 
       <div className="mb-6 flex flex-wrap items-center gap-4 rounded-xl bg-ink-3 px-5 py-4 ring-1 ring-inset ring-paper/8">
@@ -134,19 +133,19 @@ export function TeamView() {
                   </td>
                   <td className="px-4 py-2.5">
                     {isAdmin ? (
-                      <select
+                      <SelectBox
                         value={m.role}
                         onChange={e => onRole(m, e.target.value as Role)}
                         disabled={!online}
                         aria-label={`${m.name} 的权限`}
-                        className="h-7 rounded-md bg-ink px-2 text-[12.5px] text-paper ring-1 ring-inset ring-paper/12 focus:outline-none focus:ring-2 focus:ring-cinnabar-text/60"
+                        className="h-7 rounded-md bg-ink pl-2.5 text-[12.5px] text-paper ring-1 ring-inset ring-paper/12 focus:outline-none focus:ring-2 focus:ring-cinnabar-text/60 disabled:opacity-50"
                       >
                         {(Object.keys(ROLE_LABEL) as Role[]).map(r => (
                           <option key={r} value={r}>
                             {ROLE_LABEL[r]}
                           </option>
                         ))}
-                      </select>
+                      </SelectBox>
                     ) : (
                       <span
                         className={cn(
@@ -280,5 +279,111 @@ export function TeamView() {
         }
       />
     </div>
+  );
+}
+
+const TEAM_NAME_MAX = 16;
+
+/** 团名：管理员点铅笔直接改。回车或点别处保存，Esc 取消 */
+function TeamName({
+  name,
+  editable,
+  online,
+}: {
+  name: string;
+  editable: boolean;
+  online: boolean;
+}) {
+  const { actions } = useProto();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(name);
+  const [error, setError] = useState("");
+  const cancelRef = useRef(false);
+
+  const check = (n: string) =>
+    !n
+      ? "团名不能为空"
+      : n.length > TEAM_NAME_MAX
+        ? `团名最多 ${TEAM_NAME_MAX} 个字`
+        : "";
+
+  const finish = () => {
+    const n = value.trim();
+    setEditing(false);
+    setError("");
+    if (cancelRef.current || n === name) {
+      cancelRef.current = false;
+      return;
+    }
+    const err = check(n);
+    if (err) {
+      actions.toast("manager", "error", `${err}，已恢复原名`);
+      return;
+    }
+    actions.renameTeam(n);
+    actions.toast("manager", "success", `团名已改为「${n}」`);
+  };
+
+  if (editing) {
+    return (
+      <span className="relative inline-block">
+        <input
+          autoFocus
+          value={value}
+          maxLength={24}
+          spellCheck={false}
+          aria-label="团名"
+          aria-invalid={!!error}
+          onFocus={e => e.currentTarget.select()}
+          onChange={e => {
+            setValue(e.target.value);
+            setError("");
+          }}
+          onKeyDown={e => {
+            if (e.key === "Enter") {
+              const err = check(value.trim());
+              if (err) setError(err);
+              else e.currentTarget.blur();
+            } else if (e.key === "Escape") {
+              e.stopPropagation();
+              cancelRef.current = true;
+              e.currentTarget.blur();
+            }
+          }}
+          onBlur={finish}
+          className={cn(
+            "-my-1 -ml-2 h-9 w-[300px] rounded-md bg-ink px-2 font-serif text-[20px] font-semibold text-paper outline-none ring-1 ring-inset",
+            error ? "ring-cinnabar-text/70" : "ring-cinnabar-text/50"
+          )}
+        />
+        {error && (
+          <span
+            role="alert"
+            className="absolute left-0 top-full z-10 mt-2 whitespace-nowrap rounded-md bg-ink-4 px-2 py-1 font-sans text-[12px] font-normal text-cinnabar-text shadow-lg ring-1 ring-inset ring-paper/10"
+          >
+            {error}
+          </span>
+        )}
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {name}
+      {editable && (
+        <IconBtn
+          label={online ? "修改团名" : "离线时不能修改"}
+          disabled={!online}
+          onClick={() => {
+            setValue(name);
+            setEditing(true);
+          }}
+          className="h-7 w-7 text-paper-3"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </IconBtn>
+      )}
+    </span>
   );
 }

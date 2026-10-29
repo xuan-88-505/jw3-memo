@@ -2,10 +2,12 @@ import {
   BookOpen,
   History,
   Loader2,
+  Pencil,
   Settings,
   UserRound,
   Users,
 } from "lucide-react";
+import { useState } from "react";
 import { Wordmark } from "@/components/brand/Marks";
 import { OfflineBar, ToastStack } from "@/components/common/overlay";
 import { Avatar, Btn, SealBadge } from "@/components/common/ui";
@@ -14,6 +16,7 @@ import { ROLE_LABEL } from "@/lib/format";
 import { me, myCharacters, pendingCount, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { ChangelogView } from "./ChangelogView";
+import { ProfileDialog } from "./ProfileDialog";
 import { CharactersView } from "./CharactersView";
 import { SchemesView } from "./SchemesView";
 import { SettingsView } from "./SettingsView";
@@ -30,6 +33,7 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
   const { state, actions } = useProto();
   const loading = state.dataState === "loading";
   const self = me(state);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const counts: Record<ManagerSection, number | null> = {
     schemes: state.schemes.length,
@@ -119,46 +123,63 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
             <span className="flex-1 text-left">设置</span>
           </button>
         </div>
-        <div className="flex items-center gap-2.5 border-t border-paper/[0.07] px-4 py-3">
-          {self ? (
-            <Avatar member={self} size={28} />
-          ) : (
-            <Avatar member={{ name: "八", color: "#D2462F" }} size={28} />
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-medium">八八</p>
-            <p className="flex items-center gap-1.5 text-[11.5px] text-paper-3">
-              {self ? ROLE_LABEL[self.role] : "未加入"}
-              <span aria-hidden="true">·</span>
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1",
-                  state.dataState === "offline"
-                    ? "text-gold"
-                    : state.dataState === "loading"
-                      ? ""
-                      : "text-jade"
-                )}
-              >
+        <div className="border-t border-paper/[0.07] p-2">
+          <button
+            type="button"
+            disabled={!self || loading}
+            onClick={() => setProfileOpen(true)}
+            title={self ? "修改头像和昵称" : undefined}
+            aria-label={self ? `修改头像和昵称（${self.name}）` : undefined}
+            className="group flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left transition-colors enabled:hover:bg-paper/[0.05]"
+          >
+            {self ? (
+              <Avatar member={self} size={28} />
+            ) : (
+              <Avatar member={{ name: "八八", color: "#D2462F" }} size={28} />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-medium">
+                {self?.name ?? "八八"}
+              </p>
+              <p className="flex items-center gap-1.5 text-[11.5px] text-paper-3">
+                {self ? ROLE_LABEL[self.role] : "未加入"}
+                <span aria-hidden="true">·</span>
                 <span
                   className={cn(
-                    "h-1.5 w-1.5 rounded-full",
+                    "inline-flex items-center gap-1",
                     state.dataState === "offline"
-                      ? "bg-gold"
+                      ? "text-gold"
                       : state.dataState === "loading"
-                        ? "bg-paper-3"
-                        : "bg-jade"
+                        ? ""
+                        : "text-jade"
                   )}
-                  aria-hidden="true"
-                />
-                {state.dataState === "offline"
-                  ? "离线"
-                  : state.dataState === "loading"
-                    ? "同步中"
-                    : "在线"}
-              </span>
-            </p>
-          </div>
+                >
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      state.dataState === "offline"
+                        ? "bg-gold"
+                        : state.dataState === "loading"
+                          ? "bg-paper-3"
+                          : "bg-jade"
+                    )}
+                    aria-hidden="true"
+                  />
+                  {state.dataState === "offline"
+                    ? "离线"
+                    : state.dataState === "loading"
+                      ? "同步中"
+                      : "在线"}
+                </span>
+              </p>
+            </div>
+            {self && (
+              <Pencil
+                className="h-3.5 w-3.5 shrink-0 text-paper-3/60 transition-colors group-hover:text-paper-2"
+                aria-hidden="true"
+              />
+            )}
+          </button>
         </div>
       </aside>
 
@@ -185,6 +206,7 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
         </div>
       </main>
 
+      <ProfileDialog open={profileOpen} onClose={() => setProfileOpen(false)} />
       <ToastStack surface="manager" className="bottom-5" />
     </div>
   );

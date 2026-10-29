@@ -608,6 +608,13 @@ function useActions(
         }));
         return { restored };
       },
+      /** 改自己的昵称和头像。所有显示成员的地方都按 id 读取，会一起更新 */
+      updateMe: (p: { name?: string; avatar?: CharacterAvatar }) =>
+        update(s => ({
+          members: s.members.map(m => (m.id === ME_ID ? { ...m, ...p } : m)),
+        })),
+      renameTeam: (name: string) =>
+        update(s => (s.team ? { team: { ...s.team, name } } : {})),
       setCharacterAvatar: (id: string, avatar: CharacterAvatar) =>
         update(s => ({
           characters: s.characters.map(c =>

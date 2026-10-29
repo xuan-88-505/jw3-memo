@@ -25,7 +25,14 @@ import {
 } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { AvatarPicker } from "./AvatarPicker";
-import { EmptyState, Field, SectionHeader, inputCls } from "./shared";
+import {
+  EmptyState,
+  Field,
+  SectionHeader,
+  SelectBox,
+  XinfaOptions,
+  inputCls,
+} from "./shared";
 
 export function CharactersView() {
   const { state, actions } = useProto();
@@ -337,11 +344,7 @@ function XinfaSelect({
         onChange={e => change(e.target.value)}
         className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0 outline-none disabled:cursor-default"
       >
-        {XINFA_LIST.map(x => (
-          <option key={x} value={x} className="bg-ink-3 text-paper">
-            {x}
-          </option>
-        ))}
+        <XinfaOptions />
       </select>
     </span>
   );
@@ -484,28 +487,28 @@ function AddCharacterDialog({
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="服务器" htmlFor="char-server">
-            <select
+            <SelectBox
               id="char-server"
               value={server}
               onChange={e => setServer(e.target.value)}
+              wrapClassName="w-full"
               className={inputCls()}
             >
               {SERVERS.map(s => (
                 <option key={s}>{s}</option>
               ))}
-            </select>
+            </SelectBox>
           </Field>
-          <Field label="心法" htmlFor="char-xinfa" hint="原型只有 4 个心法">
-            <select
+          <Field label="心法" htmlFor="char-xinfa">
+            <SelectBox
               id="char-xinfa"
               value={xinfa}
               onChange={e => setXinfa(e.target.value)}
+              wrapClassName="w-full"
               className={inputCls()}
             >
-              {XINFA_LIST.map(x => (
-                <option key={x}>{x}</option>
-              ))}
-            </select>
+              <XinfaOptions />
+            </SelectBox>
           </Field>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { XINFA_META } from "@/data/seed";
 import type { Character } from "@/data/types";
 import { cn } from "@/lib/utils";
-import { HUANGJI_NATIVE, Huangji } from "./Huangji";
+import { Huangji, chickSize } from "./Huangji";
 
 /**
  * 角色头像：默认是黄鸡表情，底色取心法颜色，方便一眼分出心法；
@@ -66,11 +66,4 @@ export function CharAvatar({
       <Huangji mood={av.mood} size={chickSize(size)} animated={animated} />
     </span>
   );
-}
-
-/** 头像框里黄鸡的尺寸：放得下就用原尺寸 30 或 2 倍 60，保持像素清晰；更小的框按比例缩小 */
-function chickSize(box: number) {
-  if (box >= 64) return HUANGJI_NATIVE * 2;
-  if (box >= 34) return HUANGJI_NATIVE;
-  return Math.round(box * 0.92);
 }

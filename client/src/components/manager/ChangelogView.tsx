@@ -63,7 +63,11 @@ export function ChangelogView() {
     return g;
   }, [entries]);
 
-  const filters = ["全部", ...XINFA_LIST];
+  // 只列出有方案记录的心法，按门派顺序
+  const filters = [
+    "全部",
+    ...XINFA_LIST.filter(x => state.schemes.some(s => s.xinfa === x)),
+  ];
 
   return (
     <div>

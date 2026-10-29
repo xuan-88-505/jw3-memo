@@ -41,6 +41,8 @@ export interface Member {
   role: Role;
   /** 头像底色 */
   color: string;
+  /** 头像：默认是随机的黄鸡表情，也可以上传图片 */
+  avatar?: CharacterAvatar;
   joinedAt: string;
 }
 
