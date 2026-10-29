@@ -57,3 +57,20 @@
 - 合规：只自用风险低；分享前要问计算器作者（禁止牟利、独立部署需同意）并邮件 admin@jx3box.com 问魔盒（协议禁止修改网页、禁止商业使用）。
 - 看板设计：第一行"现在多少 → 加速到哪一段 → 下一步换什么"；属性收益从高到低排序；加速按段位用进度条显示。试穿页：点部位，候选装备按秒伤提升排序，顶部一直显示试穿前后对比，试穿可撤销。
 - 产出文件：配装台_桌面软件方案.md/.pdf、dashboard.png、gear.png、onboarding.png、architecture.png、dashboard.html（下载到 /tmp/ref/）。
+
+## 推栏 / 截图导入调研（2026-10-29 16:36 UTC+8）
+
+- 推栏：西山居官方 App（App Store id1352849256，开发者西山居世游，v3.2.0 2025-08-25），介绍里有"配装器""战绩查询""查看装备"；App Store 页面没有说明开放接口。https://apps.apple.com/cn/app/%E6%8E%A8%E6%A0%8F/id1352849256
+- 推栏官方介绍：游戏好友互通聊天、战绩查询、配装器、门派/副本/竞技攻略。https://daily.xoyo.com/gonglue/details.html?type=Article&id=5fb5ea93c0346a001565ecb4
+- 魔盒配装器分享有 4 种：横版图、竖版图、数据版 JSON（"适用于各类 DPS 计算器导入，含配装器 ID"）、嵌入版 iframe。另有《导入配装功能说明》https://www.jx3box.com/tool/109923 。来源 https://www.jx3box.com/tool/31630
+- JX3API（第三方，www.jx3api.com）：83 个接口，按档位令牌收费（LV.1–LV.2）；JX3API-TS 配置项里有"推栏Ticket"。https://github.com/JX3API/JX3API-TS
+- 刀豆机器人"属性查询"：查询角色的装备属性面板（主属性、副属性、装分）。https://www.fineiii.xyz/guide/role
+- jx3databot（GitHub serfend）：功能列表含"获取角色装备属性""装备属性查询"。https://github.com/serfend/jx3databot
+- JX3API-TS README 称"覆盖全部 HTTP 接口"，接口列表里有角色信息、角色名片，没有角色装备/属性接口（2026-10-29 克隆 main 分支确认，源码只有 equip_score 字段）。https://github.com/JX3API/JX3API-TS
+- 开源机器人 Inkar-Suki（HornCopper）拉推栏装备：POST https://m.pvp.xoyo.com/mine/equip/get-role-equip，参数 zone、server、game_role_id、ts；请求要带推栏 Token（代码注释"需要通过一些方法获得"）和 x-sk 签名（HMAC-SHA256，密钥不公开，源码注释"我不知道哦，别问我"）。返回含 Kungfu.KungfuID 和装备，可转成 JCL 行。src/utils/database/attributes.py:1263、src/utils/tuilan.py、src/utils/network.py:116。https://github.com/HornCopper/Inkar-Suki
+- 同一机器人支持"茗伊插件 → 角色统计 → 装备统计 → 右上角导出装备码"，粘贴装备码即可提交属性；装备码格式：base64url → zlib 解压 → Lua 表文本（{{…}}，key=value）。src/plugins/jx3/calculator/__init__.py:166、src/utils/database/attributes.py:63 parse_plugin_data。
+- 魔盒《导入配装功能说明》（2026-09-20 发布，09-29 v2）：第三方计算器可导出 JSON（Mount、EquipList[JBBB 槽位 HAT…TERTIARY_WEAPON，id 形如 7_110635，strength 0–8，embedding 等级数组，enhance/enchant/stone 资源 ID，GrowthLevel]、TalentCode、client std/origin）给魔盒"导入配装码"。FAQ："不能只导出攻击、会心等面板属性……无法从最终面板唯一还原配装"。https://www.jx3box.com/tool/109923
+- 茗伊插件源码（cattenblue/MY，MY_RoleStatistics/src/MY_RoleStatistics_EquipStat.lua，2026-10-29 读取 HEAD）：
+  - 装备统计存在全局 SQLite `userdata/role_statistics/equip_stat.v4.db`（第 25 行，PATH_TYPE.GLOBAL），表 OwnerInfo（ownername、servername、ownerforce、ownersuitindex…）+ EquipItems（tabtype、tabindex、strength、diamond_enchant、fea_enchant、permanent_enchant、temporary_enchant…）。同一台电脑上登录过的角色都会记下。
+  - 导出按钮 Text_EquipInfoExport → `X.UI.OpenTextEditor(X.CompressLUAData(this.aExport))`（第 953–954 行）。每个部位导出 dwTabType、dwTabIndex、dwTabSubIndex、nStackNum、nStrengthLevel、nDurability、aDiamondEnchant、dwPermanentEnchantID、dwTemporaryEnchantID、dwItemFEAEnchantID（第 771–781 行）。没有心法和奇穴。
+  - 这些字段和魔盒导入 JSON 的 id/strength/embedding/enhance/enchant/stone 一一对应（对应关系未逐项验证）。

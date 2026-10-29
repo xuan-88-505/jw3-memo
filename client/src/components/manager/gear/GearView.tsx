@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { Btn } from "@/components/common/ui";
 import { findScheme, latest, myCharacters, useProto } from "@/state/store";
+import { SOURCE_LABEL, type LoadoutSource } from "@/data/gear";
 import { cn } from "@/lib/utils";
 import { EmptyState, SectionHeader } from "../shared";
 import { Dashboard, fmt } from "./Dashboard";
@@ -75,11 +76,11 @@ export function GearView() {
   const talentSource = v ? `${char.xinfa} PVE v${v.version}` : null;
   const offline = state.dataState === "offline";
 
-  const doImport = (sourceId: string | null) => {
+  const doImport = (source: LoadoutSource, sourceId: string | null) => {
     setComputing(true);
     const charId = char.id;
     timer.current = window.setTimeout(() => {
-      const r = actions.importLoadout(charId, sourceId);
+      const r = actions.importLoadout(charId, source, sourceId);
       setComputing(false);
       setReimport(false);
       setTab("board");
@@ -99,19 +100,21 @@ export function GearView() {
           right={
             lo && !showImport ? (
               <>
-                <Btn
-                  variant="ghost"
-                  icon={<ExternalLink className="h-3.5 w-3.5" />}
-                  onClick={() =>
-                    actions.toast(
-                      "manager",
-                      "info",
-                      "正式版会在这里打开魔盒配装器"
-                    )
-                  }
-                >
-                  在魔盒里改
-                </Btn>
+                {lo.source === "jx3box" && lo.sourceId && (
+                  <Btn
+                    variant="ghost"
+                    icon={<ExternalLink className="h-3.5 w-3.5" />}
+                    onClick={() =>
+                      actions.toast(
+                        "manager",
+                        "info",
+                        "正式版会在这里打开魔盒配装器"
+                      )
+                    }
+                  >
+                    在魔盒里改
+                  </Btn>
+                )}
                 <Btn
                   icon={<RefreshCw className="h-3.5 w-3.5" />}
                   disabled={offline}
@@ -202,7 +205,7 @@ export function GearView() {
               <span className="mx-1.5" aria-hidden="true">
                 ·
               </span>
-              {dateLabel(lo.importedAt)} 导入
+              {dateLabel(lo.importedAt)} 从{SOURCE_LABEL[lo.source]}导入
               {lo.sample && (
                 <span className="ml-2 rounded bg-paper/[0.07] px-1.5 py-px text-[11px] text-paper-2">
                   示例数据

@@ -77,9 +77,13 @@ export interface DpsPoint {
   detail?: string;
 }
 
+/** 配装从哪里导入 */
+export type LoadoutSource = "myplugin" | "jx3box" | "json";
+
 export interface Loadout {
   xinfa: string;
-  /** 魔盒方案 ID，数据版 JSON 导入时为 null */
+  source: LoadoutSource;
+  /** 魔盒方案 ID；装备码、数据版 JSON 导入时为 null */
   sourceId: string | null;
   name: string;
   importedAt: string;
@@ -350,6 +354,7 @@ export function sortCandidates(list: Candidate[]) {
 /** 生成一份示例配装（导入后用） */
 export function makeLoadout(
   xinfa: string,
+  source: LoadoutSource,
   sourceId: string | null,
   at = new Date().toISOString()
 ): Loadout {
@@ -382,6 +387,7 @@ export function makeLoadout(
   const hasteValue = Math.round(1200 + r * 2400);
   return {
     xinfa,
+    source,
     sourceId,
     name: "日常木桩",
     importedAt: at,
@@ -506,6 +512,7 @@ export function seedLoadoutZixia(): Loadout {
   }
   return {
     xinfa,
+    source: "jx3box",
     sourceId: "87412",
     name: "日常木桩",
     importedAt: "2026-09-06T20:30:00+08:00",
@@ -543,15 +550,24 @@ export function seedLoadoutZixia(): Loadout {
   };
 }
 
-/** 识别粘贴的内容：魔盒配装链接、方案 ID、数据版 JSON */
+/**
+ * 识别粘贴的内容：茗伊插件装备码、魔盒配装链接、方案 ID、数据版 JSON。
+ * 装备码 = base64url(zlib(Lua 表文本))，zlib 头 0x78 编码后以 "e" 开头。
+ * 格式参照开源机器人 Inkar-Suki 的 parse_plugin_data，还没用真实装备码验证。
+ */
+export type ImportKind = "mycode" | "link" | "id" | "json";
 export type ParsedImport =
-  | { ok: true; kind: "link" | "id" | "json"; sourceId: string | null }
+  | { ok: true; kind: ImportKind; sourceId: string | null; code?: string }
   | { ok: false; reason: string };
+
+const MYCODE_RE = /^e[A-Za-z0-9_-]{40,}={0,2}$/;
 
 export function parseImport(raw: string): ParsedImport {
   const text = raw.trim();
-  if (!text)
-    return { ok: false, reason: "先粘贴魔盒配装链接、方案 ID 或数据版 JSON" };
+  if (!text) return { ok: false, reason: "先粘贴装备码或魔盒配装链接" };
+  const compact = text.replace(/\s+/g, "");
+  if (MYCODE_RE.test(compact))
+    return { ok: true, kind: "mycode", sourceId: null, code: compact };
   const link = text.match(/jx3box\.com\/pz\/(?:view\/)?(\d{3,10})/i);
   if (link) return { ok: true, kind: "link", sourceId: link[1] };
   if (/^\d{3,10}$/.test(text)) return { ok: true, kind: "id", sourceId: text };
@@ -568,15 +584,71 @@ export function parseImport(raw: string): ParsedImport {
   }
   return {
     ok: false,
-    reason: "认不出来。支持 3 种：魔盒配装链接、方案 ID（纯数字）、数据版 JSON",
+    reason: "认不出来。支持茗伊插件装备码、魔盒配装链接、方案 ID 和数据版 JSON",
   };
 }
 
-export const IMPORT_KIND_LABEL = {
+export const IMPORT_KIND_LABEL: Record<ImportKind, string> = {
+  mycode: "茗伊插件装备码",
   link: "魔盒配装链接",
   id: "魔盒方案 ID",
   json: "数据版 JSON",
-} as const;
+};
+
+export const IMPORT_SOURCE: Record<ImportKind, LoadoutSource> = {
+  mycode: "myplugin",
+  link: "jx3box",
+  id: "jx3box",
+  json: "json",
+};
+
+export const SOURCE_LABEL: Record<LoadoutSource, string> = {
+  myplugin: "茗伊装备码",
+  jx3box: "魔盒",
+  json: "数据版 JSON",
+};
+
+/** 示例装备码：装备 ID 取自魔盒导入文档的样例，只用来演示格式 */
+export const SAMPLE_MYCODE =
+  "eNrFld9qwjAUh18og5zkJE0vcjGog8KQgb5AtGGW2SglnSul775OBf9gdZVqb0I4DeT70l9OqirZTM1sWq6tlmQ7j11ifzQiU7ArTIp97QWIm3gz_xoXmd7Oc-s-_eLdftulVsRFRW5m6TL1pWaKUmKi1GQrl4zcfGGc1xVDxJAcjXWzxYfNM-Os8_tlcaRBMh787W6z9So3eXn4RJty7G32Nno9FJUMatKuomg3FflflVZ8hC749AQ-OIYHoCDCx9Df-AUcxGWHRi-A7h6Si0E8GKpWDxne9lAnYVJI8dlhouLuMJ3BC-wf_solgL64Qyl6b0YP4T4PvRAwTOgltIdedj5_pejTQ99jB6V8oM4j-wtSMNArsDu7y68Au8OD8YE8rlwIbPOo619zmCRO";
+
+export interface MyCodeSummary {
+  items: number;
+  strength: [number, number] | null;
+  /** 五行石最高等级；没有镶嵌时为 null */
+  stone: number | null;
+}
+
+/** 五行石物品编号 → 等级（取自 Inkar-Suki get_fivestone_level） */
+function stoneLevel(id: number) {
+  if (id >= 24442 && id <= 24449) return id - 24441;
+  if (id >= 24423 && id <= 24430) return id - 24422;
+  return null;
+}
+
+/** 解开装备码，只读出摘要用来给用户确认；解不开时抛错 */
+export async function decodeMyCode(code: string): Promise<MyCodeSummary> {
+  const b64 = code.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+  const bytes = Uint8Array.from(atob(padded), c => c.charCodeAt(0));
+  const stream = new Blob([bytes])
+    .stream()
+    .pipeThrough(new DecompressionStream("deflate"));
+  const text = await new Response(stream).text();
+  if (!text.startsWith("{")) throw new Error("not a lua table");
+  const ids = [...text.matchAll(/dwTabIndex=(\d+)/g)].filter(m => m[1] !== "0");
+  if (ids.length === 0) throw new Error("no items");
+  const str = [...text.matchAll(/nStrengthLevel=(\d+)/g)].map(m => +m[1]);
+  const stones = [...text.matchAll(/aDiamondEnchant=\{([\d,]*)\}/g)]
+    .flatMap(m => (m[1] ? m[1].split(",").map(Number) : []))
+    .map(stoneLevel)
+    .filter((x): x is number => x !== null);
+  return {
+    items: ids.length,
+    strength: str.length ? [Math.min(...str), Math.max(...str)] : null,
+    stone: stones.length ? Math.max(...stones) : null,
+  };
+}
 
 /** 技改后重算：示例算法，按版本号给一个稳定的小幅变化 */
 export function patchDelta(xinfa: string, version: number) {

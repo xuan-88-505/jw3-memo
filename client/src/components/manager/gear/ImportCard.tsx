@@ -1,10 +1,23 @@
 import { CheckCircle2, Download, Loader2, WifiOff } from "lucide-react";
-import { useId, useState } from "react";
-import { IMPORT_KIND_LABEL, parseImport } from "@/data/gear";
+import { useEffect, useId, useState } from "react";
+import {
+  IMPORT_KIND_LABEL,
+  IMPORT_SOURCE,
+  SAMPLE_MYCODE,
+  decodeMyCode,
+  parseImport,
+  type LoadoutSource,
+  type MyCodeSummary,
+} from "@/data/gear";
 import { Btn } from "@/components/common/ui";
 import { cn } from "@/lib/utils";
 
-const EXAMPLE = "https://www.jx3box.com/pz/view/87412";
+/** 装备码解码状态 */
+type Decode =
+  | { state: "idle" }
+  | { state: "busy" }
+  | { state: "ok"; summary: MyCodeSummary }
+  | { state: "fail" };
 
 export function ImportCard({
   charName,
@@ -25,13 +38,34 @@ export function ImportCard({
   /** 卡片顶部的提示，例如心法对不上 */
   notice?: string;
   onCancel?: () => void;
-  onImport: (sourceId: string | null) => void;
+  onImport: (source: LoadoutSource, sourceId: string | null) => void;
 }) {
   const id = useId();
   const [text, setText] = useState("");
   const [touched, setTouched] = useState(false);
+  const [decode, setDecode] = useState<Decode>({ state: "idle" });
   const parsed = parseImport(text);
-  const showError = touched && !parsed.ok;
+  const code = parsed.ok && parsed.kind === "mycode" ? parsed.code! : null;
+
+  // 装备码要解开才知道内容对不对；链接和 ID 不用
+  useEffect(() => {
+    if (!code) {
+      setDecode({ state: "idle" });
+      return;
+    }
+    let alive = true;
+    setDecode({ state: "busy" });
+    decodeMyCode(code)
+      .then(summary => alive && setDecode({ state: "ok", summary }))
+      .catch(() => alive && setDecode({ state: "fail" }));
+    return () => {
+      alive = false;
+    };
+  }, [code]);
+
+  const codeBad = !!code && decode.state === "fail";
+  const ready = parsed.ok && (!code || decode.state === "ok");
+  const showError = (touched && !parsed.ok) || codeBad;
 
   if (computing) {
     return (
@@ -63,8 +97,31 @@ export function ImportCard({
 
   const submit = () => {
     setTouched(true);
-    if (parsed.ok && !offline) onImport(parsed.sourceId);
+    if (parsed.ok && ready && !offline)
+      onImport(IMPORT_SOURCE[parsed.kind], parsed.sourceId);
   };
+
+  const fill = (v: string) => {
+    setText(v);
+    setTouched(false);
+  };
+
+  let detail: string | null = null;
+  if (parsed.ok && decode.state === "ok") {
+    const s = decode.summary;
+    detail = [
+      `${s.items} 件装备`,
+      s.strength &&
+        (s.strength[0] === s.strength[1]
+          ? `精炼 ${s.strength[0]}`
+          : `精炼 ${s.strength[0]}–${s.strength[1]}`),
+      s.stone && `五行石 ${s.stone} 级`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  } else if (parsed.ok && !code) {
+    detail = `${xinfa} · 12 件装备`;
+  }
 
   return (
     <div className="rounded-xl bg-ink-3 p-5 ring-1 ring-inset ring-paper/8">
@@ -93,9 +150,9 @@ export function ImportCard({
         }}
         aria-invalid={showError || undefined}
         aria-describedby={`${id}-msg`}
-        placeholder={`粘贴魔盒配装链接、方案 ID 或数据版 JSON\n例如 ${EXAMPLE}`}
+        placeholder={"粘贴茗伊插件导出的装备码\n也可以贴魔盒配装链接"}
         className={cn(
-          "mt-3 block w-full resize-none rounded-lg bg-ink px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-paper placeholder:text-paper-3/70 ring-1 ring-inset focus:outline-none focus:ring-2",
+          "mt-3 block w-full resize-none break-all rounded-lg bg-ink px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-paper placeholder:text-paper-3/70 ring-1 ring-inset focus:outline-none focus:ring-2",
           showError
             ? "ring-cinnabar/70 focus:ring-cinnabar"
             : "ring-paper/12 focus:ring-cinnabar-text/60"
@@ -103,7 +160,16 @@ export function ImportCard({
       />
 
       <div id={`${id}-msg`} className="mt-2.5 min-h-[40px]">
-        {parsed.ok ? (
+        {codeBad ? (
+          <p role="alert" className="text-[12.5px] text-cinnabar-text">
+            装备码不完整，回游戏里重新点一次「导出」，全部复制
+          </p>
+        ) : parsed.ok && decode.state === "busy" ? (
+          <p className="flex items-center gap-2 text-[12.5px] text-paper-2">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            正在读装备码…
+          </p>
+        ) : parsed.ok ? (
           <div className="flex items-start gap-2 text-[12.5px]">
             <CheckCircle2
               className="mt-px h-4 w-4 shrink-0 text-jade"
@@ -120,9 +186,15 @@ export function ImportCard({
                 )}
               </p>
               <p className="mt-0.5 text-paper-3">
-                {xinfa} · 12 件装备 · 奇穴用
+                {detail}
+                {" · "}奇穴用
                 {talentSource ? ` ${talentSource}` : "配装里自带的"}
               </p>
+              {code && (
+                <p className="mt-0.5 text-paper-3">
+                  装备码里没有角色名，确认是「{charName}」身上这套
+                </p>
+              )}
             </div>
           </div>
         ) : showError ? (
@@ -130,14 +202,11 @@ export function ImportCard({
             {parsed.reason}
           </p>
         ) : (
-          <p className="text-[12px] text-paper-3">
-            魔盒配装页的地址栏链接就行。
+          <p className="text-[12px] leading-relaxed text-paper-3">
+            游戏里打开 茗伊插件 → 角色统计 → 装备统计，点右上角「导出」。
             <button
               type="button"
-              onClick={() => {
-                setText(EXAMPLE);
-                setTouched(false);
-              }}
+              onClick={() => fill(SAMPLE_MYCODE)}
               className="ml-1 text-paper-2 underline decoration-paper/30 underline-offset-2 hover:text-paper"
             >
               填入示例
@@ -151,7 +220,7 @@ export function ImportCard({
           variant="primary"
           size="md"
           icon={<Download className="h-4 w-4" />}
-          disabled={offline || !text.trim()}
+          disabled={offline || !text.trim() || codeBad || (!!code && !ready)}
           onClick={submit}
         >
           导入并计算

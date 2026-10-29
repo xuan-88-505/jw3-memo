@@ -24,6 +24,7 @@ import {
   seedLoadoutZixia,
   sortCandidates,
   type Loadout,
+  type LoadoutSource,
 } from "@/data/gear";
 import { MODES } from "@/data/types";
 import { diffVersions } from "@/lib/diff";
@@ -706,6 +707,7 @@ function useActions(
        */
       importLoadout: (
         charId: string,
+        source: LoadoutSource,
         sourceId: string | null
       ): "new" | "same" => {
         const s = stateRef.current;
@@ -720,7 +722,9 @@ function useActions(
               [charId]: {
                 ...prev,
                 importedAt: at,
-                sourceId: sourceId ?? prev.sourceId,
+                source,
+                sourceId:
+                  source === "jx3box" ? (sourceId ?? prev.sourceId) : null,
               },
             },
           }));
@@ -729,7 +733,7 @@ function useActions(
         update(st => ({
           loadouts: {
             ...st.loadouts,
-            [charId]: makeLoadout(char.xinfa, sourceId, at),
+            [charId]: makeLoadout(char.xinfa, source, sourceId, at),
           },
         }));
         return "new";
