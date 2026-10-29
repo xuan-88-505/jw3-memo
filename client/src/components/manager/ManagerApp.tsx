@@ -106,62 +106,64 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
           </button>
         </div>
         <div className="border-t border-paper/[0.07] p-2">
-          <button
-            type="button"
-            disabled={!self || loading}
-            onClick={() => setProfileOpen(true)}
-            title={self ? "修改头像和昵称" : undefined}
-            aria-label={self ? `修改头像和昵称（${self.name}）` : undefined}
-            className="group flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left transition-colors enabled:hover:bg-paper/[0.05]"
-          >
-            {self ? (
-              <Avatar member={self} size={28} />
-            ) : (
-              <Avatar member={{ name: "八八", color: "#D2462F" }} size={28} />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-medium">
-                {self?.name ?? "八八"}
-              </p>
-              <p className="flex items-center gap-1.5 text-[11.5px] text-paper-3">
-                {self ? ROLE_LABEL[self.role] : "未加入"}
-                <span aria-hidden="true">·</span>
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1",
-                    state.dataState === "offline"
-                      ? "text-gold"
-                      : state.dataState === "loading"
-                        ? ""
-                        : "text-jade"
+          {/* 整行可点：按钮的 after 层铺满整行；右侧状态不拦截点击，读屏单独读出 */}
+          <div className="group relative flex items-center gap-2 rounded-md px-2 py-2 transition-colors has-[button:enabled]:hover:bg-paper/[0.05]">
+            <button
+              type="button"
+              disabled={!self || loading}
+              onClick={() => setProfileOpen(true)}
+              title={self ? "修改头像和昵称" : undefined}
+              aria-label={self ? `修改头像和昵称（${self.name}）` : undefined}
+              className="flex min-w-0 flex-1 items-center gap-2.5 text-left outline-none after:absolute after:inset-0 after:rounded-md focus-visible:after:ring-1 focus-visible:after:ring-inset focus-visible:after:ring-cinnabar-text/50"
+            >
+              {self ? (
+                <Avatar member={self} size={28} />
+              ) : (
+                <Avatar member={{ name: "八八", color: "#D2462F" }} size={28} />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1 text-[13px] font-medium">
+                  <span className="truncate">{self?.name ?? "八八"}</span>
+                  {self && !loading && (
+                    <Pencil
+                      className="h-3 w-3 shrink-0 text-paper-3 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+                      aria-hidden="true"
+                    />
                   )}
-                >
-                  <span
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full",
-                      state.dataState === "offline"
-                        ? "bg-gold"
-                        : state.dataState === "loading"
-                          ? "bg-paper-3"
-                          : "bg-jade"
-                    )}
-                    aria-hidden="true"
-                  />
-                  {state.dataState === "offline"
-                    ? "离线"
+                </p>
+                <p className="truncate text-[11.5px] text-paper-3">
+                  {self ? ROLE_LABEL[self.role] : "未加入"}
+                </p>
+              </div>
+            </button>
+            <span
+              className={cn(
+                "pointer-events-none relative inline-flex shrink-0 items-center gap-1 text-[11.5px]",
+                state.dataState === "offline"
+                  ? "text-gold"
+                  : state.dataState === "loading"
+                    ? "text-paper-3"
+                    : "text-jade"
+              )}
+            >
+              <span
+                className={cn(
+                  "h-1.5 w-1.5 rounded-full",
+                  state.dataState === "offline"
+                    ? "bg-gold"
                     : state.dataState === "loading"
-                      ? "同步中"
-                      : "在线"}
-                </span>
-              </p>
-            </div>
-            {self && (
-              <Pencil
-                className="h-3.5 w-3.5 shrink-0 text-paper-3/60 transition-colors group-hover:text-paper-2"
+                      ? "bg-paper-3"
+                      : "bg-jade"
+                )}
                 aria-hidden="true"
               />
-            )}
-          </button>
+              {state.dataState === "offline"
+                ? "离线"
+                : state.dataState === "loading"
+                  ? "同步中"
+                  : "在线"}
+            </span>
+          </div>
         </div>
       </aside>
 
