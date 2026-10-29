@@ -296,6 +296,7 @@ function WinTaskbar({
   onTray: () => void;
   active: boolean;
 }) {
+  const motion = useTrayMotion(pending);
   return (
     <div className="absolute inset-x-0 bottom-0 z-30 flex h-12 items-center border-t border-white/[0.06] bg-[#1c1c1c]/[0.86] px-3 backdrop-blur-xl">
       <div className="ml-auto flex h-full items-center gap-0.5 text-white/85">
@@ -306,6 +307,7 @@ function WinTaskbar({
           ref={trayRef}
           type="button"
           onClick={onTray}
+          {...motion.handlers}
           aria-label={`同调${pending ? `，${pending} 个角色待同步` : ""}`}
           aria-expanded={active}
           className={cn(
@@ -313,7 +315,7 @@ function WinTaskbar({
             active && "bg-white/[0.1]"
           )}
         >
-          <HuangjiLaugh size={22} />
+          <HuangjiLaugh size={22} animated={motion.animated} />
           {pending > 0 && (
             <span className="absolute -right-0.5 -top-0.5 grid h-[14px] min-w-[14px] animate-pop place-items-center rounded-[3px] bg-cinnabar px-[3px] text-[9.5px] font-semibold leading-none text-white ring-2 ring-[#1c1c1c]">
               {pending}
@@ -331,6 +333,42 @@ function WinTaskbar({
       </div>
     </div>
   );
+}
+
+/**
+ * 托盘黄鸡什么时候动：
+ * - hover（默认）：鼠标移上去或键盘聚焦时动；待同步数量变多时自动动 3 秒
+ * - always：一直动
+ * - off：一直静止
+ * 正式版用 Tauri 的托盘 Enter / Leave 事件判断悬停，定时 set_icon 轮换两帧
+ */
+function useTrayMotion(pending: number) {
+  const { state } = useProto();
+  const mode = state.trayMotion;
+  const [hover, setHover] = useState(false);
+  const [alerting, setAlerting] = useState(false);
+  const prev = useRef(pending);
+
+  useEffect(() => {
+    const grew = pending > prev.current;
+    prev.current = pending;
+    if (!grew || mode === "off") return;
+    setAlerting(true);
+    const t = window.setTimeout(() => setAlerting(false), 3000);
+    return () => window.clearTimeout(t);
+  }, [pending, mode]);
+
+  const animated =
+    mode === "always" || (mode === "hover" && (hover || alerting));
+  return {
+    animated,
+    handlers: {
+      onMouseEnter: () => setHover(true),
+      onMouseLeave: () => setHover(false),
+      onFocus: () => setHover(true),
+      onBlur: () => setHover(false),
+    },
+  };
 }
 
 function Clock({ mac }: { mac?: boolean }) {
@@ -360,6 +398,7 @@ function MacMenuBar({
   onTray: () => void;
   active: boolean;
 }) {
+  const motion = useTrayMotion(pending);
   return (
     <div className="absolute inset-x-0 top-0 z-30 flex h-7 items-center bg-[#1e1a22]/55 px-3 text-[13px] text-white/90 backdrop-blur-xl">
       <Apple className="h-[15px] w-[15px] fill-white/90" strokeWidth={0} />
@@ -374,6 +413,7 @@ function MacMenuBar({
           ref={trayRef}
           type="button"
           onClick={onTray}
+          {...motion.handlers}
           aria-label={`同调${pending ? `，${pending} 个角色待同步` : ""}`}
           aria-expanded={active}
           className={cn(
@@ -381,7 +421,7 @@ function MacMenuBar({
             active && "bg-white/[0.18]"
           )}
         >
-          <HuangjiLaugh size={17} />
+          <HuangjiLaugh size={17} animated={motion.animated} />
           {pending > 0 && (
             <span className="text-[12px] font-medium tabular-nums text-[#ff9b85]">
               {pending}

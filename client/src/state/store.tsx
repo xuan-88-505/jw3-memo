@@ -84,6 +84,8 @@ export interface ProtoState {
   coachSeen: boolean;
   /** 设置：开机自动启动（原型只记状态） */
   launchAtLogin: boolean;
+  /** 设置：托盘黄鸡的动效。hover = 悬停时动（默认），always = 一直动，off = 不动 */
+  trayMotion: TrayMotion;
   managerOpen: boolean;
   managerSection: ManagerSection;
   managerIntent: "add-character" | null;
@@ -133,6 +135,7 @@ const initialState: ProtoState = {
   panelOffset: { x: 0, y: 0 },
   coachSeen: readCoachSeen(),
   launchAtLogin: true,
+  trayMotion: "hover",
   managerOpen: false,
   managerSection: "schemes",
   managerIntent: null,
@@ -146,6 +149,8 @@ const initialState: ProtoState = {
 };
 
 // ---------- 派生数据 ----------
+
+export type TrayMotion = "hover" | "always" | "off";
 
 export function latest(scheme: Scheme | undefined): SchemeVersion | undefined {
   return scheme?.versions[scheme.versions.length - 1];
@@ -376,6 +381,7 @@ function useActions(
       // 面板
       dismissCoach: () => patch({ coachSeen: true }),
       setLaunchAtLogin: (launchAtLogin: boolean) => patch({ launchAtLogin }),
+      setTrayMotion: (trayMotion: TrayMotion) => patch({ trayMotion }),
       togglePanel: () =>
         update(s => ({ panelOpen: !s.panelOpen, coachSeen: true })),
       setPanelOpen: (open: boolean) =>

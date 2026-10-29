@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, Loader2, RotateCcw } from "lucide-react";
-import { Btn } from "@/components/common/ui";
+import { Btn, Segmented } from "@/components/common/ui";
 import {
   DEFAULT_HOTKEYS,
   checkHotkey,
@@ -12,11 +12,17 @@ import {
   sameHotkey,
   type Hotkey,
 } from "@/lib/hotkey";
-import { useProto } from "@/state/store";
+import { useProto, type TrayMotion } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { SectionHeader } from "./shared";
 
 const APP_VERSION = "v0.1.0";
+
+const MOTION_DESC: Record<TrayMotion, string> = {
+  hover: "鼠标移上去时动；有新的待同步时动 3 秒",
+  always: "一直动，和游戏里一样",
+  off: "一直静止",
+};
 
 export function SettingsView() {
   const { state, actions } = useProto();
@@ -41,6 +47,22 @@ export function SettingsView() {
         </SettingGroup>
 
         <SettingGroup title="通用">
+          <SettingRow
+            titleId="set-motion"
+            title="托盘表情动效"
+            desc={MOTION_DESC[state.trayMotion]}
+          >
+            <Segmented<TrayMotion>
+              label="托盘表情动效"
+              value={state.trayMotion}
+              onChange={actions.setTrayMotion}
+              options={[
+                { value: "hover", label: "悬停时" },
+                { value: "always", label: "一直动" },
+                { value: "off", label: "不动" },
+              ]}
+            />
+          </SettingRow>
           <SettingRow
             titleId="set-launch"
             title="开机自动启动"

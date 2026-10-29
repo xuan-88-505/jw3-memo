@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Huangji } from "./Huangji";
+import { useEffect, useState } from "react";
+import { Huangji, huangjiSrc } from "./Huangji";
 import { XINFA_META } from "@/data/seed";
 import { cn } from "@/lib/utils";
 
@@ -99,9 +99,19 @@ export function TrayGlyph({
   );
 }
 
-/** 托盘 / 菜单栏图标：黄鸡大笑 */
-export function HuangjiLaugh({ size = 22 }: { size?: number }) {
-  return <Huangji mood="大笑" size={size} />;
+/** 托盘 / 菜单栏图标：黄鸡大笑。animated 时播放游戏原版的 2 帧动图 */
+export function HuangjiLaugh({
+  size = 22,
+  animated = false,
+}: {
+  size?: number;
+  animated?: boolean;
+}) {
+  // 先把动图下载好，第一次悬停时不会闪一下
+  useEffect(() => {
+    new Image().src = huangjiSrc("大笑", true);
+  }, []);
+  return <Huangji mood="大笑" size={size} animated={animated} />;
 }
 
 /** 心法标记：方印里一个字 */
