@@ -1,0 +1,249 @@
+import { ArrowRight, Info } from "lucide-react";
+import type { Loadout } from "@/data/gear";
+import { HASTE_TIERS } from "@/data/gear";
+import { Btn } from "@/components/common/ui";
+import { cn } from "@/lib/utils";
+import { DpsChart } from "./DpsChart";
+
+export const fmt = (n: number) => n.toLocaleString("en-US");
+
+export function Delta({ pct, className }: { pct: number; className?: string }) {
+  const up = pct > 0;
+  const flat = Math.abs(pct) < 0.005;
+  return (
+    <span
+      className={cn(
+        "tabular-nums",
+        flat ? "text-paper-3" : up ? "text-jade" : "text-cinnabar-text",
+        className
+      )}
+    >
+      {flat ? "±0" : `${up ? "▲" : "▼"} ${Math.abs(pct).toFixed(2)}%`}
+    </span>
+  );
+}
+
+const card = "rounded-xl bg-ink-3 p-4 ring-1 ring-inset ring-paper/8";
+const cardTitle = "text-[12px] font-medium text-paper-3";
+
+/** 所有部位里提升最大的一件候选 */
+export function bestMove(lo: Loadout) {
+  let best: {
+    slotKey: string;
+    slotLabel: string;
+    candId: string;
+    name: string;
+    pct: number;
+  } | null = null;
+  for (const slot of lo.slots) {
+    for (const c of lo.candidates[slot.key] ?? []) {
+      if (c.current || c.pct <= 0) continue;
+      if (!best || c.pct > best.pct)
+        best = {
+          slotKey: slot.key,
+          slotLabel: slot.label,
+          candId: c.id,
+          name: c.name,
+          pct: c.pct,
+        };
+    }
+  }
+  return best;
+}
+
+export function Dashboard({
+  loadout: lo,
+  onTry,
+  onOpenChangelog,
+}: {
+  loadout: Loadout;
+  onTry: (slotKey: string, candId: string) => void;
+  onOpenChangelog: () => void;
+}) {
+  const prev = lo.history.length > 1 ? lo.history[lo.history.length - 2] : null;
+  const deltaPct = prev ? ((lo.dps - prev.dps) / prev.dps) * 100 : 0;
+  const from = HASTE_TIERS.find(t => t.tier === lo.haste.tier)?.value ?? 0;
+  const hastePct = Math.min(
+    100,
+    Math.max(3, ((lo.haste.value - from) / (lo.haste.nextValue - from)) * 100)
+  );
+  const best = bestMove(lo);
+  const maxGain = Math.max(...lo.gains.map(g => g.pct));
+
+  // 最近一次技改，以及它带来的变化
+  const patchIdx = lo.history.map(p => p.kind).lastIndexOf("patch");
+  const patch = patchIdx > 0 ? lo.history[patchIdx] : null;
+  const patchDelta = patch
+    ? ((patch.dps - lo.history[patchIdx - 1].dps) /
+        lo.history[patchIdx - 1].dps) *
+      100
+    : 0;
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-3">
+        <section className={card} aria-label="木桩秒伤">
+          <h3 className={cardTitle}>木桩秒伤</h3>
+          <p className="mt-2 text-[28px] font-semibold leading-none tabular-nums text-paper">
+            {fmt(lo.dps)}
+          </p>
+          <p className="mt-2.5 text-[12px] text-paper-3">
+            {prev ? (
+              <>
+                <Delta pct={deltaPct} className="font-medium" />
+                <span className="ml-1.5">较上次 {fmt(prev.dps)}</span>
+              </>
+            ) : (
+              "第一次计算"
+            )}
+          </p>
+        </section>
+
+        <section className={card} aria-label="加速段位">
+          <h3 className={cardTitle}>加速段位</h3>
+          <p className="mt-2 flex items-baseline gap-2">
+            <span className="font-serif text-[24px] font-semibold leading-none text-paper">
+              {lo.haste.tier}
+            </span>
+            <span className="text-[13px] tabular-nums text-paper-2">
+              {fmt(lo.haste.value)}
+            </span>
+          </p>
+          <div
+            className="mt-3 h-1.5 overflow-hidden rounded-full bg-paper/[0.08]"
+            role="progressbar"
+            aria-valuemin={from}
+            aria-valuemax={lo.haste.nextValue}
+            aria-valuenow={lo.haste.value}
+            aria-label={`距离${lo.haste.nextTier}`}
+          >
+            <div
+              className="h-full rounded-full bg-gold/80"
+              style={{ width: `${hastePct}%` }}
+            />
+          </div>
+          <p className="mt-2 text-[12px] text-paper-3">
+            再加{" "}
+            <span className="tabular-nums text-paper-2">
+              {fmt(lo.haste.nextValue - lo.haste.value)}
+            </span>{" "}
+            到{lo.haste.nextTier}
+          </p>
+        </section>
+
+        <section className={cn(card, "flex flex-col")} aria-label="下一步建议">
+          <h3 className={cardTitle}>下一步建议</h3>
+          {best ? (
+            <>
+              <p className="mt-2 text-[13.5px] leading-snug text-paper">
+                把「{best.slotLabel}」换成
+                <span className="font-medium">
+                  {" "}
+                  {best.name.split(" · ")[1] ?? best.name}
+                </span>
+              </p>
+              <p className="mt-1.5 text-[12px] text-paper-3">
+                秒伤 <Delta pct={best.pct} className="font-medium" />
+              </p>
+              <div className="mt-auto pt-2">
+                <Btn
+                  size="xs"
+                  variant="ghost"
+                  className="-ml-2"
+                  onClick={() => onTry(best.slotKey, best.candId)}
+                >
+                  去试穿
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </Btn>
+              </div>
+            </>
+          ) : (
+            <p className="mt-2 text-[13px] leading-relaxed text-paper-2">
+              现在这套已经是候选里最好的
+            </p>
+          )}
+        </section>
+      </div>
+
+      <div className="grid grid-cols-[1fr_1.15fr] gap-3">
+        <section className={card} aria-label="属性收益">
+          <div className="flex items-center gap-1.5">
+            <h3 className={cardTitle}>属性收益</h3>
+            <span title="每多一个该属性的附魔，秒伤增加多少。按收益从高到低排列。">
+              <Info
+                className="h-3.5 w-3.5 text-paper-3/70"
+                aria-label="说明：每多一个该属性的附魔，秒伤增加多少"
+              />
+            </span>
+          </div>
+          <ul className="mt-3 space-y-2">
+            {lo.gains.map((g, i) => (
+              <li
+                key={g.attr}
+                className="grid grid-cols-[56px_1fr_64px_44px] items-center gap-2"
+              >
+                <span
+                  className={cn(
+                    "text-[12.5px]",
+                    i === 0 ? "font-medium text-paper" : "text-paper-2"
+                  )}
+                >
+                  {g.attr}
+                </span>
+                <span className="h-2 overflow-hidden rounded-full bg-paper/[0.05]">
+                  <span
+                    className="block h-full rounded-full bg-jade"
+                    style={{
+                      width: `${(g.pct / maxGain) * 100}%`,
+                      opacity: 1 - i * 0.09,
+                    }}
+                  />
+                </span>
+                <span className="text-right text-[12px] tabular-nums text-paper-2">
+                  +{fmt(g.dps)}
+                </span>
+                <span className="text-right text-[12px] tabular-nums text-paper-3">
+                  {g.pct.toFixed(2)}%
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[11.5px] text-paper-3">
+            加速按段位生效，看上面的「加速段位」
+          </p>
+        </section>
+
+        <section className={cn(card, "flex flex-col")} aria-label="秒伤变化">
+          <h3 className={cardTitle}>秒伤变化</h3>
+          <div className="relative mt-1 min-h-[160px] flex-1">
+            <div className="absolute inset-0">
+              <DpsChart history={lo.history} />
+            </div>
+          </div>
+          {patch && (
+            <button
+              type="button"
+              onClick={onOpenChangelog}
+              className="group -mx-1 mt-1 flex items-center gap-2 rounded-md px-1 py-1 text-left text-[12px] text-paper-3 transition-colors hover:bg-paper/[0.04]"
+            >
+              <span
+                className="h-2 w-2 shrink-0 rounded-full bg-gold"
+                aria-hidden="true"
+              />
+              <span className="min-w-0 flex-1 truncate">
+                <span className="text-paper-2">{patch.label}</span>
+                {patch.detail && <span>（{patch.detail}）</span>}
+                <span className="mx-1">·</span>
+                <Delta pct={patchDelta} />
+              </span>
+              <span className="shrink-0 text-paper-3 transition-colors group-hover:text-paper-2">
+                技改记录
+              </span>
+              <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            </button>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}

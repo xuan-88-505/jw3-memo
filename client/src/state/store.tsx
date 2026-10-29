@@ -18,6 +18,13 @@ import {
   rivalEdit,
   seedSchemes,
 } from "@/data/seed";
+import {
+  makeLoadout,
+  patchDelta,
+  seedLoadoutZixia,
+  sortCandidates,
+  type Loadout,
+} from "@/data/gear";
 import { MODES } from "@/data/types";
 import { diffVersions } from "@/lib/diff";
 import { DEFAULT_HOTKEYS, type Hotkey } from "@/lib/hotkey";
@@ -99,6 +106,8 @@ export interface ProtoState {
    * 原型存在浏览器本地；正式版跟着账号同步到自己的其他电脑。
    */
   notes: Record<string, CharNote>;
+  /** 配装与木桩：按角色 id 存。和便签一样只属于本人 */
+  loadouts: Record<string, Loadout>;
   /** 本机设置：每台电脑分开保存，不同步给亲友 */
   hotkeys: Record<Platform, Hotkey>;
   /** 正在录制新快捷键时，暂停全局快捷键 */
@@ -156,6 +165,7 @@ function readCoachSeen() {
 const initialState: ProtoState = {
   ...seedData(),
   notes: readNotes(),
+  loadouts: { c1: seedLoadoutZixia() },
   platform: "win",
   scene: "desktop",
   dataState: "normal",
@@ -305,6 +315,37 @@ function newInviteCode() {
       () => chars[Math.floor(Math.random() * chars.length)]
     ).join("");
   return `TD-${pick(4)}-${pick(4)}`;
+}
+
+/** 技改后重算（原型：按版本号给一个稳定的小幅变化） */
+function recalcAfterPatch(
+  st: ProtoState,
+  xinfa: string,
+  version: number,
+  at: string
+): Record<string, Loadout> {
+  const out = { ...st.loadouts };
+  for (const c of st.characters) {
+    const lo = out[c.id];
+    if (c.ownerId !== ME_ID || c.xinfa !== xinfa || !lo || lo.xinfa !== xinfa)
+      continue;
+    const dps = Math.round(lo.dps * (1 + patchDelta(xinfa, version) / 100));
+    out[c.id] = {
+      ...lo,
+      dps,
+      history: [
+        ...lo.history,
+        {
+          at,
+          dps,
+          label: `v${version} 技改`,
+          kind: "patch",
+          detail: "奇穴有变化",
+        },
+      ],
+    };
+  }
+  return out;
 }
 
 function appendVersion(
@@ -539,12 +580,19 @@ function useActions(
         const noGameChange =
           !!last &&
           diffVersions(last, version, layersOf(draft.xinfa)).total === 0;
+        // PVE 方案的奇穴变了：用这个心法、已导入配装的我的角色重算一次
+        const talentChanged =
+          !last || last.talents.some((t, i) => t !== draft.talents[i]);
         update(st => {
           const drafts = { ...st.drafts };
           delete drafts[schemeId];
           return {
             schemes: appendVersion(st.schemes, schemeId, version, draft),
             drafts,
+            loadouts:
+              draft.mode === "PVE" && talentChanged
+                ? recalcAfterPatch(st, draft.xinfa, version.version, version.at)
+                : st.loadouts,
             characters: noGameChange
               ? st.characters.map(c =>
                   c.xinfa === draft.xinfa &&
@@ -651,6 +699,102 @@ function useActions(
             c.id === id ? { ...c, avatar } : c
           ),
         })),
+      /**
+       * 导入配装（原型：生成示例数值）。
+       * 同心法重新导入：原型里魔盒那边没有改动，所以保留原数值，只更新导入时间。
+       * 返回 "new"（第一次或换了心法）或 "same"（配装没有变化）
+       */
+      importLoadout: (
+        charId: string,
+        sourceId: string | null
+      ): "new" | "same" => {
+        const s = stateRef.current;
+        const char = s.characters.find(c => c.id === charId);
+        if (!char) return "new";
+        const at = new Date().toISOString();
+        const prev = s.loadouts[charId];
+        if (prev && prev.xinfa === char.xinfa) {
+          update(st => ({
+            loadouts: {
+              ...st.loadouts,
+              [charId]: {
+                ...prev,
+                importedAt: at,
+                sourceId: sourceId ?? prev.sourceId,
+              },
+            },
+          }));
+          return "same";
+        }
+        update(st => ({
+          loadouts: {
+            ...st.loadouts,
+            [charId]: makeLoadout(char.xinfa, sourceId, at),
+          },
+        }));
+        return "new";
+      },
+      /** 把试穿的装备应用到配装；返回新秒伤 */
+      applyCandidate: (charId: string, slotKey: string, candId: string) => {
+        const s = stateRef.current;
+        const lo = s.loadouts[charId];
+        const cand = lo?.candidates[slotKey]?.find(c => c.id === candId);
+        const slot = lo?.slots.find(x => x.key === slotKey);
+        if (!lo || !cand || !slot || cand.current) return lo?.dps ?? 0;
+        const dps = Math.round(lo.dps * (1 + cand.pct / 100));
+        const at = new Date().toISOString();
+        const next: Loadout = {
+          ...lo,
+          dps,
+          slots: lo.slots.map(x =>
+            x.key === slotKey
+              ? {
+                  ...x,
+                  item: {
+                    ...x.item,
+                    name: cand.name.replace(" · ", "·"),
+                    quality: cand.quality,
+                    tags: cand.tags,
+                  },
+                }
+              : x
+          ),
+          // 其他候选的提升值改成相对新装备
+          candidates: {
+            ...lo.candidates,
+            [slotKey]: sortCandidates(
+              lo.candidates[slotKey].map(c =>
+                c.id === candId
+                  ? {
+                      ...c,
+                      pct: 0,
+                      current: true,
+                      source: "已装备",
+                      effects: [],
+                      note: undefined,
+                    }
+                  : {
+                      ...c,
+                      current: false,
+                      source: c.current ? "刚换下" : c.source,
+                      pct: Math.round((c.pct - cand.pct) * 100) / 100,
+                    }
+              )
+            ),
+          },
+          history: [
+            ...lo.history,
+            {
+              at,
+              dps,
+              label: `换${slot.label.replace(/ \d$/, "")}`,
+              kind: "gear",
+            },
+          ],
+        };
+        update(st => ({ loadouts: { ...st.loadouts, [charId]: next } }));
+        return dps;
+      },
       /** 写便签。空内容直接删掉这条记录 */
       setNote: (charId: string, text: string) =>
         update(s => {
@@ -667,8 +811,11 @@ function useActions(
           // 角色删了，它的便签也一起删
           const notes = { ...s.notes };
           delete notes[id];
+          const loadouts = { ...s.loadouts };
+          delete loadouts[id];
           return {
             notes,
+            loadouts,
             characters,
             activeCharId:
               s.activeCharId === id ? (mine[0]?.id ?? "") : s.activeCharId,

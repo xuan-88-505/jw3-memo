@@ -4,6 +4,7 @@ import {
   Loader2,
   Pencil,
   Settings,
+  Shirt,
   UserRound,
   Users,
 } from "lucide-react";
@@ -16,6 +17,7 @@ import { ROLE_LABEL } from "@/lib/format";
 import { me, myCharacters, pendingCount, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { ChangelogView } from "./ChangelogView";
+import { GearView } from "./gear/GearView";
 import { ProfileDialog } from "./ProfileDialog";
 import { CharactersView } from "./CharactersView";
 import { SchemesView } from "./SchemesView";
@@ -25,6 +27,7 @@ import { TeamView } from "./TeamView";
 const NAV: { key: ManagerSection; label: string; icon: typeof BookOpen }[] = [
   { key: "schemes", label: "方案库", icon: BookOpen },
   { key: "characters", label: "我的角色", icon: UserRound },
+  { key: "gear", label: "配装", icon: Shirt },
   { key: "changelog", label: "技改记录", icon: History },
   { key: "team", label: "亲友团", icon: Users },
 ];
@@ -38,6 +41,7 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
   const counts: Record<ManagerSection, number | null> = {
     schemes: state.schemes.length,
     characters: myCharacters(state).length,
+    gear: null,
     changelog: null,
     team: state.members.length,
     settings: null,
@@ -196,6 +200,8 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
             <NoTeam onOpenPanel={onOpenPanel} />
           ) : state.managerSection === "schemes" ? (
             <SchemesView />
+          ) : state.managerSection === "gear" ? (
+            <GearView />
           ) : (
             <div className="scroll-thin h-full overflow-y-auto px-8 pb-10 pt-7">
               {state.managerSection === "characters" && <CharactersView />}

@@ -106,6 +106,7 @@ export type DataState = "normal" | "onboarding" | "offline" | "loading";
 export type ManagerSection =
   | "schemes"
   | "characters"
+  | "gear"
   | "changelog"
   | "team"
   | "settings";
