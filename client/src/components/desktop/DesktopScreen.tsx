@@ -12,7 +12,6 @@ import {
   ChevronUp,
   Compass,
   FolderOpen,
-  Globe,
   MessageCircle,
   Search,
   Settings,
@@ -294,39 +293,8 @@ function WinTaskbar({
   onTray: () => void;
   active: boolean;
 }) {
-  const apps = [
-    { key: "start", node: <WinLogo /> },
-    {
-      key: "search",
-      node: <Search className="h-[18px] w-[18px] text-white/85" />,
-    },
-    { key: "files", node: <FolderOpen className="h-5 w-5 text-[#f4c542]" /> },
-    { key: "edge", node: <Globe className="h-5 w-5 text-[#3bb8e8]" /> },
-    {
-      key: "jx3",
-      node: (
-        <span className="grid h-6 w-6 place-items-center rounded-[5px] bg-[#3a2c1a] font-serif text-[13px] text-[#e9c77b] ring-1 ring-[#e9c77b]/30">
-          剑
-        </span>
-      ),
-      running: true,
-    },
-  ];
   return (
     <div className="absolute inset-x-0 bottom-0 z-30 flex h-12 items-center border-t border-white/[0.06] bg-[#1c1c1c]/[0.86] px-3 backdrop-blur-xl">
-      <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-1">
-        {apps.map(a => (
-          <span
-            key={a.key}
-            className="relative grid h-10 w-10 place-items-center rounded-md hover:bg-white/[0.06]"
-          >
-            {a.node}
-            {a.running && (
-              <span className="absolute bottom-0.5 h-[3px] w-1.5 rounded-full bg-white/60" />
-            )}
-          </span>
-        ))}
-      </div>
       <div className="ml-auto flex h-full items-center gap-0.5 text-white/85">
         <span className="grid h-9 w-7 place-items-center rounded hover:bg-white/[0.06]">
           <ChevronUp className="h-4 w-4" />
@@ -374,16 +342,6 @@ function Clock({ mac }: { mac?: boolean }) {
   return (
     <span>
       {now.getMonth() + 1}月{now.getDate()}日 周{week} {hm}
-    </span>
-  );
-}
-
-function WinLogo() {
-  return (
-    <span className="grid grid-cols-2 gap-[2px]">
-      {[0, 1, 2, 3].map(i => (
-        <span key={i} className="h-[8px] w-[8px] rounded-[1px] bg-[#4cc2ff]" />
-      ))}
     </span>
   );
 }
