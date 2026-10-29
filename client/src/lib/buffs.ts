@@ -21,7 +21,12 @@ export interface FoodDef {
   /** 品级：蓝 / 紫 */
   q: string;
   i: number;
+  /** 估算用的效果（130 级面板尺度；新赛季小药是换算值） */
   e: EffectRow[];
+  /** 新赛季小药：游戏里的 50 级数值，如「会心 +162」；「主属性」按心法替换 */
+  s?: string;
+  /** 下拉里名字后面的属性，如「会心」「主属性」 */
+  t?: string;
 }
 
 export interface TeamDef {
@@ -460,6 +465,17 @@ export function effectSummary(rows: EffectRow[], max = 3): string {
     if (parts.length >= max) break;
   }
   return parts.join(" · ");
+}
+
+/** 小药下拉里的名字：「巴山凝神丹 · 会心」；主属性换成本心法的（根骨、身法……） */
+export function foodLabel(f: FoodDef, main: string): string {
+  if (!f.t) return f.n;
+  return `${f.n} · ${f.t === "主属性" ? main : f.t}`;
+}
+
+/** 小药效果：新赛季的显示游戏里的 50 级数值，其余显示数据里的数值 */
+export function foodSummary(f: FoodDef, main: string): string {
+  return f.s ? f.s.replace("主属性", main) : effectSummary(f.e);
 }
 
 /** 0.0123 → "1.23%" */

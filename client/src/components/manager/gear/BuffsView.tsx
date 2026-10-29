@@ -19,6 +19,8 @@ import {
   teamMult,
   type BuffSelection,
   type TeamDef,
+  foodLabel,
+  foodSummary,
 } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
 import { SelectBox } from "../shared";
@@ -378,12 +380,13 @@ export function BuffsView({
                     <option value="">不吃</option>
                     {items.map(f => (
                       <option key={f.n} value={f.n}>
-                        {f.n}　≈ +{(foodPct[f.n] * 100).toFixed(2)}%
+                        {foodLabel(f, profile.main)}　≈ +
+                        {(foodPct[f.n] * 100).toFixed(2)}%
                       </option>
                     ))}
                   </SelectBox>
                   <p className="mt-1 truncate text-[11.5px] text-paper-3">
-                    {cur ? effectSummary(cur.e) : "\u00a0"}
+                    {cur ? foodSummary(cur, profile.main) : "\u00a0"}
                   </p>
                 </div>
                 <span className="w-14 shrink-0 pt-1.5 text-right text-[12.5px]">
