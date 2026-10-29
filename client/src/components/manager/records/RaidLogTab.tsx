@@ -1,4 +1,11 @@
-import { Plus, ScrollText, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Plus,
+  ScrollText,
+  Trash2,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { InlineModal } from "@/components/common/overlay";
@@ -7,6 +14,9 @@ import {
   blackEntriesFor,
   DIFFICULTIES,
   roleByUid,
+  SEASON_NAME,
+  SEASON_RAIDS,
+  seasonRaidLabel,
   WAGE_MAX,
   type GameRole,
   type RaidLog,
@@ -17,7 +27,13 @@ import { canEdit, isOnline, memberName, useProto } from "@/state/store";
 import { EmptyState, Field, inputCls, SelectBox } from "../shared";
 import { RoleLookup, RoleName } from "./RoleLookup";
 
-type Period = "week" | "month" | "all";
+// 一周没几条记录，只按月或全部看
+type Period = "month" | "all";
+type SortKey = "at" | "wage";
+interface Sort {
+  key: SortKey;
+  dir: "asc" | "desc";
+}
 
 const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
 
@@ -35,8 +51,7 @@ function periodStart(p: Period, now = new Date()) {
   if (p === "all") return 0;
   const d = new Date(now);
   d.setHours(0, 0, 0, 0);
-  if (p === "month") d.setDate(1);
-  else d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  d.setDate(1);
   return d.getTime();
 }
 
@@ -59,6 +74,14 @@ export function RaidLogTab({
   const { state } = useProto();
   const [period, setPeriod] = useState<Period>("month");
   const [charFilter, setCharFilter] = useState("all");
+  // 默认最新的在上面；切到工资时先看最高的
+  const [sort, setSort] = useState<Sort>({ key: "at", dir: "desc" });
+  const onSort = (key: SortKey) =>
+    setSort(s =>
+      s.key === key
+        ? { key, dir: s.dir === "desc" ? "asc" : "desc" }
+        : { key, dir: "desc" }
+    );
   const writable = canEdit(state) && isOnline(state);
   const lockReason = !canEdit(state)
     ? "只读成员不能修改"
@@ -78,8 +101,16 @@ export function RaidLogTab({
         if (charFilter === "mine") return mine.some(c => c.id === r.charId);
         return r.charId === charFilter;
       })
-      .sort((a, b) => b.at.localeCompare(a.at));
-  }, [state.raidLogs, period, charFilter, mine]);
+      .sort((a, b) => {
+        const sign = sort.dir === "asc" ? 1 : -1;
+        if (sort.key === "wage" && a.wage !== b.wage)
+          return sign * (a.wage - b.wage);
+        // 工资相同时按时间从新到旧
+        return sort.key === "at"
+          ? sign * a.at.localeCompare(b.at)
+          : b.at.localeCompare(a.at);
+      });
+  }, [state.raidLogs, period, charFilter, mine, sort]);
 
   const total = rows.reduce((sum, r) => sum + r.wage, 0);
   const editing =
@@ -95,7 +126,6 @@ export function RaidLogTab({
           value={period}
           onChange={setPeriod}
           options={[
-            { value: "week", label: "本周" },
             { value: "month", label: "本月" },
             { value: "all", label: "全部" },
           ]}
@@ -165,12 +195,25 @@ export function RaidLogTab({
             </colgroup>
             <thead className="bg-ink-3 text-[12px] text-paper-3">
               <tr>
-                <th className="px-4 py-2.5 font-normal">时间</th>
+                <SortTh
+                  label="时间"
+                  sortKey="at"
+                  sort={sort}
+                  onSort={onSort}
+                  className="px-4"
+                />
                 <th className="px-3 py-2.5 font-normal">副本</th>
                 <th className="px-3 py-2.5 font-normal">团牌</th>
                 <th className="px-3 py-2.5 font-normal">团长</th>
                 <th className="px-3 py-2.5 font-normal">角色</th>
-                <th className="px-3 py-2.5 text-right font-normal">工资</th>
+                <SortTh
+                  label="工资"
+                  sortKey="wage"
+                  sort={sort}
+                  onSort={onSort}
+                  className="px-3"
+                  alignRight
+                />
                 <th className="px-4 py-2.5 font-normal">备注</th>
               </tr>
             </thead>
@@ -287,10 +330,23 @@ function RaidLogDialog({
     toLocalInput(log?.at ?? roundNow().toISOString())
   );
   const [charId, setCharId] = useState(log?.charId ?? mine[0]?.id ?? "");
-  const [difficulty, setDifficulty] = useState(
-    log?.difficulty ?? last?.difficulty ?? DIFFICULTIES[0]
+  const seasonKey = (d?: string, diff?: string) => {
+    const i = SEASON_RAIDS.findIndex(
+      r => r.dungeon === d && r.difficulty === diff
+    );
+    return i >= 0 ? String(i) : null;
+  };
+  // 新记录：沿用上一条的本赛季副本，否则本赛季第一个；旧赛季的记录打开时是"其他副本"
+  const [raid, setRaid] = useState(() =>
+    log
+      ? (seasonKey(log.dungeon, log.difficulty) ?? "other")
+      : (seasonKey(last?.dungeon, last?.difficulty) ?? "0")
   );
-  const [dungeon, setDungeon] = useState(log?.dungeon ?? last?.dungeon ?? "");
+  const isOther = raid === "other";
+  const [difficulty, setDifficulty] = useState(
+    log && isOther ? log.difficulty : DIFFICULTIES[0]
+  );
+  const [dungeon, setDungeon] = useState(log && isOther ? log.dungeon : "");
   const [tuanpai, setTuanpai] = useState(log?.tuanpai ?? "");
   const [leader, setLeader] = useState<GameRole | null>(
     roleByUid(log?.leaderUid) ?? null
@@ -300,12 +356,19 @@ function RaidLogDialog({
   const [tried, setTried] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const dungeons = Array.from(new Set(state.raidLogs.map(r => r.dungeon)));
+  // "其他副本"的名字提示：以前记过的、不在本赛季里的副本
+  const dungeons = Array.from(
+    new Set(
+      state.raidLogs
+        .map(r => r.dungeon)
+        .filter(d => !SEASON_RAIDS.some(s => s.dungeon === d))
+    )
+  );
   const wageNum = Number(wage);
   const errors = {
     at: !at || Number.isNaN(new Date(at).getTime()) ? "选一下时间" : "",
     charId: !charId ? "选一下角色" : "",
-    dungeon: !dungeon.trim() ? "填一下副本" : "",
+    dungeon: isOther && !dungeon.trim() ? "填一下副本名称" : "",
     wage:
       wage.trim() === "" || !Number.isInteger(wageNum) || wageNum < 0
         ? "工资填 0 或正整数"
@@ -323,8 +386,8 @@ function RaidLogDialog({
       {
         at: new Date(at).toISOString(),
         charId,
-        difficulty,
-        dungeon: dungeon.trim(),
+        difficulty: isOther ? difficulty : SEASON_RAIDS[+raid].difficulty,
+        dungeon: isOther ? dungeon.trim() : SEASON_RAIDS[+raid].dungeon,
         tuanpai: tuanpai.trim(),
         leaderUid: leader?.uid ?? null,
         wage: wageNum,
@@ -423,34 +486,63 @@ function RaidLogDialog({
             )}
           </SelectBox>
         </Field>
-        <Field label="难度" htmlFor="rl-diff">
-          <SelectBox
-            id="rl-diff"
-            value={difficulty}
-            onChange={e => setDifficulty(e.target.value)}
-            wrapClassName="w-full"
-            className={inputCls()}
-          >
-            {DIFFICULTIES.map(d => (
-              <option key={d}>{d}</option>
-            ))}
-          </SelectBox>
-        </Field>
-        <Field label="副本" htmlFor="rl-dungeon" error={show("dungeon")}>
-          <input
-            id="rl-dungeon"
-            list="rl-dungeons"
-            value={dungeon}
-            maxLength={20}
-            onChange={e => setDungeon(e.target.value)}
-            className={inputCls(!!show("dungeon"))}
-          />
-          <datalist id="rl-dungeons">
-            {dungeons.map(d => (
-              <option key={d} value={d} />
-            ))}
-          </datalist>
-        </Field>
+        <div className="col-span-2">
+          <Field label="副本" htmlFor="rl-raid">
+            <SelectBox
+              id="rl-raid"
+              value={raid}
+              onChange={e => setRaid(e.target.value)}
+              wrapClassName="w-full"
+              className={inputCls()}
+            >
+              <optgroup label={`本赛季 · ${SEASON_NAME}`}>
+                {SEASON_RAIDS.map((r, i) => (
+                  <option key={i} value={String(i)} disabled={r.upcoming}>
+                    {seasonRaidLabel(r)}
+                  </option>
+                ))}
+              </optgroup>
+              <option value="other">其他副本…</option>
+            </SelectBox>
+          </Field>
+        </div>
+        {isOther && (
+          <>
+            <Field
+              label="副本名称"
+              htmlFor="rl-dungeon"
+              error={show("dungeon")}
+            >
+              <input
+                id="rl-dungeon"
+                list="rl-dungeons"
+                value={dungeon}
+                maxLength={20}
+                onChange={e => setDungeon(e.target.value)}
+                aria-invalid={!!show("dungeon")}
+                className={inputCls(!!show("dungeon"))}
+              />
+              <datalist id="rl-dungeons">
+                {dungeons.map(d => (
+                  <option key={d} value={d} />
+                ))}
+              </datalist>
+            </Field>
+            <Field label="难度" htmlFor="rl-diff">
+              <SelectBox
+                id="rl-diff"
+                value={difficulty}
+                onChange={e => setDifficulty(e.target.value)}
+                wrapClassName="w-full"
+                className={inputCls()}
+              >
+                {DIFFICULTIES.map(d => (
+                  <option key={d}>{d}</option>
+                ))}
+              </SelectBox>
+            </Field>
+          </>
+        )}
         <Field label="团牌" htmlFor="rl-tuanpai">
           <input
             id="rl-tuanpai"
@@ -478,6 +570,9 @@ function RaidLogDialog({
           <Field label="团长" htmlFor="rl-leader">
             <RoleLookup
               id="rl-leader"
+              defaultServer={
+                state.characters.find(c => c.id === charId)?.server
+              }
               value={leader}
               onChange={setLeader}
               blacklist={state.blacklist}
@@ -504,6 +599,58 @@ function RaidLogDialog({
         />
       </form>
     </InlineModal>
+  );
+}
+
+/** 可排序的表头：点一下按这一列排，再点一下反过来 */
+function SortTh({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  className,
+  alignRight,
+}: {
+  label: string;
+  sortKey: SortKey;
+  sort: Sort;
+  onSort: (k: SortKey) => void;
+  className?: string;
+  alignRight?: boolean;
+}) {
+  const active = sort.key === sortKey;
+  const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <th
+      aria-sort={
+        active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"
+      }
+      className={cn(
+        "py-1.5 font-normal",
+        alignRight && "text-right",
+        className
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        title={`按${label}排序`}
+        className={cn(
+          "group/sort -mx-1 inline-flex items-center gap-1 rounded px-1 py-1 transition-colors hover:text-paper",
+          alignRight && "flex-row-reverse",
+          active && "text-paper-2"
+        )}
+      >
+        {label}
+        <Icon
+          className={cn(
+            "h-3 w-3 transition-opacity",
+            active ? "opacity-100" : "opacity-0 group-hover/sort:opacity-60"
+          )}
+          aria-hidden="true"
+        />
+      </button>
+    </th>
   );
 }
 

@@ -11,13 +11,7 @@ import {
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { InlineModal } from "@/components/common/overlay";
 import { Btn, IconBtn, Segmented, StatusPill } from "@/components/common/ui";
-import {
-  SCHOOL_GROUPS,
-  SERVERS,
-  layersOf,
-  schoolLabel,
-  xinfasOf,
-} from "@/data/seed";
+import { SCHOOL_GROUPS, layersOf, schoolLabel, xinfasOf } from "@/data/seed";
 import type { Character, Mode } from "@/data/types";
 import {
   charPending,
@@ -30,6 +24,7 @@ import {
   useProto,
 } from "@/state/store";
 import { diffVersions } from "@/lib/diff";
+import { isServerName } from "@/data/records";
 import { cn } from "@/lib/utils";
 import { ChangeList } from "@/components/panel/PanelContent";
 import { AvatarPicker } from "./AvatarPicker";
@@ -216,6 +211,14 @@ export function CharactersView() {
 }
 
 /** 角色名校验：添加和改名共用 */
+/** 自己角色里出现最多的服务器；一个角色都没有时为空 */
+function usualServer(mine: Character[]) {
+  const count = new Map<string, number>();
+  for (const c of mine) count.set(c.server, (count.get(c.server) ?? 0) + 1);
+  let best = "";
+  for (const [s, n] of count) if (n > (count.get(best) ?? 0)) best = s;
+  return best;
+}
 export function nameError(
   mine: Character[],
   name: string,
@@ -514,21 +517,29 @@ function AddCharacterDialog({
 }) {
   const { state, actions } = useProto();
   const [name, setName] = useState("");
-  const [server, setServer] = useState(SERVERS[0]);
+  // 默认填自己角色最常用的服务器，多数号都在同一个服
+  const [server, setServer] = useState(() => usualServer(myCharacters(state)));
   const [school, setSchool] = useState<SchoolValue>(NEW_SCHOOL);
   const [error, setError] = useState("");
-
+  const [serverError, setServerError] = useState("");
   useEffect(() => {
     if (open) {
       setName("");
       setError("");
+      setServerError("");
     }
   }, [open]);
-
   const submit = () => {
     const n = name.trim();
+    const sErr = !server
+      ? "填一下服务器"
+      : !isServerName(server)
+        ? "服务器名是 2–8 个汉字"
+        : "";
+    setServerError(sErr);
     const err = nameError(myCharacters(state), n, server);
-    if (err) return setError(err);
+    setError(err);
+    if (err || sErr) return;
     actions.addCharacter({ name: n, server, ...school });
     const hasScheme = xinfasOf(school).some(x => modesOf(state, x).length > 0);
     actions.toast(
@@ -579,18 +590,20 @@ function AddCharacterDialog({
             className={inputCls(!!error)}
           />
         </Field>
-        <Field label="服务器" htmlFor="char-server">
-          <SelectBox
+        <Field label="服务器" htmlFor="char-server" error={serverError}>
+          <input
             id="char-server"
             value={server}
-            onChange={e => setServer(e.target.value)}
-            wrapClassName="w-full"
-            className={inputCls()}
-          >
-            {SERVERS.map(s => (
-              <option key={s}>{s}</option>
-            ))}
-          </SelectBox>
+            maxLength={8}
+            onChange={e => {
+              setServer(e.target.value.replace(/\s/g, ""));
+              setServerError("");
+            }}
+            onKeyDown={e => e.key === "Enter" && submit()}
+            placeholder="如 梦江南"
+            aria-invalid={!!serverError}
+            className={inputCls(!!serverError)}
+          />
         </Field>
         <SchoolFields value={school} onChange={setSchool} idPrefix="char" />
       </div>

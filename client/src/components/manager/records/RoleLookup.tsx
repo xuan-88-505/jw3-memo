@@ -8,9 +8,8 @@ import {
   type BlackEntry,
   type GameRole,
 } from "@/data/records";
-import { SERVERS } from "@/data/seed";
 import { cn } from "@/lib/utils";
-import { inputCls, SelectBox } from "../shared";
+import { inputCls } from "../shared";
 
 export function SchoolMark({
   school,
@@ -250,18 +249,19 @@ export function RoleLookup({
   return (
     <div>
       <div className="flex gap-2">
-        <SelectBox
+        <input
           aria-label="服务器"
           value={server}
           disabled={blocked || loading}
-          onChange={e => setServer(e.target.value)}
-          wrapClassName="w-[112px] shrink-0"
-          className={inputCls()}
-        >
-          {SERVERS.map(s => (
-            <option key={s}>{s}</option>
-          ))}
-        </SelectBox>
+          maxLength={8}
+          onChange={e => {
+            setServer(e.target.value.replace(/\s/g, ""));
+            if (status.kind === "error") setStatus({ kind: "idle" });
+          }}
+          onKeyDown={onKey}
+          placeholder="服务器"
+          className={cn(inputCls(), "w-[96px] shrink-0")}
+        />
         <div className="relative min-w-0 flex-1">
           <input
             id={id}

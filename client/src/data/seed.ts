@@ -13,15 +13,6 @@ import type {
 
 export const ME_ID = "me";
 
-export const SERVERS = [
-  "梦江南",
-  "唯我独尊",
-  "乾坤一掷",
-  "斗转星移",
-  "长安城",
-  "蝶恋花",
-];
-
 /** 全部心法，按门派排列（顺序同魔盒数据） */
 export const XINFA_LIST = Object.keys(TALENTS);
 

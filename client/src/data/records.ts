@@ -1,4 +1,4 @@
-import { ME_ID, SERVERS, XINFA_META } from "./seed";
+import { ME_ID, XINFA_META } from "./seed";
 
 /**
  * 记录：打本记录 + 避雷名单，亲友团共享。
@@ -66,6 +66,47 @@ export const DIFFICULTIES = [
   "10人普通",
 ];
 
+/**
+ * 本赛季团队秘境：苍生铸世，2026-10-29 上线。
+ * 来源：官方启动器更新公告（jx3.xoyo.com/launcher/update/latest.html）。
+ * 洛阳之战只有 10人普通 / 25人普通 / 25人英雄；挑战秘境浮屠寂庐"后续推出"，开放前不可选
+ */
+export const SEASON_NAME = "苍生铸世";
+export interface SeasonRaid {
+  dungeon: string;
+  difficulty: string;
+  /** 开放时间；没到时在选项后面写"几月几日开" */
+  opensAt?: string;
+  /** 官方还没公布开放时间 */
+  upcoming?: boolean;
+}
+export const SEASON_RAIDS: SeasonRaid[] = [
+  { dungeon: "洛阳之战", difficulty: "10人普通" },
+  {
+    dungeon: "洛阳之战",
+    difficulty: "25人普通",
+    opensAt: "2026-11-02T20:00:00+08:00",
+  },
+  {
+    dungeon: "洛阳之战",
+    difficulty: "25人英雄",
+    opensAt: "2026-11-13T20:00:00+08:00",
+  },
+  { dungeon: "浮屠寂庐", difficulty: "25人挑战", upcoming: true },
+];
+export function seasonRaidLabel(r: SeasonRaid, now = Date.now()) {
+  const base = `${r.dungeon} · ${r.difficulty}`;
+  if (r.upcoming) return `${base}（后续推出）`;
+  if (r.opensAt && new Date(r.opensAt).getTime() > now) {
+    const d = new Date(r.opensAt);
+    return `${base}（${d.getMonth() + 1}月${d.getDate()}日开）`;
+  }
+  return base;
+}
+/** 服务器名：2–8 个汉字。服务器由用户自己填，不再限定在固定列表里 */
+export function isServerName(s: string) {
+  return /^[\u4e00-\u9fff]{2,8}$/.test(s);
+}
 export const BLACK_TAGS = ["黑工资", "跑路", "划水", "放鸽子", "骂人", "其他"];
 
 /** 工资上限：1 千万金 */
@@ -184,23 +225,28 @@ export type RoleQuery =
  * 解析输入：
  * - 5–12 位数字：UID
  * - 「名字·服务器」或「名字@服务器」：用输入里的服务器
- * - 其他：名字，用下拉框选的服务器
+ * - 其他：名字，用左边填的服务器
  */
 export function parseRoleQuery(raw: string, server: string): RoleQuery {
   const text = raw.trim().replace(/\s+/g, "");
   if (!text) return { kind: "invalid", message: "先输入角色名或 UID" };
-  if (/^\d{5,12}$/.test(text)) return { kind: "uid", uid: text, server };
   const m = text.match(/^(.+?)[·@](.+)$/);
-  if (m && SERVERS.includes(m[2])) {
+  if (m && isServerName(m[2])) {
     return { kind: "name", name: m[1], server: m[2] };
   }
+  const srv = server.trim();
+  if (!srv) return { kind: "invalid", message: "先填服务器" };
+  if (!isServerName(srv)) {
+    return { kind: "invalid", message: "服务器名是 2–8 个汉字" };
+  }
+  if (/^\d{5,12}$/.test(text)) return { kind: "uid", uid: text, server: srv };
   if (text.length > 16) {
     return { kind: "invalid", message: "角色名最多 16 个字" };
   }
   if (!/^[\u4e00-\u9fffA-Za-z0-9@]+$/.test(text)) {
     return { kind: "invalid", message: "角色名只能有中文、字母和数字" };
   }
-  return { kind: "name", name: text, server };
+  return { kind: "name", name: text, server: srv };
 }
 
 export type LookupResult =
