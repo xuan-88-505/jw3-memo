@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { Jx3Icon } from "@/components/brand/Marks";
 import { layersOf } from "@/data/seed";
 import type { TalentOption } from "@/data/types";
@@ -7,8 +7,11 @@ import { cn } from "@/lib/utils";
 
 /**
  * 奇穴选择器
- * - 第 1–6 层：每层 4 选 1
- * - 第 7–9 层：共用 12 个选项，选 3 个，不能重复（点已被占用的会互换）
+ * - 上面一行：第一重到第九重的当前选择，一排看完
+ * - 点其中一重，下面列出这一重的选项
+ *   - 第 1–6 重：每重 4 选 1
+ *   - 第 7–9 重：共用 12 个选项，选 3 个，不能重复（点已被占用的会互换）
+ * - 最下面是鼠标所在（或当前选中）奇穴的说明
  */
 export function TalentPicker({
   xinfa,
@@ -23,16 +26,21 @@ export function TalentPicker({
   onChange: (next: number[]) => void;
   disabled?: boolean;
 }) {
+  const uid = useId();
   const layers = layersOf(xinfa);
-  const [slot, setSlot] = useState(6);
-  const [focus, setFocus] = useState<{
-    layer: number;
-    opt: TalentOption;
-  } | null>(null);
+  const [slot, setSlot] = useState(0);
+  const [hover, setHover] = useState<TalentOption | null>(null);
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const isPool = (i: number) => i >= 6;
+  const optionsOf = (i: number) =>
+    (isPool(i) ? layers[6]?.options : layers[i]?.options) ?? [];
+  const pickedAt = (i: number) => optionsOf(i).find(o => o.pos === value[i]);
+  const changedAt = (i: number) => !!baseline && baseline[i] !== value[i];
 
   const setLayer = (i: number, pos: number) => {
     const next = [...value];
-    if (i >= 6) {
+    if (isPool(i)) {
       const other = [6, 7, 8].find(j => j !== i && next[j] === pos);
       if (other !== undefined) next[other] = next[i];
     }
@@ -40,143 +48,189 @@ export function TalentPicker({
     onChange(next);
   };
 
-  const detail =
-    focus ??
-    (() => {
-      const o = layers[slot]?.options.find(x => x.pos === value[slot]);
-      return o ? { layer: slot, opt: o } : null;
-    })();
+  const go = (i: number) => {
+    setSlot(i);
+    setHover(null);
+  };
+
+  const onTabKey = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
+    const last = layers.length - 1;
+    const to =
+      e.key === "ArrowRight"
+        ? i === last
+          ? 0
+          : i + 1
+        : e.key === "ArrowLeft"
+          ? i === 0
+            ? last
+            : i - 1
+          : e.key === "Home"
+            ? 0
+            : e.key === "End"
+              ? last
+              : null;
+    if (to === null) return;
+    e.preventDefault();
+    go(to);
+    tabRefs.current[to]?.focus();
+  };
+
+  const pool = isPool(slot);
+  const detail = hover ?? pickedAt(slot) ?? null;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_200px]">
-      <div className="space-y-1.5">
-        {layers.slice(0, 6).map((L, i) => (
-          <div key={L.layer} className="flex items-center gap-3">
-            <span className="w-12 shrink-0 font-serif text-[13px] text-paper-3">
-              第{LAYER_LABEL[i]}重
-            </span>
-            <div
-              className="grid flex-1 grid-cols-4 gap-1.5"
-              role="radiogroup"
-              aria-label={`第${LAYER_LABEL[i]}重`}
+    <div className="@container">
+      {/* 九重一排 */}
+      <div role="tablist" aria-label="奇穴" className="flex gap-1.5">
+        {layers.map((L, i) => {
+          const o = pickedAt(i);
+          const active = slot === i;
+          const changed = changedAt(i);
+          return (
+            <button
+              key={L.layer}
+              ref={el => {
+                tabRefs.current[i] = el;
+              }}
+              type="button"
+              role="tab"
+              id={`${uid}-tab-${i}`}
+              aria-selected={active}
+              aria-controls={`${uid}-panel`}
+              tabIndex={active ? 0 : -1}
+              onClick={() => go(i)}
+              onKeyDown={e => onTabKey(e, i)}
+              title={`第${LAYER_LABEL[i]}重 · ${o?.name ?? "未选"}`}
+              className={cn(
+                "relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1 rounded-lg px-1 pb-1.5 pt-1.5 ring-1 ring-inset transition-colors",
+                i === 6 && "ml-2",
+                active
+                  ? "bg-cinnabar/[0.10] ring-cinnabar/70"
+                  : "bg-paper/[0.04] ring-paper/10 hover:ring-paper/[0.22]"
+              )}
             >
-              {L.options.map(o => (
-                <Tile
-                  key={o.pos}
-                  opt={o}
-                  selected={value[i] === o.pos}
-                  changed={
-                    !!baseline && baseline[i] !== value[i] && value[i] === o.pos
-                  }
-                  disabled={disabled}
-                  onPick={() => setLayer(i, o.pos)}
-                  onFocus={() => setFocus({ layer: i, opt: o })}
-                  onBlur={() => setFocus(null)}
+              <span
+                className={cn(
+                  "font-serif text-[11px] leading-none",
+                  active ? "text-paper-2" : "text-paper-3"
+                )}
+              >
+                {LAYER_LABEL[i]}
+              </span>
+              {o ? (
+                <Jx3Icon id={o.icon} name={o.name} size={32} />
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="h-8 w-8 rounded-md bg-paper/[0.06]"
                 />
-              ))}
-            </div>
-          </div>
-        ))}
-
-        <div className="pt-3">
-          <div className="flex items-center gap-3">
-            <span className="w-12 shrink-0 font-serif text-[13px] text-paper-3">
-              七至九
-            </span>
-            <div className="grid flex-1 grid-cols-3 gap-1.5">
-              {[6, 7, 8].map(i => {
-                const o = layers[i]?.options.find(x => x.pos === value[i]);
-                const changed = !!baseline && baseline[i] !== value[i];
-                return (
-                  <button
-                    key={i}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => setSlot(i)}
-                    aria-pressed={slot === i}
-                    className={cn(
-                      "flex items-center gap-2 rounded-lg px-2 py-1.5 text-left ring-1 ring-inset transition-colors",
-                      slot === i && !disabled
-                        ? "bg-cinnabar/[0.10] ring-cinnabar/60"
-                        : "bg-paper/[0.04] ring-paper/10 hover:ring-paper/[0.18]"
-                    )}
-                  >
-                    {o && <Jx3Icon id={o.icon} name={o.name} size={26} />}
-                    <span className="min-w-0">
-                      <span className="block font-serif text-[11px] text-paper-3">
-                        第{LAYER_LABEL[i]}重
-                      </span>
-                      <span className="block truncate text-[12.5px] text-paper">
-                        {o?.name ?? "未选"}
-                        {changed && (
-                          <span className="ml-1 text-cinnabar-text">·改</span>
-                        )}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <p className="mb-2 ml-[60px] mt-2 text-[11.5px] text-paper-3">
-            {disabled
-              ? "12 选 3"
-              : `正在选第${LAYER_LABEL[slot]}重 · 点已占用的会互换`}
-          </p>
-          <div className="ml-[60px] grid grid-cols-6 gap-1.5">
-            {layers[6]?.options.map(o => {
-              const usedBy = [6, 7, 8].find(j => value[j] === o.pos);
-              return (
-                <Tile
-                  key={o.pos}
-                  opt={o}
-                  selected={usedBy === slot}
-                  badge={
-                    usedBy !== undefined && usedBy !== slot
-                      ? LAYER_LABEL[usedBy]
-                      : undefined
-                  }
-                  disabled={disabled}
-                  compact
-                  onPick={() => {
-                    setLayer(slot, o.pos);
-                    setSlot(s => (s === 8 ? 6 : s + 1));
-                  }}
-                  onFocus={() => setFocus({ layer: slot, opt: o })}
-                  onBlur={() => setFocus(null)}
-                />
-              );
-            })}
-          </div>
-        </div>
+              )}
+              <span
+                className={cn(
+                  "hidden w-full truncate text-center text-[11px] @[520px]:block",
+                  active ? "text-paper" : "text-paper-2"
+                )}
+              >
+                {o?.name ?? "未选"}
+              </span>
+              {changed && (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="absolute right-1 top-1 h-2 w-2 rounded-[2px] bg-cinnabar"
+                  />
+                  <span className="sr-only">已修改</span>
+                </>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      <aside
-        className="hidden self-start rounded-lg bg-paper/[0.04] px-3 py-3 ring-1 ring-inset ring-paper/10 lg:block"
-        aria-live="polite"
+      {/* 当前这一重的选项 */}
+      <div
+        role="tabpanel"
+        id={`${uid}-panel`}
+        aria-labelledby={`${uid}-tab-${slot}`}
+        className="mt-4"
       >
-        {detail ? (
-          <>
-            <div className="flex items-center gap-2">
-              <Jx3Icon id={detail.opt.icon} name={detail.opt.name} size={32} />
-              <span>
-                <span className="block text-[13px] font-medium text-paper">
-                  {detail.opt.name}
-                </span>
-                <span className="block font-serif text-[11px] text-paper-3">
-                  第{LAYER_LABEL[detail.layer]}重
-                  {detail.opt.isSkill ? " · 招式" : ""}
-                </span>
+        <p className="mb-2 text-[11.5px] text-paper-3">
+          <span className="font-serif text-paper-2">
+            第{LAYER_LABEL[slot]}重
+          </span>
+          {pool
+            ? disabled
+              ? " · 七至九重共用，12 选 3"
+              : " · 七至九重共用，点已占用的会互换"
+            : null}
+        </p>
+        <div
+          role="radiogroup"
+          aria-label={`第${LAYER_LABEL[slot]}重`}
+          className={cn(
+            "grid gap-1.5",
+            pool ? "grid-cols-4 @[480px]:grid-cols-6" : "grid-cols-4"
+          )}
+        >
+          {optionsOf(slot).map(o => {
+            const usedBy = pool
+              ? [6, 7, 8].find(j => value[j] === o.pos)
+              : undefined;
+            const selected = pool ? usedBy === slot : value[slot] === o.pos;
+            return (
+              <Tile
+                key={o.pos}
+                opt={o}
+                selected={selected}
+                changed={selected && changedAt(slot)}
+                badge={
+                  usedBy !== undefined && usedBy !== slot
+                    ? LAYER_LABEL[usedBy]
+                    : undefined
+                }
+                disabled={disabled}
+                compact={pool}
+                onPick={() => {
+                  setLayer(slot, o.pos);
+                  // 七至九重要连选三个：选完自动跳到下一重
+                  if (pool) go(slot === 8 ? 6 : slot + 1);
+                }}
+                onFocus={() => setHover(o)}
+                onBlur={() => setHover(null)}
+              />
+            );
+          })}
+        </div>
+
+        {/* 说明 */}
+        <div
+          className="mt-3 flex min-h-[76px] gap-3 border-t border-paper/[0.07] pt-3"
+          aria-live="polite"
+        >
+          {detail ? (
+            <>
+              <span className="shrink-0">
+                <Jx3Icon id={detail.icon} name={detail.name} size={32} />
               </span>
-            </div>
-            <p className="mt-2 text-[12px] leading-relaxed text-paper-2">
-              {detail.opt.desc}
-            </p>
-          </>
-        ) : (
-          <p className="text-[12px] text-paper-3">把鼠标移到奇穴上看说明。</p>
-        )}
-      </aside>
+              <div className="min-w-0">
+                <p className="text-[13px] font-medium text-paper">
+                  {detail.name}
+                  {detail.isSkill && (
+                    <span className="ml-1.5 text-[11px] font-normal text-paper-3">
+                      招式
+                    </span>
+                  )}
+                </p>
+                <p className="mt-1 text-[12px] leading-relaxed text-paper-2">
+                  {detail.desc}
+                </p>
+              </div>
+            </>
+          ) : (
+            <p className="text-[12px] text-paper-3">这一重还没选。</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -215,7 +269,7 @@ function Tile({
       onBlur={onBlur}
       title={opt.name}
       className={cn(
-        "relative flex items-center gap-1.5 rounded-lg ring-1 ring-inset transition-colors",
+        "relative flex min-w-0 items-center gap-1.5 rounded-lg ring-1 ring-inset transition-colors",
         compact ? "flex-col px-1 py-1.5" : "px-1.5 py-1.5",
         selected
           ? "bg-cinnabar/[0.10] ring-cinnabar/70"

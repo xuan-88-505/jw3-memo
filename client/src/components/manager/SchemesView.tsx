@@ -78,36 +78,21 @@ function SchemeList() {
       aria-label="方案列表"
       className="scroll-thin w-[236px] shrink-0 overflow-y-auto border-r border-paper/[0.07] px-2.5 py-3"
     >
-      <div className="flex h-8 items-center justify-between pb-1 pl-2">
-        <p className="text-[11.5px] tracking-[0.12em] text-paper-3">
-          方案库 · 旗舰 暗影千机
-        </p>
-        {editable && listed.length > 0 && (
-          <Btn
-            variant="ghost"
-            size="xs"
-            icon={<Plus className="h-3.5 w-3.5" />}
-            onClick={() => setCreating(true)}
-          >
-            新建
-          </Btn>
-        )}
-      </div>
+      {editable && (
+        <Btn
+          variant="secondary"
+          size="md"
+          className="mb-3 w-full"
+          icon={<Plus className="h-4 w-4" />}
+          onClick={() => setCreating(true)}
+        >
+          新建方案
+        </Btn>
+      )}
       {listed.length === 0 && (
-        <div className="px-2 py-8 text-center">
-          <p className="text-[12.5px] text-paper-3">还没有方案</p>
-          {editable && (
-            <Btn
-              variant="primary"
-              size="sm"
-              className="mt-3"
-              icon={<Plus className="h-3.5 w-3.5" />}
-              onClick={() => setCreating(true)}
-            >
-              新建方案
-            </Btn>
-          )}
-        </div>
+        <p className="px-2 py-8 text-center text-[12.5px] text-paper-3">
+          还没有方案
+        </p>
       )}
       <ul className="space-y-3">
         {listed.map(x => {
