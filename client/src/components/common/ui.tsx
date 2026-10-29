@@ -27,11 +27,11 @@ export const Btn = forwardRef<
         "inline-flex shrink-0 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-md font-medium transition-colors duration-100 disabled:opacity-45",
         size === "xs" && "h-6 px-2 text-[12px]",
         size === "sm" && "h-7 px-2.5 text-[12.5px]",
-        size === "md" && "h-9 px-3.5 text-[14px]",
+        size === "md" && "h-8 px-3.5 text-[13px]",
         variant === "primary" &&
-          "bg-cinnabar-fill text-[#FFF7F0] hover:bg-cinnabar active:bg-[#a9361f]",
+          "bg-cinnabar-fill text-[#FFF7F0] shadow-[inset_0_1px_0_rgb(255_255_255/0.16),0_1px_2px_rgb(0_0_0/0.35)] hover:bg-cinnabar active:bg-[#a9361f] active:shadow-none",
         variant === "secondary" &&
-          "bg-paper/[0.06] text-paper ring-1 ring-inset ring-paper/10 hover:bg-paper/[0.10] active:bg-paper/[0.08]",
+          "bg-paper/[0.06] text-paper shadow-[inset_0_1px_0_rgb(255_255_255/0.05)] ring-1 ring-inset ring-paper/10 hover:bg-paper/[0.10] active:bg-paper/[0.08] active:shadow-none",
         variant === "ghost" &&
           "text-paper-2 hover:bg-paper/[0.07] hover:text-paper",
         variant === "quiet" && "text-paper-3 hover:text-paper",
@@ -85,7 +85,7 @@ export function Segmented<T extends string>({
   options: { value: T; label: ReactNode; disabled?: boolean; title?: string }[];
   value: T;
   onChange: (v: T) => void;
-  size?: "xs" | "sm";
+  size?: "xs" | "sm" | "md";
   label?: string;
 }) {
   return (
@@ -109,7 +109,9 @@ export function Segmented<T extends string>({
               "whitespace-nowrap rounded-[5px] font-medium transition-colors disabled:opacity-35",
               size === "xs"
                 ? "h-5 px-2 text-[11.5px]"
-                : "h-6 px-2.5 text-[12.5px]",
+                : size === "md"
+                  ? "h-7 px-3 text-[13px]"
+                  : "h-6 px-2.5 text-[12.5px]",
               active
                 ? "bg-paper/[0.10] text-paper shadow-[0_1px_0_rgb(255_255_255/0.05)_inset]"
                 : "text-paper-3 hover:text-paper"

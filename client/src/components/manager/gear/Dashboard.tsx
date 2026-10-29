@@ -107,7 +107,7 @@ export function Dashboard({
         <section className="px-6" aria-label="加速段位">
           <h3 className={cardTitle}>加速段位</h3>
           <p className="mt-2 flex items-baseline gap-2">
-            <span className="font-serif text-[24px] font-semibold leading-none text-paper">
+            <span className="text-[24px] font-semibold leading-none text-paper">
               {haste.tier}
             </span>
             <span className="text-[13px] tabular-nums text-paper-2">
@@ -260,7 +260,7 @@ export function Dashboard({
                 <Delta pct={patchDelta} />
               </span>
               <span className="shrink-0 text-paper-3 transition-colors group-hover:text-paper-2">
-                技改记录
+                修改记录
               </span>
               <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             </button>

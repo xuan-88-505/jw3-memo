@@ -394,8 +394,7 @@ export function BuffsView({
                     <option value="">不吃</option>
                     {items.map(f => (
                       <option key={f.n} value={f.n}>
-                        {foodLabel(f, profile.main)}　≈ +
-                        {(foodPct[f.n] * 100).toFixed(2)}%
+                        {foodLabel(f, profile.main)}
                       </option>
                     ))}
                   </SelectBox>

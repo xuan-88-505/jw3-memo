@@ -34,11 +34,6 @@ interface Option {
   hidden: boolean;
 }
 
-function fmtPct(p: number) {
-  if (Math.abs(p) < 0.005) return "±0";
-  return `${p > 0 ? "+" : "−"}${Math.abs(p).toFixed(2)}%`;
-}
-
 function matches(def: EquipDef, q: string) {
   if (!q) return true;
   const hay = [
@@ -311,18 +306,6 @@ export function EquipPicker({
                       {o.def.ilvl} ·{" "}
                       {itemTags(o.def).map(attrShort).join(" ") || "—"}
                     </span>
-                  </span>
-                  <span
-                    className={cn(
-                      "shrink-0 text-[12.5px] tabular-nums",
-                      o.current || Math.abs(o.pct) < 0.005
-                        ? "text-paper-3"
-                        : o.pct > 0
-                          ? "text-jade"
-                          : "text-cinnabar-text"
-                    )}
-                  >
-                    {o.current ? "—" : fmtPct(o.pct)}
                   </span>
                 </div>
               ))

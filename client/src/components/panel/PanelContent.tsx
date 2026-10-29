@@ -30,7 +30,7 @@ export function ChangeList({ diff }: { diff: SchemeDiff }) {
     <ul className="animate-fade space-y-1 text-[12px]">
       {diff.talents.map(t => (
         <li key={`t${t.layer}`} className="flex items-baseline gap-2">
-          <span className="w-11 shrink-0 font-serif text-paper-3">
+          <span className="w-11 shrink-0 text-paper-3">
             第{LAYER_LABEL[t.layer - 1]}重
           </span>
           <span className="min-w-0">

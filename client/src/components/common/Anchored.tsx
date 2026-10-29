@@ -23,6 +23,7 @@ export function Anchored({
   maxHeight = 440,
   align = "start",
   label,
+  role = "dialog",
   className,
   children,
 }: {
@@ -33,6 +34,8 @@ export function Anchored({
   maxHeight?: number;
   align?: "start" | "end";
   label: string;
+  /** 下拉菜单用 presentation，由里面的 listbox 自己带名称 */
+  role?: "dialog" | "presentation";
   className?: string;
   children: ReactNode;
 }) {
@@ -117,8 +120,8 @@ export function Anchored({
   return createPortal(
     <div
       ref={ref}
-      role="dialog"
-      aria-label={label}
+      role={role}
+      aria-label={role === "dialog" ? label : undefined}
       style={{
         position: "absolute",
         left: pos.left,

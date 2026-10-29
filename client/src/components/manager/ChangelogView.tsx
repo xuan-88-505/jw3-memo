@@ -81,7 +81,10 @@ export function ChangelogView() {
 
   return (
     <div>
-      <SectionHeader title="技改记录" />
+      <SectionHeader
+        title="修改记录"
+        back={{ label: "方案库", onClick: actions.closeChangelog }}
+      />
 
       <div
         className="mb-5 flex flex-wrap items-center gap-1.5"
@@ -142,9 +145,7 @@ export function ChangelogView() {
         <div className="space-y-6">
           {groups.map(g => (
             <section key={g.label}>
-              <h2 className="mb-2 font-serif text-[13px] text-paper-3">
-                {g.label}
-              </h2>
+              <h2 className="mb-2 text-[13px] text-paper-3">{g.label}</h2>
               <ol className="relative space-y-1 border-l border-paper/10 pl-5">
                 {g.items.map(e => {
                   const author = state.members.find(

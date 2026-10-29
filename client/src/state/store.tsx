@@ -40,6 +40,13 @@ import {
   type BlackEntry,
   type RaidLog,
 } from "@/data/records";
+import {
+  autoTitle,
+  seedLinks,
+  visibleLinks,
+  type LinkVisibility,
+  type SharedLink,
+} from "@/data/links";
 import { MODES } from "@/data/types";
 import type { BuffSelection } from "@/lib/buffs";
 import { diffVersions } from "@/lib/diff";
@@ -118,8 +125,10 @@ export interface ProtoState {
   activeXinfa: Record<string, string>;
   selectedSchemeId: string;
   changelogFilter: string;
+  /** 方案库里显示哪一页：方案列表 + 编辑，或二级页「修改记录」 */
+  schemesPage: "list" | "changelog";
   /**
-   * 技改记录里关注的心法。null 表示用户还没改过，用默认值（见 followedXinfa）。
+   * 修改记录里关注的心法。null 表示用户还没改过，用默认值（见 followedXinfa）。
    * 只属于本人，存在本机，不同步给亲友。
    */
   followedXinfa: string[] | null;
@@ -146,6 +155,8 @@ export interface ProtoState {
   /** 记录：打本记录和避雷名单，亲友团共享 */
   raidLogs: RaidLog[];
   blacklist: BlackEntry[];
+  /** 链接：亲友团可见的全团共享；仅自己可见的只有添加人看得到 */
+  links: SharedLink[];
   /** 正在录制新快捷键时，暂停全局快捷键 */
   recordingHotkey: boolean;
 }
@@ -160,6 +171,7 @@ function seedData() {
     pendingConflict: null,
     raidLogs: seedRaidLogs(),
     blacklist: seedBlacklist(),
+    links: seedLinks(ME_ID),
   };
 }
 
@@ -211,7 +223,6 @@ export const DEFAULT_NAV: NavSection[] = [
   "schemes",
   "characters",
   "gear",
-  "changelog",
   "records",
   "team",
 ];
@@ -283,6 +294,7 @@ const initialState: ProtoState = {
   activeXinfa: {},
   selectedSchemeId: "紫霞功-PVE",
   changelogFilter: "全部",
+  schemesPage: "list",
   followedXinfa: readFollowed(),
   navOrder: readNavOrder(),
   toasts: [],
@@ -625,6 +637,7 @@ function useActions(
               pendingConflict: null,
               raidLogs: [],
               blacklist: [],
+              links: [],
               loadouts: {},
               activeLoadoutId: null,
               selectedSchemeId: "",
@@ -715,7 +728,16 @@ function useActions(
         })),
       closeManager: () => patch({ managerOpen: false }),
       clearIntent: () => patch({ managerIntent: null }),
-      setSection: (managerSection: ManagerSection) => patch({ managerSection }),
+      setSection: (managerSection: ManagerSection) =>
+        patch({ managerSection, schemesPage: "list" }),
+      /** 打开方案库的二级页「修改记录」；传心法时只看这个心法 */
+      openChangelog: (xinfa?: string) =>
+        patch({
+          managerSection: "schemes",
+          schemesPage: "changelog",
+          changelogFilter: xinfa ?? "全部",
+        }),
+      closeChangelog: () => patch({ schemesPage: "list" }),
       selectScheme: (selectedSchemeId: string) => patch({ selectedSchemeId }),
       setChangelogFilter: (changelogFilter: string) =>
         patch({ changelogFilter }),
@@ -1171,6 +1193,8 @@ function useActions(
             ),
             raidLogs: [...s.raidLogs, ...data.raidLogs],
             blacklist: [...s.blacklist, ...data.blacklist],
+            // 自己原来的链接保持原样（没加入时都是仅自己），可以逐条改成亲友团可见
+            links: [...s.links, ...data.links],
             activeCharId: myChars.some(c => c.id === s.activeCharId)
               ? s.activeCharId
               : (myChars[0]?.id ?? s.activeCharId),
@@ -1222,6 +1246,50 @@ function useActions(
               ],
         }));
         toast("manager", "success", id ? "已保存修改" : "已加入避雷名单");
+      },
+      // 记录：链接。返回实际加了几条（已有的地址跳过）
+      addLinks: (urls: string[], visibility: LinkVisibility) => {
+        const have = new Set(
+          visibleLinks(stateRef.current.links, ME_ID).map(l => l.url)
+        );
+        const fresh = urls.filter(u => !have.has(u));
+        const added = fresh.length;
+        const now = Date.now();
+        const items: SharedLink[] = fresh.map((url, i) => ({
+          id: `l${(now + i).toString(36)}`,
+          url,
+          title: autoTitle(url),
+          by: ME_ID,
+          at: new Date(now - i).toISOString(),
+          visibility,
+        }));
+        if (added) update(st => ({ links: [...items, ...st.links] }));
+        const dup = urls.length - added;
+        if (added)
+          toast(
+            "manager",
+            "success",
+            dup
+              ? `已添加 ${added} 条，${dup} 条已经在列表里`
+              : added > 1
+                ? `已添加 ${added} 条链接`
+                : "已添加链接"
+          );
+        else toast("manager", "info", "这条链接已经在列表里");
+        return added;
+      },
+      saveLink: (
+        id: string,
+        input: Pick<SharedLink, "title" | "url" | "visibility">
+      ) => {
+        update(s => ({
+          links: s.links.map(l => (l.id === id ? { ...l, ...input } : l)),
+        }));
+        toast("manager", "success", "已保存修改");
+      },
+      deleteLink: (id: string) => {
+        update(s => ({ links: s.links.filter(l => l.id !== id) }));
+        toast("manager", "success", "已删除链接");
       },
       deleteBlack: (id: string) => {
         update(s => ({ blacklist: s.blacklist.filter(b => b.id !== id) }));

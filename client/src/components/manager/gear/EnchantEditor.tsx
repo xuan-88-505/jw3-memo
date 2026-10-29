@@ -23,11 +23,6 @@ import { StonePicker } from "./StonePicker";
 
 const selectCls = cn(inputCls(), "h-8 pl-2.5 text-[12.5px]");
 
-function pctText(p: number) {
-  if (Math.abs(p) < 0.00005) return "";
-  return ` ${p > 0 ? "+" : "−"}${Math.abs(p * 100).toFixed(2)}%`;
-}
-
 /**
  * 小附魔、大附魔、五彩石。base 是改之前的配装，用来估算秒伤；
  * 每个选项后面的百分比是"换成它"相对当前选择的秒伤变化。
@@ -44,8 +39,6 @@ export function EnchantEditor({
   const uid = useId();
   const main = primaryAttr(base.xinfa);
   const preview = useMemo(() => applyConfig(base, value), [base, value]);
-  const gainOf = (next: GearConfig) =>
-    statDeltaDpsPct(preview, configDelta(main, value, next));
 
   const stoneGain = useCallback(
     (name: string | null) =>
@@ -147,27 +140,9 @@ export function EnchantEditor({
                     <option key={o.id} value={o.id}>
                       {o.label}
                       {o.color === "蓝" ? "（节日）" : ""}
-                      {o.id === cur
-                        ? ""
-                        : pctText(
-                            gainOf({
-                              ...value,
-                              enchants: { ...value.enchants, [s.key]: o.id },
-                            })
-                          )}
                     </option>
                   ))}
-                  <option value="">
-                    不附魔
-                    {cur
-                      ? pctText(
-                          gainOf({
-                            ...value,
-                            enchants: { ...value.enchants, [s.key]: null },
-                          })
-                        )
-                      : ""}
-                  </option>
+                  <option value="">不附魔</option>
                 </SelectBox>
               </div>
             );
@@ -209,14 +184,6 @@ export function EnchantEditor({
                   {([2, 1, 0] as BigLevel[]).map(lv => (
                     <option key={lv} value={lv}>
                       {BIG_LEVEL_LABEL[lv]}
-                      {lv === cur
-                        ? ""
-                        : pctText(
-                            gainOf({
-                              ...value,
-                              big: { ...value.big, [b.key]: lv },
-                            })
-                          )}
                     </option>
                   ))}
                 </SelectBox>

@@ -478,7 +478,7 @@ function CharacterSwitcher({
         className="flex min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 text-left hover:bg-paper/[0.06]"
       >
         <CharAvatar character={current} size={28} />
-        <span className="truncate font-serif text-[15px] font-semibold leading-tight">
+        <span className="truncate text-[15px] font-semibold leading-tight">
           {current.name}
         </span>
         <ChevronDown

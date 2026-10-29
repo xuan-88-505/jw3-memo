@@ -229,7 +229,7 @@ export function CompareView({
                     A
                   </span>
                   <XinfaMark xinfa={a.xinfa} size={18} />
-                  <span className="truncate font-serif text-[14px] font-semibold text-paper">
+                  <span className="truncate text-[14px] font-semibold text-paper">
                     {a.name}
                   </span>
                 </div>
@@ -248,7 +248,7 @@ export function CompareView({
                     value={b.id}
                     onChange={e => onPickB(e.target.value)}
                     wrapClassName="min-w-0 max-w-full"
-                    className="h-7 truncate rounded-md bg-transparent pl-1 font-serif text-[14px] font-semibold text-paper ring-1 ring-inset ring-paper/12 hover:ring-paper/20 focus:outline-none focus:ring-2 focus:ring-cinnabar-text/60"
+                    className="h-7 truncate rounded-md bg-transparent pl-1 text-[14px] font-semibold text-paper ring-1 ring-inset ring-paper/12 hover:ring-paper/20 focus:outline-none focus:ring-2 focus:ring-cinnabar-text/60"
                   >
                     {others.map(l => (
                       <option key={l.id} value={l.id}>
@@ -308,7 +308,7 @@ export function CompareView({
               <td
                 className={cn(
                   cell,
-                  "py-3.5 font-serif text-[18px] font-semibold text-paper"
+                  "py-3.5 text-[18px] font-semibold text-paper"
                 )}
               >
                 {fmt(dpsA)}
@@ -316,7 +316,7 @@ export function CompareView({
               <td
                 className={cn(
                   cell,
-                  "py-3.5 font-serif text-[18px] font-semibold text-paper"
+                  "py-3.5 text-[18px] font-semibold text-paper"
                 )}
               >
                 {fmt(dpsB)}

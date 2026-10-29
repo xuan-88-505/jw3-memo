@@ -104,7 +104,7 @@ export function CharactersView() {
                         title="更换头像"
                         className="group relative shrink-0 rounded-[8px]"
                       >
-                        <CharAvatar character={c} size={34} />
+                        <CharAvatar character={c} size={44} />
                         <span
                           className="absolute inset-0 grid place-items-center rounded-[8px] bg-black/55 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
                           aria-hidden="true"

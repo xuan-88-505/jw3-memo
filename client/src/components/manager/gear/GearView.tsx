@@ -408,10 +408,7 @@ export function GearView() {
               setFlash({ slotKey, n: Date.now() });
               setTab("editor");
             }}
-            onOpenChangelog={() => {
-              actions.setChangelogFilter(lo!.xinfa);
-              actions.setSection("changelog");
-            }}
+            onOpenChangelog={() => actions.openChangelog(lo!.xinfa)}
             onOpenBuffs={() => setTab("buffs")}
           />
           <p className="mt-3 text-[11.5px] text-paper-3">
@@ -549,7 +546,7 @@ function SaveAsDialog({
         onKeyDown={e => {
           if (e.key === "Enter" && v) onSave(v);
         }}
-        className={cn(inputCls(), "mt-1.5 h-9 w-full px-3 text-[13px]")}
+        className={cn(inputCls(), "mt-1.5")}
       />
     </InlineModal>
   );

@@ -155,9 +155,7 @@ export function TalentPicker({
         className="mt-4"
       >
         <p className="mb-2 text-[11.5px] text-paper-3">
-          <span className="font-serif text-paper-2">
-            第{LAYER_LABEL[slot]}重
-          </span>
+          <span className="text-paper-2">第{LAYER_LABEL[slot]}重</span>
           {pool
             ? disabled
               ? " · 七至九重共用，12 选 3"

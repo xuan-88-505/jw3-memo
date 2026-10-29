@@ -1,6 +1,5 @@
 import {
   BookOpen,
-  History,
   Loader2,
   NotebookPen,
   Pencil,
@@ -37,7 +36,6 @@ const NAV_BY_KEY: Record<NavSection, NavItem> = {
   schemes: { key: "schemes", label: "方案库", icon: BookOpen },
   characters: { key: "characters", label: "我的角色", icon: UserRound },
   gear: { key: "gear", label: "配装", icon: Shirt },
-  changelog: { key: "changelog", label: "技改记录", icon: History },
   records: { key: "records", label: "记录", icon: NotebookPen },
   team: { key: "team", label: "亲友团", icon: Users },
 };
@@ -52,7 +50,6 @@ export function ManagerApp() {
     schemes: state.schemes.length,
     characters: myCharacters(state).length,
     gear: null,
-    changelog: null,
     records: null,
     team: state.team ? state.members.length : null,
     settings: null,
@@ -61,9 +58,9 @@ export function ManagerApp() {
   return (
     <div
       data-layer-root
-      className="relative flex h-full w-full overflow-hidden bg-ink-2 text-paper"
+      className="relative flex h-full w-full overflow-hidden bg-ink text-paper"
     >
-      <aside className="flex w-[200px] shrink-0 flex-col border-r border-paper/[0.07] bg-ink">
+      <aside className="flex w-[200px] shrink-0 flex-col">
         <nav aria-label="管理窗口导航" className="flex-1 px-2 pt-3">
           <SortableNav
             items={navOrder(state).map(k => NAV_BY_KEY[k])}
@@ -97,7 +94,7 @@ export function ManagerApp() {
           >
             {state.managerSection === "settings" && (
               <span
-                className="absolute left-0 top-2 h-5 w-[2px] rounded-full bg-cinnabar"
+                className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-cinnabar"
                 aria-hidden="true"
               />
             )}
@@ -105,7 +102,7 @@ export function ManagerApp() {
             <span className="flex-1 text-left">设置</span>
           </button>
         </div>
-        <div className="border-t border-paper/[0.07] p-2">
+        <div className="p-2 pt-1">
           {/* 整行可点：按钮的 after 层铺满整行；右侧状态不拦截点击，读屏单独读出 */}
           <div className="group relative flex items-center gap-2 rounded-md px-2 py-2 transition-colors has-[button:enabled]:hover:bg-paper/[0.05]">
             <button
@@ -117,9 +114,9 @@ export function ManagerApp() {
               className="flex min-w-0 flex-1 items-center gap-2.5 text-left outline-none after:absolute after:inset-0 after:rounded-md focus-visible:after:ring-1 focus-visible:after:ring-inset focus-visible:after:ring-cinnabar-text/50"
             >
               {self ? (
-                <Avatar member={self} size={28} />
+                <Avatar member={self} size={32} />
               ) : (
-                <Avatar member={{ name: "八八", color: "#D2462F" }} size={28} />
+                <Avatar member={{ name: "八八", color: "#D2462F" }} size={32} />
               )}
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1 text-[13px] font-medium">
@@ -167,25 +164,36 @@ export function ManagerApp() {
         </div>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col">
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-lg border-l border-t border-paper/[0.07] bg-ink-2 shadow-[inset_0_1px_0_rgb(255_255_255/0.025)]">
         <OfflineBar />
         <div className="min-h-0 flex-1">
           {loading ? (
             <ManagerSkeleton />
           ) : state.managerSection === "settings" ? (
             <div className="scroll-thin h-full overflow-y-auto px-8 pb-10 pt-7">
-              <SettingsView />
+              <div className="max-w-[1040px]">
+                <SettingsView />
+              </div>
             </div>
           ) : state.managerSection === "schemes" ? (
-            <SchemesView />
+            state.schemesPage === "changelog" ? (
+              <div className="scroll-thin h-full overflow-y-auto px-8 pb-10 pt-6">
+                <div className="max-w-[1040px]">
+                  <ChangelogView />
+                </div>
+              </div>
+            ) : (
+              <SchemesView />
+            )
           ) : state.managerSection === "gear" ? (
             <GearView />
           ) : (
             <div className="scroll-thin h-full overflow-y-auto px-8 pb-10 pt-7">
-              {state.managerSection === "characters" && <CharactersView />}
-              {state.managerSection === "changelog" && <ChangelogView />}
-              {state.managerSection === "records" && <RecordsView />}
-              {state.managerSection === "team" && <TeamView />}
+              <div className="max-w-[1040px]">
+                {state.managerSection === "characters" && <CharactersView />}
+                {state.managerSection === "records" && <RecordsView />}
+                {state.managerSection === "team" && <TeamView />}
+              </div>
             </div>
           )}
         </div>

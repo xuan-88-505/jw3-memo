@@ -78,22 +78,6 @@ function matches(f: StoneFamily, t: string) {
   return f.words.some(w => w.includes(t)) || f.labels.some(l => l.includes(t));
 }
 
-function GainText({ p, className }: { p: number; className?: string }) {
-  if (Math.abs(p) < 0.00005) return null;
-  return (
-    <span
-      className={cn(
-        "shrink-0 text-[11px] tabular-nums",
-        p > 0 ? "text-jade" : "text-paper-3",
-        className
-      )}
-    >
-      {p > 0 ? "+" : "−"}
-      {Math.abs(p * 100).toFixed(2)}%
-    </span>
-  );
-}
-
 function attrText(s: StoneDef) {
   return s.attrs.map(a => `${a.label}${a.value}`).join(" ");
 }
@@ -422,10 +406,6 @@ export function StonePicker({
                       <span className="min-w-0 truncate text-[11.5px] text-paper-3">
                         {attrText(s)}
                       </span>
-                      <GainText
-                        p={gains.get(f.short) ?? 0}
-                        className="ml-auto"
-                      />
                     </button>
                   );
                 })
@@ -476,7 +456,6 @@ export function StonePicker({
                             <span className="min-w-0 truncate text-[11px] text-paper-3">
                               {o.word}
                             </span>
-                            <GainText p={o.best} className="ml-auto" />
                           </button>
                         );
                       })}
@@ -522,13 +501,11 @@ export function StonePicker({
                           <span className="shrink-0">
                             {STONE_LEVELS[s.level - 1]}
                           </span>
-                          {isCur ? (
+                          {isCur && (
                             <Check
                               className="ml-auto h-3.5 w-3.5 text-cinnabar-text"
                               aria-label="当前"
                             />
-                          ) : (
-                            <GainText p={gain(s.name)} className="ml-auto" />
                           )}
                         </button>
                       );
@@ -577,7 +554,6 @@ export function StonePicker({
                 />
               )}
               不镶
-              {value !== null && <GainText p={gain(null)} />}
             </button>
           </div>
         </div>

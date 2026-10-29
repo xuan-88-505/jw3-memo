@@ -74,7 +74,7 @@ export function SettingsView() {
               labelledBy="set-launch"
             />
           </SettingRow>
-          <SettingRow title="侧栏顺序" desc="长按侧栏里的项目，拖动排序">
+          <SettingRow title="侧栏顺序" desc="按住侧栏里的项目拖动排序">
             <Btn
               size="sm"
               onClick={() => {

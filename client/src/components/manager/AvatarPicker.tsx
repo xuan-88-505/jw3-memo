@@ -248,7 +248,7 @@ export function AvatarPicker({
             animated
           />
           <div className="min-w-0">
-            <p className="truncate font-serif text-[16px] font-semibold text-paper">
+            <p className="truncate text-[16px] font-semibold text-paper">
               {character.name}
             </p>
             <p className="text-[12.5px] text-paper-3">

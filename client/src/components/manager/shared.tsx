@@ -1,6 +1,6 @@
-import type { ReactNode, SelectHTMLAttributes } from "react";
+import type { ReactNode } from "react";
 import { EMPTY_ICON } from "@/components/common/surface";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronLeft } from "lucide-react";
 import { Jx3Icon } from "@/components/brand/Marks";
 import type { SchemeDiff } from "@/lib/diff";
 import { LAYER_LABEL } from "@/lib/format";
@@ -30,7 +30,7 @@ export function DiffDetails({
                 key={t.layer}
                 className="flex items-center gap-2 text-[12.5px]"
               >
-                <span className="w-11 shrink-0 font-serif text-paper-3">
+                <span className="w-11 shrink-0 text-paper-3">
                   第{LAYER_LABEL[t.layer - 1]}重
                 </span>
                 {t.from && (
@@ -154,19 +154,34 @@ export function SectionHeader({
   title,
   description,
   right,
+  back,
 }: {
   title: ReactNode;
   description?: ReactNode;
   right?: ReactNode;
+  /** 二级页：标题上方显示「‹ 上一级」 */
+  back?: { label: string; onClick: () => void };
 }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3 pb-5">
       <div className="min-w-0">
-        <h1 className="cinnabar-rule font-serif text-[20px] font-semibold leading-tight text-paper">
+        {back && (
+          <button
+            type="button"
+            onClick={back.onClick}
+            aria-label={`返回${back.label}`}
+            title={`返回${back.label}`}
+            className="-ml-1.5 mb-1.5 inline-flex h-7 items-center gap-0.5 rounded-md pl-0.5 pr-2 text-[12.5px] text-paper-3 transition-colors hover:bg-paper/[0.05] hover:text-paper"
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            {back.label}
+          </button>
+        )}
+        <h1 className="text-[20px] font-semibold leading-tight tracking-[-0.01em] text-paper">
           {title}
         </h1>
         {description && (
-          <p className="mt-3.5 text-[13px] text-paper-3">{description}</p>
+          <p className="mt-1.5 text-[13px] text-paper-3">{description}</p>
         )}
       </div>
       {right && <div className="flex items-center gap-2">{right}</div>}
@@ -210,7 +225,7 @@ export function Field({
 
 export const inputCls = (error?: boolean) =>
   cn(
-    "h-9 w-full rounded-md bg-paper/[0.04] px-3 text-[13px] text-paper placeholder:text-paper-3/70 ring-1 ring-inset focus:outline-none focus:ring-2 disabled:opacity-50",
+    "h-8 w-full rounded-md bg-paper/[0.04] px-3 text-[13px] text-paper placeholder:text-paper-3/70 ring-1 ring-inset focus:outline-none focus:ring-2 disabled:opacity-50",
     error
       ? "ring-cinnabar/70 focus:ring-cinnabar"
       : "ring-paper/10 hover:ring-paper/[0.18] focus:ring-cinnabar-text/60"
@@ -245,27 +260,5 @@ export function EmptyState({
  * 统一的下拉框：去掉系统自带箭头，换成和图标一致的箭头，右边留出间距。
  * 点开仍是系统菜单，键盘和读屏照常可用。
  */
-export function SelectBox({
-  className,
-  wrapClassName,
-  children,
-  ...rest
-}: SelectHTMLAttributes<HTMLSelectElement> & { wrapClassName?: string }) {
-  return (
-    <span className={cn("relative inline-flex", wrapClassName)}>
-      <select
-        {...rest}
-        className={cn(
-          "w-full cursor-pointer appearance-none pr-8 disabled:cursor-default",
-          className
-        )}
-      >
-        {children}
-      </select>
-      <ChevronDown
-        className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-paper-3"
-        aria-hidden="true"
-      />
-    </span>
-  );
-}
+/** 下拉框：菜单自绘为暗色（原生菜单在 Windows 上是白底），写法和原生 <select> 一样 */
+export { SelectBox } from "@/components/common/Select";

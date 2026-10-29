@@ -77,10 +77,7 @@ export function InlineModal({
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <h2
-              id={titleId}
-              className="font-serif text-[16px] font-semibold text-paper"
-            >
+            <h2 id={titleId} className="text-[16px] font-semibold text-paper">
               {title}
             </h2>
             {description && (

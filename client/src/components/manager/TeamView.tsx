@@ -71,7 +71,7 @@ function TeamDetail() {
             role="group"
             aria-label="邀请码"
             title="把邀请码发给亲友。新成员默认只读"
-            className="flex h-9 items-center rounded-lg bg-paper/[0.04] pl-3 pr-1 ring-1 ring-inset ring-paper/10"
+            className="flex h-8 items-center rounded-md bg-paper/[0.04] pl-3 pr-1 ring-1 ring-inset ring-paper/10"
           >
             <span className="text-[12px] text-paper-3">邀请码</span>
             <span className="ml-2.5 select-all font-mono text-[14px] font-medium tracking-[0.08em] text-paper">
@@ -366,7 +366,7 @@ function TeamName({
           }}
           onBlur={finish}
           className={cn(
-            "-my-1 -ml-2 h-9 w-[300px] rounded-md bg-paper/[0.04] px-2 font-serif text-[20px] font-semibold text-paper outline-none ring-1 ring-inset",
+            "-my-1 -ml-2 h-9 w-[300px] rounded-md bg-paper/[0.04] px-2 text-[20px] font-semibold text-paper outline-none ring-1 ring-inset",
             error ? "ring-cinnabar-text/70" : "ring-cinnabar-text/50"
           )}
         />

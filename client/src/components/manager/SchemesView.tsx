@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ChevronDown,
+  ChevronRight,
   History,
   Info,
   Lock,
@@ -73,121 +74,144 @@ function SchemeList() {
       m => latest(findScheme(state, x, m)) || state.drafts[`${x}-${m}`]
     )
   );
+  const versionCount = state.schemes.reduce((n, s) => n + s.versions.length, 0);
   return (
-    <nav
-      aria-label="方案列表"
-      className="scroll-thin w-[236px] shrink-0 overflow-y-auto border-r border-paper/[0.07] px-2.5 py-3"
-    >
-      {editable && (
-        <Btn
-          variant="secondary"
-          size="md"
-          className="mb-3 w-full"
-          icon={<Plus className="h-4 w-4" />}
-          onClick={() => setCreating(true)}
-        >
-          新建方案
-        </Btn>
-      )}
-      {listed.length === 0 && (
-        <p className="px-2 py-8 text-center text-[12.5px] text-paper-3">
-          还没有方案
-        </p>
-      )}
-      <ul className="space-y-3">
-        {listed.map(x => {
-          // 只列出已保存或正在新建的模式；没玩的模式不显示
-          const modes = MODES.filter(
-            m => latest(findScheme(state, x, m)) || state.drafts[`${x}-${m}`]
-          );
-          const missing = MODES.filter(m => !modes.includes(m));
-          return (
-            <li key={x} className="group/x">
-              <div className="flex h-8 items-center gap-2 px-2">
-                <XinfaMark xinfa={x} size={20} />
-                <span className="font-serif text-[13.5px] font-semibold text-paper">
-                  {x}
-                </span>
-                {editable && missing.length === 1 && (
-                  <IconBtn
-                    label={`给${x}添加 ${missing[0]} 方案`}
-                    onClick={() => actions.startDraft(x, missing[0])}
-                    className="ml-auto h-6 w-6 text-paper-3 opacity-0 focus-visible:opacity-100 group-hover/x:opacity-100"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </IconBtn>
-                )}
-              </div>
-              <ul className="mt-0.5">
-                {modes.map(m => {
-                  const id = `${x}-${m}`;
-                  const last = latest(findScheme(state, x, m));
-                  const draft = state.drafts[id];
-                  const active = activeId === id;
-                  const meta = last
-                    ? isSolo(state)
-                      ? `v${last.version} · ${relativeTime(last.at)}`
-                      : `v${last.version} · ${memberName(state, last.authorId)} · ${relativeTime(last.at)}`
-                    : "新建中，未保存";
-                  return (
-                    <li key={m}>
-                      <button
-                        type="button"
-                        onClick={() => actions.selectScheme(id)}
-                        aria-current={active ? "page" : undefined}
-                        aria-label={`${x} ${m} · ${meta}${draft ? " · 有未保存的修改" : ""}`}
-                        className={cn(
-                          "flex w-full items-center gap-2 rounded-md py-1.5 pl-[36px] pr-2 text-left text-[12.5px] transition-colors",
-                          active
-                            ? "bg-paper/[0.08] text-paper"
-                            : "text-paper-2 hover:bg-paper/[0.04] hover:text-paper"
-                        )}
-                      >
-                        <span
+    <div className="flex w-[236px] shrink-0 flex-col border-r border-paper/[0.07]">
+      <nav
+        aria-label="方案列表"
+        className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2.5 py-3"
+      >
+        {editable && (
+          <Btn
+            variant="secondary"
+            size="md"
+            className="mb-3 w-full"
+            icon={<Plus className="h-4 w-4" />}
+            onClick={() => setCreating(true)}
+          >
+            新建方案
+          </Btn>
+        )}
+        {listed.length === 0 && (
+          <p className="px-2 py-8 text-center text-[12.5px] text-paper-3">
+            还没有方案
+          </p>
+        )}
+        <ul className="space-y-3">
+          {listed.map(x => {
+            // 只列出已保存或正在新建的模式；没玩的模式不显示
+            const modes = MODES.filter(
+              m => latest(findScheme(state, x, m)) || state.drafts[`${x}-${m}`]
+            );
+            const missing = MODES.filter(m => !modes.includes(m));
+            return (
+              <li key={x} className="group/x">
+                <div className="flex h-8 items-center gap-2 px-2">
+                  <XinfaMark xinfa={x} size={20} />
+                  <span className="text-[13.5px] font-semibold text-paper">
+                    {x}
+                  </span>
+                  {editable && missing.length === 1 && (
+                    <IconBtn
+                      label={`给${x}添加 ${missing[0]} 方案`}
+                      onClick={() => actions.startDraft(x, missing[0])}
+                      className="ml-auto h-6 w-6 text-paper-3 opacity-0 focus-visible:opacity-100 group-hover/x:opacity-100"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </IconBtn>
+                  )}
+                </div>
+                <ul className="mt-0.5">
+                  {modes.map(m => {
+                    const id = `${x}-${m}`;
+                    const last = latest(findScheme(state, x, m));
+                    const draft = state.drafts[id];
+                    const active = activeId === id;
+                    const meta = last
+                      ? isSolo(state)
+                        ? `v${last.version} · ${relativeTime(last.at)}`
+                        : `v${last.version} · ${memberName(state, last.authorId)} · ${relativeTime(last.at)}`
+                      : "新建中，未保存";
+                    return (
+                      <li key={m}>
+                        <button
+                          type="button"
+                          onClick={() => actions.selectScheme(id)}
+                          aria-current={active ? "page" : undefined}
+                          aria-label={`${x} ${m} · ${meta}${draft ? " · 有未保存的修改" : ""}`}
                           className={cn(
-                            "min-w-0 flex-1 truncate text-[11.5px]",
-                            active ? "text-paper-2" : "text-paper-3"
-                          )}
-                        >
-                          {meta}
-                        </span>
-                        <span
-                          className={cn(
-                            "shrink-0 rounded px-1.5 py-px text-[10.5px] font-medium tracking-wide",
+                            "flex w-full items-center gap-2 rounded-md py-1.5 pl-[36px] pr-2 text-left text-[12.5px] transition-colors",
                             active
-                              ? "bg-paper/[0.1] text-paper"
-                              : "bg-paper/[0.05] text-paper-2"
+                              ? "bg-paper/[0.08] text-paper"
+                              : "text-paper-2 hover:bg-paper/[0.04] hover:text-paper"
                           )}
                         >
-                          {m}
-                        </span>
-                        {/* 圆点固定占位，各行的模式标签才能对齐 */}
-                        <span
-                          className={cn(
-                            "h-1.5 w-1.5 shrink-0 rounded-full",
-                            draft && "bg-gold"
-                          )}
-                          aria-hidden="true"
-                          title={draft ? "有未保存的修改" : undefined}
-                        />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </li>
-          );
-        })}
-      </ul>
-      <NewSchemeDialog
-        open={creating}
-        initial={prefill}
-        onClose={() => {
-          setCreating(false);
-          setPrefill(undefined);
-        }}
-      />
-    </nav>
+                          <span
+                            className={cn(
+                              "min-w-0 flex-1 truncate text-[11.5px]",
+                              active ? "text-paper-2" : "text-paper-3"
+                            )}
+                          >
+                            {meta}
+                          </span>
+                          <span
+                            className={cn(
+                              "shrink-0 rounded px-1.5 py-px text-[10.5px] font-medium tracking-wide",
+                              active
+                                ? "bg-paper/[0.1] text-paper"
+                                : "bg-paper/[0.05] text-paper-2"
+                            )}
+                          >
+                            {m}
+                          </span>
+                          {/* 圆点固定占位，各行的模式标签才能对齐 */}
+                          <span
+                            className={cn(
+                              "h-1.5 w-1.5 shrink-0 rounded-full",
+                              draft && "bg-gold"
+                            )}
+                            aria-hidden="true"
+                            title={draft ? "有未保存的修改" : undefined}
+                          />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </li>
+            );
+          })}
+        </ul>
+        <NewSchemeDialog
+          open={creating}
+          initial={prefill}
+          onClose={() => {
+            setCreating(false);
+            setPrefill(undefined);
+          }}
+        />
+      </nav>
+      {/* 二级页入口：所有方案的修改时间线 */}
+      <div className="border-t border-paper/[0.07] p-2">
+        <button
+          type="button"
+          onClick={() => actions.openChangelog()}
+          className="flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-[13px] text-paper-2 transition-colors hover:bg-paper/[0.05] hover:text-paper"
+        >
+          <History className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="flex-1 text-left">修改记录</span>
+          {versionCount > 0 && (
+            <span className="text-[11.5px] tabular-nums text-paper-3">
+              {versionCount}
+            </span>
+          )}
+          <ChevronRight
+            className="h-3.5 w-3.5 shrink-0 text-paper-3"
+            aria-hidden="true"
+          />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -355,7 +379,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
     return (
       <div className="flex h-full flex-col items-center justify-center px-10 text-center">
         <XinfaMark xinfa={xinfa} size={48} className="opacity-60" />
-        <p className="mt-4 font-serif text-[17px] font-semibold">
+        <p className="mt-4 text-[17px] font-semibold">
           {otherExists ? `${xinfa}还没有 ${mode} 方案` : `${xinfa}还没有方案`}
         </p>
         {!editable && (
@@ -429,7 +453,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
         <div className="flex items-start gap-3.5">
           <XinfaMark xinfa={xinfa} size={40} />
           <div className="min-w-0 flex-1">
-            <h1 className="font-serif text-[20px] font-semibold leading-tight">
+            <h1 className="text-[20px] font-semibold leading-tight">
               {xinfa} · {mode}
             </h1>
             <p className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-paper-3">
@@ -469,10 +493,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
               variant="ghost"
               size="sm"
               icon={<History className="h-3.5 w-3.5" />}
-              onClick={() => {
-                actions.setChangelogFilter(xinfa);
-                actions.setSection("changelog");
-              }}
+              onClick={() => actions.openChangelog(xinfa)}
             >
               历史版本
             </Btn>
@@ -924,7 +945,7 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
               actions.toast(
                 "manager",
                 "success",
-                `已保存 v${pc.rival.version + 1}。${rivalName} 的 v${pc.rival.version} 留在技改记录里。`
+                `已保存 v${pc.rival.version + 1}。${rivalName} 的 v${pc.rival.version} 留在修改记录里。`
               );
             }}
           >
@@ -972,7 +993,7 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
             )}
           </div>
         ))}
-        <p className="pt-1 text-[12px] text-paper-3">两份都会留在技改记录里</p>
+        <p className="pt-1 text-[12px] text-paper-3">两份都会留在修改记录里</p>
       </div>
     </InlineModal>
   );

@@ -22,7 +22,6 @@ import {
   gemSlot,
   primaryAttr,
   refineSlot,
-  slotChange,
   type GearDraft,
   type GearSlot,
   type Loadout,
@@ -39,16 +38,7 @@ import { useGearFilter } from "./gearFilter";
 import { useEquipDb } from "./useEquipDb";
 
 const selectCls = cn(inputCls(), "h-8 pl-2.5 text-[12.5px]");
-const gemCls = cn(
-  inputCls(),
-  "h-8 w-[60px] cursor-pointer appearance-none px-1.5 text-center text-[12.5px] disabled:cursor-default"
-);
-
-/** 选项后面的秒伤变化；接近 0 不显示 */
-function pctText(p: number) {
-  if (Math.abs(p) < 0.00005) return "";
-  return `  ${p > 0 ? "+" : "−"}${Math.abs(p * 100).toFixed(2)}%`;
-}
+const gemCls = cn(inputCls(), "h-8 w-[60px] px-1.5 text-center text-[12.5px]");
 
 function sameSlot(a: GearSlot, b: GearSlot) {
   return (
@@ -182,7 +172,7 @@ export function GearEditor({
             aria-live="polite"
           >
             <span className="text-[12px] text-paper-3">秒伤</span>
-            <span className="font-serif text-[22px] tabular-nums text-paper">
+            <span className="text-[22px] tabular-nums text-paper">
               {fmt(shownDps)}
             </span>
             {dirty ? (
@@ -368,24 +358,10 @@ export function GearEditor({
                       className={selectCls}
                       wrapClassName="w-full"
                     >
-                      <option value="">
-                        不附
-                        {pctText(
-                          cfgPct({
-                            ...cfg,
-                            enchants: { ...cfg.enchants, [slot.key]: null },
-                          })
-                        )}
-                      </option>
+                      <option value="">不附</option>
                       {enchants.map(o => (
                         <option key={o.id} value={o.id}>
                           {o.label}
-                          {pctText(
-                            cfgPct({
-                              ...cfg,
-                              enchants: { ...cfg.enchants, [slot.key]: o.id },
-                            })
-                          )}
                         </option>
                       ))}
                     </SelectBox>
@@ -416,13 +392,6 @@ export function GearEditor({
                       ).map(n => (
                         <option key={n} value={n}>
                           精 {n}
-                          {pctText(
-                            changePct(
-                              lo,
-                              ev,
-                              slotChange(slot, refineSlot(slot, n), main)
-                            )
-                          )}
                         </option>
                       ))}
                     </SelectBox>
@@ -437,7 +406,7 @@ export function GearEditor({
                 <div className="flex w-[196px] shrink-0 gap-1.5">
                   {slot.def && slot.def.holes.length ? (
                     slot.def.holes.map((h, i) => (
-                      <select
+                      <SelectBox
                         key={i}
                         aria-label={`${slot.label}镶嵌孔 ${i + 1}（${h}）`}
                         title={`${h} ${slot.gems[i]} 级`}
@@ -448,6 +417,8 @@ export function GearEditor({
                           )
                         }
                         className={gemCls}
+                        wrapClassName="shrink-0"
+                        chevron={false}
                       >
                         {Array.from(
                           { length: GEM_MAX + 1 },
@@ -457,16 +428,9 @@ export function GearEditor({
                             {lv
                               ? `${attrShort(h)} ${lv}`
                               : `${attrShort(h)} 空`}
-                            {pctText(
-                              changePct(
-                                lo,
-                                ev,
-                                slotChange(slot, gemSlot(slot, i, lv), main)
-                              )
-                            )}
                           </option>
                         ))}
-                      </select>
+                      </SelectBox>
                     ))
                   ) : (
                     <span className="px-2.5 text-[12px] text-paper-3/60">
@@ -497,12 +461,6 @@ export function GearEditor({
                       {([2, 1, 0] as BigLevel[]).map(lv => (
                         <option key={lv} value={lv}>
                           {lv ? `${big.label} ${BIG_LEVEL_LABEL[lv]}` : "不附"}
-                          {pctText(
-                            cfgPct({
-                              ...cfg,
-                              big: { ...cfg.big, [big.key]: lv },
-                            })
-                          )}
                         </option>
                       ))}
                     </SelectBox>

@@ -10,7 +10,7 @@ import { Field, inputCls } from "./shared";
 
 const NAME_MAX = 12;
 
-/** 个人资料：昵称 + 头像。保存后亲友团页、技改记录等所有显示你的地方一起更新 */
+/** 个人资料：昵称 + 头像。保存后亲友团页、修改记录等所有显示你的地方一起更新 */
 export function ProfileDialog({
   open,
   onClose,

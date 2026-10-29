@@ -5,9 +5,12 @@ import { cn } from "@/lib/utils";
 import { canEdit, isOnline, useProto } from "@/state/store";
 import { SectionHeader } from "../shared";
 import { BlacklistTab, type BlackEditing } from "./BlacklistTab";
+import { LinksTab } from "./LinksTab";
 import { RaidLogTab } from "./RaidLogTab";
+import { ME_ID } from "@/data/seed";
+import { visibleLinks } from "@/data/links";
 
-type Tab = "raid" | "black";
+type Tab = "raid" | "black" | "links";
 
 export function RecordsView() {
   const { state } = useProto();
@@ -24,6 +27,11 @@ export function RecordsView() {
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: "raid", label: "打本", count: state.raidLogs.length },
     { key: "black", label: "避雷", count: state.blacklist.length },
+    {
+      key: "links",
+      label: "链接",
+      count: visibleLinks(state.links, ME_ID).length,
+    },
   ];
 
   return (
@@ -31,20 +39,22 @@ export function RecordsView() {
       <SectionHeader
         title="记录"
         right={
-          <Btn
-            variant="primary"
-            size="sm"
-            icon={<Plus className="h-3.5 w-3.5" />}
-            disabled={!writable}
-            title={lockReason}
-            onClick={() =>
-              tab === "raid"
-                ? setRaidEditing("new")
-                : setBlackEditing({ id: "new" })
-            }
-          >
-            {tab === "raid" ? "记一笔" : "加入避雷"}
-          </Btn>
+          tab !== "links" && (
+            <Btn
+              variant="primary"
+              size="sm"
+              icon={<Plus className="h-3.5 w-3.5" />}
+              disabled={!writable}
+              title={lockReason}
+              onClick={() =>
+                tab === "raid"
+                  ? setRaidEditing("new")
+                  : setBlackEditing({ id: "new" })
+              }
+            >
+              {tab === "raid" ? "记一笔" : "加入避雷"}
+            </Btn>
+          )
         }
       />
       <div
@@ -81,8 +91,10 @@ export function RecordsView() {
       </div>
       {tab === "raid" ? (
         <RaidLogTab editingId={raidEditing} onEdit={setRaidEditing} />
-      ) : (
+      ) : tab === "black" ? (
         <BlacklistTab editing={blackEditing} onEdit={setBlackEditing} />
+      ) : (
+        <LinksTab />
       )}
     </div>
   );
