@@ -20,6 +20,7 @@ import { CompareView } from "./CompareView";
 import { Dashboard, fmt } from "./Dashboard";
 import { ImportCard } from "./ImportCard";
 import { EditLoadoutDialog, NewLoadoutDialog } from "./NewLoadoutDialog";
+import type { GearConfig } from "@/data/enchants";
 import { TryOn } from "./TryOn";
 
 type Tab = "board" | "try" | "buffs" | "compare";
@@ -37,6 +38,7 @@ type NewLoadoutInput = {
   charId: string | null;
   source: LoadoutSource;
   sourceId: string | null;
+  config?: GearConfig;
 };
 
 function dateLabel(iso: string) {

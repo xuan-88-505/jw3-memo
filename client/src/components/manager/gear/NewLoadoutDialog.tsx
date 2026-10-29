@@ -1,12 +1,23 @@
-import { Download, Trash2 } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { ChevronRight, Download, Trash2 } from "lucide-react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { InlineModal } from "@/components/common/overlay";
 import { Btn } from "@/components/common/ui";
-import type { Loadout, LoadoutSource } from "@/data/gear";
+import type { GearConfig } from "@/data/enchants";
+import {
+  configOf,
+  makeLoadout,
+  type Loadout,
+  type LoadoutSource,
+} from "@/data/gear";
+import { cn } from "@/lib/utils";
 import { XINFA_LIST } from "@/data/seed";
 import { findScheme, latest, myCharacters, useProto } from "@/state/store";
 import { Field, SelectBox, XinfaOptions, inputCls } from "../shared";
+import { EnchantEditor } from "./EnchantEditor";
 import { ImportField, OfflineHint, useImportInput } from "./ImportCard";
+
+const sameConfig = (a: GearConfig, b: GearConfig) =>
+  JSON.stringify(a) === JSON.stringify(b);
 
 const NAME_MAX = 12;
 
@@ -88,6 +99,8 @@ export function NewLoadoutDialog({
     charId: string | null;
     source: LoadoutSource;
     sourceId: string | null;
+    /** 用户改过附魔才有；没改就用导入的 */
+    config?: GearConfig;
   }) => void;
 }) {
   const { state } = useProto();
@@ -103,6 +116,22 @@ export function NewLoadoutDialog({
   const [name, setName] = useState("");
   const [charId, setCharId] = useState("");
   const [error, setError] = useState("");
+  const [enchantOpen, setEnchantOpen] = useState(false);
+  // 这个心法导入后的样子，用来显示默认附魔、估算秒伤
+  const draft = useMemo(
+    () =>
+      makeLoadout({
+        id: "draft",
+        xinfa,
+        name: "",
+        charId: null,
+        source: "json",
+        sourceId: null,
+      }),
+    [xinfa]
+  );
+  const [config, setConfig] = useState<GearConfig>(() => configOf(draft));
+  const customized = !sameConfig(config, configOf(draft));
 
   useEffect(() => {
     if (!open) return;
@@ -110,6 +139,8 @@ export function NewLoadoutDialog({
     setName("");
     setCharId("");
     setError("");
+    setEnchantOpen(false);
+    setConfig(configOf(draft));
     input.setText("");
     // 只在打开时重置
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,6 +164,7 @@ export function NewLoadoutDialog({
       charId: linked ? linked.id : null,
       source: r.source,
       sourceId: r.sourceId,
+      config: customized ? config : undefined,
     });
   };
 
@@ -171,6 +203,19 @@ export function NewLoadoutDialog({
                 setXinfa(e.target.value);
                 setCharId("");
                 setError("");
+                // 换心法后附魔选项不同，回到默认
+                setConfig(
+                  configOf(
+                    makeLoadout({
+                      id: "draft",
+                      xinfa: e.target.value,
+                      name: "",
+                      charId: null,
+                      source: "json",
+                      sourceId: null,
+                    })
+                  )
+                );
               }}
               wrapClassName="w-full"
               className={inputCls()}
@@ -207,6 +252,32 @@ export function NewLoadoutDialog({
           onSubmitKey={submit}
         />
 
+        <section>
+          <button
+            type="button"
+            onClick={() => setEnchantOpen(v => !v)}
+            aria-expanded={enchantOpen}
+            className="flex w-full items-center gap-1.5 text-left text-[12.5px] font-medium text-paper"
+          >
+            <ChevronRight
+              className={cn(
+                "h-3.5 w-3.5 text-paper-3 transition-transform",
+                enchantOpen && "rotate-90"
+              )}
+              aria-hidden="true"
+            />
+            附魔与五彩石
+            <span className="ml-auto text-[12px] font-normal text-paper-3">
+              {customized ? "已调整" : "跟随导入"}
+            </span>
+          </button>
+          {enchantOpen && (
+            <div className="mt-3">
+              <EnchantEditor base={draft} value={config} onChange={setConfig} />
+            </div>
+          )}
+        </section>
+
         <CharLinkSelect xinfa={xinfa} value={charId} onChange={setCharId} />
       </div>
     </InlineModal>
@@ -230,6 +301,7 @@ export function EditLoadoutDialog({
   const [charId, setCharId] = useState(loadout.charId ?? "");
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [config, setConfig] = useState<GearConfig>(() => configOf(loadout));
 
   useEffect(() => {
     if (!open) return;
@@ -237,6 +309,7 @@ export function EditLoadoutDialog({
     setCharId(loadout.charId ?? "");
     setError("");
     setConfirmDelete(false);
+    setConfig(configOf(loadout));
     // 只在打开时重置
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -249,6 +322,8 @@ export function EditLoadoutDialog({
     setError(err);
     if (err) return;
     actions.updateLoadout(loadout.id, { name: n, charId: charId || null });
+    if (!sameConfig(config, configOf(loadout)))
+      actions.configureLoadout(loadout.id, config);
     onClose();
     actions.toast("manager", "success", "已保存");
   };
@@ -268,7 +343,8 @@ export function EditLoadoutDialog({
       open={open}
       onClose={onClose}
       title="编辑配装"
-      width={440}
+      width={560}
+      bodyMaxHeight={520}
       footer={
         <>
           <Btn
@@ -290,28 +366,33 @@ export function EditLoadoutDialog({
       }
     >
       <div className="space-y-5 pb-1">
-        <Field label="名称" htmlFor={nameId} error={error}>
-          <input
-            id={nameId}
-            value={name}
-            data-autofocus
-            maxLength={NAME_MAX + 4}
-            onChange={e => {
-              setName(e.target.value);
-              setError("");
-            }}
-            onKeyDown={e => {
-              if (e.key === "Enter") save();
-            }}
-            aria-invalid={!!error}
-            className={inputCls(!!error)}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="名称" htmlFor={nameId} error={error}>
+            <input
+              id={nameId}
+              value={name}
+              data-autofocus
+              maxLength={NAME_MAX + 4}
+              onChange={e => {
+                setName(e.target.value);
+                setError("");
+              }}
+              onKeyDown={e => {
+                if (e.key === "Enter") save();
+              }}
+              aria-invalid={!!error}
+              className={inputCls(!!error)}
+            />
+          </Field>
+          <CharLinkSelect
+            xinfa={loadout.xinfa}
+            value={charId}
+            onChange={setCharId}
           />
-        </Field>
-        <CharLinkSelect
-          xinfa={loadout.xinfa}
-          value={charId}
-          onChange={setCharId}
-        />
+        </div>
+        <div className="border-t border-paper/[0.06] pt-5">
+          <EnchantEditor base={loadout} value={config} onChange={setConfig} />
+        </div>
       </div>
     </InlineModal>
   );

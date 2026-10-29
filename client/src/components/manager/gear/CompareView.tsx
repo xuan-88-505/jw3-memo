@@ -8,18 +8,15 @@ import {
 import { useState } from "react";
 import { XinfaMark } from "@/components/brand/Marks";
 import { Btn, IconBtn, Segmented } from "@/components/common/ui";
-import {
-  primaryAttr,
-  type GearSlot,
-  type Loadout,
-  type PanelStats,
-} from "@/data/gear";
+import type { GearSlot, Loadout } from "@/data/gear";
 import { buffedDps, buffLabel } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
 import { useProto } from "@/state/store";
 import { EmptyState, SelectBox } from "../shared";
 import { fmt } from "./Dashboard";
 import { ItemTile } from "./TryOn";
+import { BigIcon, ExtrasLine, extrasDiffer, slotExtras } from "./EnchantBits";
+import { panelRows, panelSame, showPanelValue } from "./panelRows";
 
 type BuffMode = "same" | "own";
 
@@ -34,18 +31,7 @@ type Row = {
   suffix?: [string, string];
 };
 
-const PANEL_KEYS: [keyof PanelStats, string, Row["unit"]][] = [
-  ["attack", "攻击", "int"],
-  ["crit", "会心", "pct"],
-  ["critDmg", "会心效果", "pct"],
-  ["overcome", "破防", "pct"],
-  ["strain", "无双", "pct"],
-  ["surplus", "破招", "int"],
-];
-
-function show(n: number, unit: Row["unit"]) {
-  return unit === "pct" ? `${n.toFixed(2)}%` : fmt(n);
-}
+const show = showPanelValue;
 
 function Diff({
   d,
@@ -92,7 +78,16 @@ function slotDiffers(a: GearSlot, b: GearSlot) {
   );
 }
 
-function ItemCell({ slot, dim }: { slot: GearSlot; dim?: boolean }) {
+function ItemCell({
+  lo,
+  slot,
+  dim,
+}: {
+  lo: Loadout;
+  slot: GearSlot;
+  dim?: boolean;
+}) {
+  const big = slotExtras(lo, slot).big;
   return (
     <div
       className={cn("flex min-w-0 items-center gap-2.5", dim && "opacity-55")}
@@ -104,12 +99,13 @@ function ItemCell({ slot, dim }: { slot: GearSlot; dim?: boolean }) {
         size={28}
       />
       <div className="min-w-0">
-        <p className="truncate text-[12.5px] text-paper">
-          {slot.item.tags.join(" · ")}
+        <p className="flex min-w-0 items-center gap-1.5 text-[12.5px] text-paper">
+          <span className="truncate">{slot.item.tags.join(" · ")}</span>
+          {big && big.level > 0 && (
+            <BigIcon level={big.level as 1 | 2} label={big.label} size={14} />
+          )}
         </p>
-        <p className="truncate text-[11.5px] text-paper-3">
-          {slot.item.detail}
-        </p>
+        <ExtrasLine lo={lo} slot={slot} />
       </div>
     </div>
   );
@@ -169,36 +165,35 @@ export function CompareView({
   const dpsA = buffedDps(a);
   const dpsB = buffedDps(mode === "same" ? { ...b, buffs: a.buffs } : b);
 
-  const rows: Row[] = [
-    {
-      key: "primary",
-      label: primaryAttr(a.xinfa),
-      a: a.panel.primary,
-      b: b.panel.primary,
-      unit: "int",
-    },
-    ...PANEL_KEYS.map(([k, label, unit]) => ({
-      key: k,
-      label,
-      a: a.panel[k],
-      b: b.panel[k],
-      unit,
-    })),
-    {
-      key: "haste",
-      label: "加速",
-      a: a.haste.value,
-      b: b.haste.value,
-      unit: "int",
-      suffix: [a.haste.tier, b.haste.tier],
-    },
-  ];
-
+  // 两套里有一套全能不为 0 时，两边都显示全能
+  const ra = panelRows(a.xinfa, a.panel, a.haste.value);
+  const rb = panelRows(b.xinfa, b.panel, b.haste.value);
+  const keys = [...ra, ...rb].map(r => r.key);
+  const order = panelRows(a.xinfa, { ...a.panel, versatility: 1 }, 0).map(
+    r => r.key
+  );
+  const rows: Row[] = order
+    .filter(k => keys.includes(k))
+    .map(k => {
+      const x = ra.find(r => r.key === k);
+      const y = rb.find(r => r.key === k);
+      const base = (x ?? y)!;
+      return {
+        key: k,
+        label: base.label,
+        a: x?.value ?? 0,
+        b: y?.value ?? 0,
+        unit: base.unit,
+        suffix: k === "haste" ? [a.haste.tier, b.haste.tier] : undefined,
+      };
+    });
   const slotPairs = a.slots.map(s => ({
     a: s,
     b: b.slots.find(x => x.key === s.key) ?? s,
   }));
-  const changed = slotPairs.filter(p => slotDiffers(p.a, p.b));
+  const partDiffers = (p: { a: GearSlot; b: GearSlot }) =>
+    slotDiffers(p.a, p.b) || extrasDiffer(a, p.a, b, p.b);
+  const changed = slotPairs.filter(partDiffers);
   const listedSlots = showAll ? slotPairs : changed;
 
   const cell = "px-4 py-2.5 text-right tabular-nums";
@@ -336,7 +331,7 @@ export function CompareView({
             </tr>
             {rows.map(r => {
               const d = r.b - r.a;
-              const same = r.unit === "pct" ? Math.abs(d) < 0.005 : d === 0;
+              const same = panelSame(d, r.unit);
               return (
                 <tr
                   key={r.key}
@@ -380,7 +375,9 @@ export function CompareView({
       >
         <div className="flex items-center justify-between px-4 pb-2 pt-3.5">
           <h3 className="text-[13px] font-medium text-paper">
-            {changed.length ? `${changed.length} 件装备不同` : "装备完全相同"}
+            {changed.length
+              ? `${changed.length} 个部位不同`
+              : "装备和附魔完全相同"}
           </h3>
           {changed.length > 0 && changed.length < slotPairs.length && (
             <button
@@ -389,14 +386,14 @@ export function CompareView({
               aria-expanded={showAll}
               className="text-[12px] text-paper-3 hover:text-paper"
             >
-              {showAll ? "只看不同" : `显示全部 ${slotPairs.length} 件`}
+              {showAll ? "只看不同" : `显示全部 ${slotPairs.length} 个部位`}
             </button>
           )}
         </div>
         {listedSlots.length > 0 && (
           <ul className="px-1.5 pb-2">
             {listedSlots.map(p => {
-              const diff = slotDiffers(p.a, p.b);
+              const diff = partDiffers(p);
               return (
                 <li
                   key={p.a.key}
@@ -410,8 +407,8 @@ export function CompareView({
                   >
                     {p.a.label}
                   </span>
-                  <ItemCell slot={p.a} dim={!diff} />
-                  <ItemCell slot={p.b} dim={!diff} />
+                  <ItemCell lo={a} slot={p.a} dim={!diff} />
+                  <ItemCell lo={b} slot={p.b} dim={!diff} />
                 </li>
               );
             })}

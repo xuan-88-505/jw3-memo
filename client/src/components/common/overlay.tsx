@@ -62,10 +62,10 @@ export function InlineModal({
         ref={ref}
         role="dialog"
         aria-modal="true"
-        className="max-h-full w-full overflow-hidden rounded-xl bg-ink-2 shadow-[0_24px_60px_-12px_rgb(0_0_0/0.7)] ring-1 ring-paper/12"
+        className="flex max-h-full w-full flex-col overflow-hidden rounded-xl bg-ink-2 shadow-[0_24px_60px_-12px_rgb(0_0_0/0.7)] ring-1 ring-paper/12"
         style={{ maxWidth: width }}
       >
-        <div className="flex items-start gap-3 px-5 pb-2 pt-4">
+        <div className="flex shrink-0 items-start gap-3 px-5 pb-2 pt-4">
           {tone === "warning" && (
             <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md bg-gold/15 text-gold">
               <AlertTriangle className="h-4 w-4" aria-hidden="true" />
@@ -94,14 +94,14 @@ export function InlineModal({
         </div>
         {children && (
           <div
-            className="scroll-thin overflow-y-auto px-5 py-2"
+            className="scroll-thin min-h-0 overflow-y-auto px-5 py-2"
             style={{ maxHeight: bodyMaxHeight }}
           >
             {children}
           </div>
         )}
         {footer && (
-          <div className="flex items-center justify-end gap-2 px-5 pb-4 pt-3">
+          <div className="flex shrink-0 items-center justify-end gap-2 px-5 pb-4 pt-3">
             {footer}
           </div>
         )}

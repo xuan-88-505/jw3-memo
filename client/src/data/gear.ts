@@ -1,4 +1,17 @@
 import type { BuffSelection } from "@/lib/buffs";
+import {
+  ALL_HERO,
+  addDelta,
+  bestEnchant,
+  bestStone,
+  configDelta,
+  deltaDpsPct,
+  isOuter,
+  perPoint,
+  type BigEnchants,
+  type GearConfig,
+  type StatDelta,
+} from "./enchants";
 import { candidateIconId, gearIconId } from "./gearIcons";
 /**
  * 配装与木桩（原型）。
@@ -48,6 +61,8 @@ export interface GearSlot {
   short: string;
   group: SlotGroup;
   item: GearItem;
+  /** 小附魔 id，见 enchants.ts；换装备时保留 */
+  enchant: string | null;
 }
 
 export interface Effect {
@@ -87,19 +102,50 @@ export interface DpsPoint {
 export type LoadoutSource = "myplugin" | "jx3box" | "json";
 
 /**
- * 面板属性（不含增益）。百分比属性存百分数，例如会心 28.28 表示 28.28%。
+ * 面板属性（不含增益），和魔盒配装器的面板一样按"等级"存，百分比用 LEVEL_COEF 换算。
  * 加速单独放在 Loadout.haste 里，因为它按段位生效。
  */
 export interface PanelStats {
+  /** 装分 */
+  score: number;
+  /** 最终气血上限 */
+  hp: number;
+  vitality: number;
   /** 主属性：根骨、身法、元气或力道，见 primaryAttr() */
   primary: number;
+  baseAttack: number;
+  /** 面板攻击 */
   attack: number;
-  crit: number;
-  critDmg: number;
-  overcome: number;
-  strain: number;
+  critLv: number;
+  critDmgLv: number;
+  overcomeLv: number;
+  strainLv: number;
   surplus: number;
+  /** 全能等级，PVE 配装一般是 0 */
+  versatility: number;
 }
+
+/**
+ * 130 级属性系数：100% 对应的等级。
+ * 来源：计算器 src/数据/常量 属性系数 × (1155 × 130 − 130350)
+ */
+export const LEVEL_COEF = {
+  crit: 9.985 * 19800,
+  critDmg: 3.679 * 19800,
+  overcome: 11.412 * 19800,
+  strain: 6.734 * 19800,
+  haste: 10.61 * 19800,
+};
+
+/** 面板上显示的百分数，例如 28.28 */
+export const panelPct = {
+  crit: (p: PanelStats) => Math.min((p.critLv / LEVEL_COEF.crit) * 100, 100),
+  critDmg: (p: PanelStats) =>
+    Math.min(175 + (p.critDmgLv / LEVEL_COEF.critDmg) * 100, 300),
+  overcome: (p: PanelStats) => (p.overcomeLv / LEVEL_COEF.overcome) * 100,
+  strain: (p: PanelStats) => (p.strainLv / LEVEL_COEF.strain) * 100,
+  haste: (value: number) => Math.min(value / LEVEL_COEF.haste, 0.25) * 100,
+};
 
 /** 配装属于本人，按心法建；关联角色是可选的 */
 export interface Loadout {
@@ -117,6 +163,10 @@ export interface Loadout {
   dps: number;
   haste: { value: number; tier: string; nextTier: string; nextValue: number };
   panel: PanelStats;
+  /** 大附魔：帽、衣、腰、腕、鞋 */
+  big: BigEnchants;
+  /** 主武器的五彩石名称；没镶是 null */
+  stone: string | null;
   gains: AttrGain[];
   slots: GearSlot[];
   candidates: Record<string, Candidate[]>;
@@ -146,86 +196,93 @@ export function hasteOf(value: number): Loadout["haste"] {
   };
 }
 
-const SLOT_DEFS: Array<Omit<GearSlot, "item"> & { tags: Attr[] }> = [
-  {
-    key: "hat",
-    label: "帽子",
-    short: "帽",
-    group: "防具",
-    tags: ["会心", "破防"],
-  },
-  {
-    key: "coat",
-    label: "上衣",
-    short: "衣",
-    group: "防具",
-    tags: ["破防", "无双"],
-  },
-  {
-    key: "belt",
-    label: "腰带",
-    short: "腰",
-    group: "防具",
-    tags: ["会心效果", "破防"],
-  },
-  {
-    key: "wrist",
-    label: "护腕",
-    short: "腕",
-    group: "防具",
-    tags: ["加速", "破防"],
-  },
-  {
-    key: "pants",
-    label: "下装",
-    short: "裤",
-    group: "防具",
-    tags: ["会心", "无双"],
-  },
-  {
-    key: "shoes",
-    label: "鞋子",
-    short: "鞋",
-    group: "防具",
-    tags: ["破招", "破防"],
-  },
-  {
-    key: "neck",
-    label: "项链",
-    short: "链",
-    group: "饰品",
-    tags: ["会心", "会心效果"],
-  },
-  {
-    key: "pendant",
-    label: "腰坠",
-    short: "坠",
-    group: "饰品",
-    tags: ["破防", "无双"],
-  },
-  {
-    key: "ring1",
-    label: "戒指 1",
-    short: "戒",
-    group: "饰品",
-    tags: ["会心效果", "破招"],
-  },
-  {
-    key: "ring2",
-    label: "戒指 2",
-    short: "戒",
-    group: "饰品",
-    tags: ["破防", "会心"],
-  },
-  {
-    key: "weapon",
-    label: "主武器",
-    short: "剑",
-    group: "武器",
-    tags: ["会心", "破防"],
-  },
-  { key: "hidden", label: "暗器", short: "暗", group: "武器", tags: ["会心"] },
-];
+const SLOT_DEFS: Array<Omit<GearSlot, "item" | "enchant"> & { tags: Attr[] }> =
+  [
+    {
+      key: "hat",
+      label: "帽子",
+      short: "帽",
+      group: "防具",
+      tags: ["会心", "破防"],
+    },
+    {
+      key: "coat",
+      label: "上衣",
+      short: "衣",
+      group: "防具",
+      tags: ["破防", "无双"],
+    },
+    {
+      key: "belt",
+      label: "腰带",
+      short: "腰",
+      group: "防具",
+      tags: ["会心效果", "破防"],
+    },
+    {
+      key: "wrist",
+      label: "护腕",
+      short: "腕",
+      group: "防具",
+      tags: ["加速", "破防"],
+    },
+    {
+      key: "pants",
+      label: "下装",
+      short: "裤",
+      group: "防具",
+      tags: ["会心", "无双"],
+    },
+    {
+      key: "shoes",
+      label: "鞋子",
+      short: "鞋",
+      group: "防具",
+      tags: ["破招", "破防"],
+    },
+    {
+      key: "neck",
+      label: "项链",
+      short: "链",
+      group: "饰品",
+      tags: ["会心", "会心效果"],
+    },
+    {
+      key: "pendant",
+      label: "腰坠",
+      short: "坠",
+      group: "饰品",
+      tags: ["破防", "无双"],
+    },
+    {
+      key: "ring1",
+      label: "戒指 1",
+      short: "戒",
+      group: "饰品",
+      tags: ["会心效果", "破招"],
+    },
+    {
+      key: "ring2",
+      label: "戒指 2",
+      short: "戒",
+      group: "饰品",
+      tags: ["破防", "会心"],
+    },
+    {
+      key: "weapon",
+      label: "主武器",
+      short: "剑",
+      group: "武器",
+      tags: ["会心", "破防"],
+    },
+    {
+      key: "hidden",
+      label: "暗器",
+      short: "暗",
+      group: "武器",
+      tags: ["会心"],
+    },
+  ];
 
 const PRIMARY: Record<string, Attr> = {
   山海心诀: "身法",
@@ -262,7 +319,7 @@ function hash(s: string) {
   return (h >>> 0) / 4294967296;
 }
 
-function itemDetail(slot: Omit<GearSlot, "item">) {
+function itemDetail(slot: Omit<GearSlot, "item" | "enchant">) {
   if (slot.group === "武器" && slot.key === "weapon")
     return "特效武器 · 精 8 · 镶 8/8";
   if (slot.group === "饰品")
@@ -289,6 +346,7 @@ function buildSlots(xinfa: string, variant?: string): GearSlot[] {
     return {
       ...def,
       short: def.key === "weapon" ? weaponShort(xinfa) : def.short,
+      enchant: null,
       item: {
         name: `${def.label}·${tags.join(" ")}`,
         quality: def.key === "weapon" ? "orange" : "purple",
@@ -311,21 +369,78 @@ const SWAP_PAIRS: Attr[][] = [
 ];
 
 /** 每多一条属性词条，面板加多少（示例数值，和试穿里的效果一致） */
-const TAG_STEP: Partial<Record<Attr, [keyof PanelStats, number]>> = {
-  攻击: ["attack", 420],
-  会心: ["crit", 1.1],
-  会心效果: ["critDmg", 3.6],
-  破防: ["overcome", 1.0],
-  无双: ["strain", 0.9],
-  破招: ["surplus", 410],
+const TAG_DELTA: Partial<Record<Attr, StatDelta>> = {
+  攻击: { baseAttack: 420 },
+  会心: { critLv: 2175 },
+  会心效果: { critDmgLv: 2622 },
+  破防: { overcomeLv: 2260 },
+  无双: { strainLv: 1200 },
+  破招: { surplus: 410 },
+  加速: { haste: 2743 },
 };
-const HASTE_STEP = 2743;
 
-function tagCounts(slots: GearSlot[]) {
-  const out: Partial<Record<Attr, number>> = {};
-  for (const s of slots)
-    for (const t of s.item.tags) out[t] = (out[t] ?? 0) + 1;
-  return out;
+function tagsDelta(from: Attr[], to: Attr[]): StatDelta {
+  let d: StatDelta = {};
+  for (const t of from) d = addDelta(d, TAG_DELTA[t], -1);
+  for (const t of to) d = addDelta(d, TAG_DELTA[t]);
+  return d;
+}
+
+function slotsDelta(from: GearSlot[], to: GearSlot[]): StatDelta {
+  let d: StatDelta = {};
+  for (const s of to) {
+    const old = from.find(x => x.key === s.key);
+    if (old) d = addDelta(d, tagsDelta(old.item.tags, s.item.tags));
+  }
+  return d;
+}
+
+/**
+ * 主属性每一点顺带加的攻击、会心、破防（示例系数）。
+ * 紫霞功实际是：根骨 → 面板攻击 1946/1024，会心 0.9 + 625/1024。
+ */
+const MAIN_CONV: Record<
+  string,
+  { attack: number; crit: number; overcome: number }
+> = {
+  根骨: { attack: 1.9, crit: 1.51, overcome: 0 },
+  元气: { attack: 1.85, crit: 0, overcome: 0.3 },
+  身法: { attack: 1.45, crit: 0.9, overcome: 0 },
+  力道: { attack: 1.6, crit: 0, overcome: 0.3 },
+};
+/** 体质转气血 10 点，再乘心法基础气血加成（紫霞功 307/1024） */
+const HP_MULT = 1 + 307 / 1024;
+
+/** 把一组属性变化加到面板和加速上 */
+export function applyDeltaToPanel(
+  panel: PanelStats,
+  hasteValue: number,
+  d: StatDelta,
+  main: Attr
+): { panel: PanelStats; hasteValue: number } {
+  const conv = MAIN_CONV[main] ?? MAIN_CONV["根骨"];
+  const primary =
+    (d.primary ?? 0) + Math.floor((panel.primary * (d.primaryPct ?? 0)) / 1024);
+  const r = Math.round;
+  return {
+    panel: {
+      ...panel,
+      score: panel.score + (d.score ?? 0),
+      vitality: panel.vitality + (d.vitality ?? 0),
+      hp: r(panel.hp + ((d.vitality ?? 0) * 10 + (d.hp ?? 0)) * HP_MULT),
+      primary: panel.primary + primary,
+      baseAttack: panel.baseAttack + (d.baseAttack ?? 0),
+      attack: r(panel.attack + (d.baseAttack ?? 0) + primary * conv.attack),
+      critLv: r(panel.critLv + (d.critLv ?? 0) + primary * conv.crit),
+      critDmgLv: panel.critDmgLv + (d.critDmgLv ?? 0),
+      overcomeLv: r(
+        panel.overcomeLv + (d.overcomeLv ?? 0) + primary * conv.overcome
+      ),
+      strainLv: panel.strainLv + (d.strainLv ?? 0),
+      surplus: panel.surplus + (d.surplus ?? 0),
+    },
+    hasteValue: Math.max(0, hasteValue + (d.haste ?? 0)),
+  };
 }
 
 /** 按两套装备的词条差，调整面板和加速 */
@@ -333,37 +448,110 @@ function adjustPanel(
   panel: PanelStats,
   hasteValue: number,
   from: GearSlot[],
-  to: GearSlot[]
-): { panel: PanelStats; hasteValue: number } {
-  const a = tagCounts(from);
-  const b = tagCounts(to);
-  const next = { ...panel };
-  for (const [attr, step] of Object.entries(TAG_STEP) as [
-    Attr,
-    [keyof PanelStats, number],
-  ][]) {
-    const d = (b[attr] ?? 0) - (a[attr] ?? 0);
-    if (d) next[step[0]] = round2(next[step[0]] + d * step[1]);
-  }
-  const dh = (b["加速"] ?? 0) - (a["加速"] ?? 0);
-  return { panel: next, hasteValue: hasteValue + dh * HASTE_STEP };
+  to: GearSlot[],
+  main: Attr
+) {
+  return applyDeltaToPanel(panel, hasteValue, slotsDelta(from, to), main);
 }
 
-function round2(n: number) {
-  return Math.round(n * 100) / 100;
+/** 试穿：把一个部位换成这些词条后的面板和加速 */
+export function swapPanel(lo: Loadout, slotKey: string, tags: Attr[]) {
+  const slot = lo.slots.find(s => s.key === slotKey);
+  if (!slot) return { panel: lo.panel, hasteValue: lo.haste.value };
+  return applyDeltaToPanel(
+    lo.panel,
+    lo.haste.value,
+    tagsDelta(slot.item.tags, tags),
+    primaryAttr(lo.xinfa)
+  );
 }
 
-/** 这个心法默认配装的面板（示例数值） */
+/** 这个心法默认配装的面板（示例数值，已经算上默认的附魔和五彩石） */
 function basePanel(xinfa: string): PanelStats {
   const h = (k: string) => hash(`${xinfa}-panel-${k}`);
+  const lv = (coef: number, pct: number) => Math.round((coef * pct) / 100);
+  const vitality = Math.round(132000 + h("v") * 8000);
+  const attack = Math.round(64000 + h("a") * 7000);
   return {
+    score: Math.round(505000 + h("sc") * 14000),
+    vitality,
+    hp: Math.round((158000 + vitality * 10) * HP_MULT),
     primary: Math.round(7400 + h("p") * 900),
-    attack: Math.round(64000 + h("a") * 7000),
-    crit: round2(24 + h("c") * 6),
-    critDmg: round2(178 + h("cd") * 10),
-    overcome: round2(19 + h("o") * 5),
-    strain: round2(60 + h("s") * 8),
+    baseAttack: Math.round(attack * 0.76),
+    attack,
+    critLv: lv(LEVEL_COEF.crit, 24 + h("c") * 6),
+    critDmgLv: lv(LEVEL_COEF.critDmg, 3 + h("cd") * 10),
+    overcomeLv: lv(LEVEL_COEF.overcome, 19 + h("o") * 5),
+    strainLv: lv(LEVEL_COEF.strain, 60 + h("s") * 8),
     surplus: Math.round(10800 + h("su") * 2200),
+    versatility: 0,
+  };
+}
+
+/** 这套配装当前的附魔和五彩石 */
+export function configOf(
+  lo: Pick<Loadout, "slots" | "big" | "stone">
+): GearConfig {
+  return {
+    enchants: Object.fromEntries(lo.slots.map(s => [s.key, s.enchant])),
+    big: { ...lo.big },
+    stone: lo.stone,
+  };
+}
+
+/** 新建配装的默认附魔：每个部位挑秒伤最高的，大附魔全英雄，五彩石挑不带加速的里秒伤最高的 */
+function defaultConfig(
+  xinfa: string,
+  gains: AttrGain[],
+  primaryBase: number
+): GearConfig {
+  const main = primaryAttr(xinfa);
+  const pp = perPoint(gains, isOuter(main));
+  return {
+    enchants: Object.fromEntries(
+      SLOT_DEFS.map(d => [d.key, bestEnchant(main, d.key, pp, primaryBase)])
+    ),
+    big: { ...ALL_HERO },
+    stone: bestStone(main, pp, primaryBase),
+  };
+}
+
+function hasteTierIndex(value: number) {
+  let i = 0;
+  HASTE_TIERS.forEach((t, idx) => {
+    if (value >= t.value) i = idx;
+  });
+  return i;
+}
+
+/**
+ * 一组属性变化给这套配装带来的秒伤比例（0.01 = 1%）。
+ * 按属性收益折算；加速每跨一段 ±2%，和增益页一致。
+ */
+export function statDeltaDpsPct(lo: Loadout, d: StatDelta) {
+  const main = primaryAttr(lo.xinfa);
+  const pp = perPoint(lo.gains, isOuter(main));
+  const tierFrom = hasteTierIndex(lo.haste.value);
+  const tierTo = hasteTierIndex(Math.max(0, lo.haste.value + (d.haste ?? 0)));
+  return (
+    deltaDpsPct(d, pp, main, lo.panel.primary) + (tierTo - tierFrom) * 0.02
+  );
+}
+
+/** 换附魔、大附魔、五彩石：面板、加速、秒伤一起重算。秒伤是估算 */
+export function applyConfig(lo: Loadout, next: GearConfig): Loadout {
+  const main = primaryAttr(lo.xinfa);
+  const d = configDelta(main, configOf(lo), next);
+  const adj = applyDeltaToPanel(lo.panel, lo.haste.value, d, main);
+  const pct = statDeltaDpsPct(lo, d);
+  return {
+    ...lo,
+    dps: Math.round(lo.dps * (1 + pct)),
+    panel: adj.panel,
+    haste: hasteOf(adj.hasteValue),
+    slots: lo.slots.map(s => ({ ...s, enchant: next.enchants[s.key] ?? null })),
+    big: { ...next.big },
+    stone: next.stone,
   };
 }
 
@@ -523,13 +711,18 @@ export function makeLoadout(opts: {
       return { attr, pct, dps: Math.round((baseDps * pct) / 100) };
     })
     .sort((a, b) => b.pct - a.pct);
-  const baseSlots = buildSlots(xinfa);
-  const slots = variant ? buildSlots(xinfa, variant) : baseSlots;
+  const panel0 = basePanel(xinfa);
+  const cfg = defaultConfig(xinfa, gains, panel0.primary);
+  const withEnchant = (list: GearSlot[]) =>
+    list.map(s => ({ ...s, enchant: cfg.enchants[s.key] ?? null }));
+  const baseSlots = withEnchant(buildSlots(xinfa));
+  const slots = variant ? withEnchant(buildSlots(xinfa, variant)) : baseSlots;
   const adj = adjustPanel(
-    basePanel(xinfa),
+    panel0,
     Math.round(1200 + r * 2400),
     baseSlots,
-    slots
+    slots,
+    primary
   );
   const dps = variant
     ? Math.round(
@@ -551,6 +744,8 @@ export function makeLoadout(opts: {
     dps,
     haste: hasteOf(adj.hasteValue),
     panel: adj.panel,
+    big: cfg.big,
+    stone: cfg.stone,
     gains,
     slots,
     candidates: buildCandidates(xinfa, slots, gains),
@@ -558,6 +753,22 @@ export function makeLoadout(opts: {
     sample: true,
   };
 }
+
+/** 计算器紫霞功默认方案的小附魔（种类照抄，数值用当前赛季） */
+const ZIXIA_ENCHANTS: Record<string, string> = {
+  hat: "攻击",
+  coat: "无双·节日",
+  belt: "无双·节日",
+  wrist: "无双",
+  pants: "无双",
+  shoes: "攻击",
+  neck: "体质",
+  pendant: "体质",
+  ring1: "攻击",
+  ring2: "攻击",
+  weapon: "攻击",
+  hidden: "加速",
+};
 
 /** 云间鹤（紫霞功）：引用任务实测数据 + 示例历史 */
 export function seedLoadoutZixia(): Loadout {
@@ -571,7 +782,10 @@ export function seedLoadoutZixia(): Loadout {
     { attr: "会心效果", dps: 23765, pct: 1.03 },
     { attr: "破招", dps: 21214, pct: 0.92 },
   ];
-  const slots = buildSlots(xinfa);
+  const slots = buildSlots(xinfa).map(s => ({
+    ...s,
+    enchant: ZIXIA_ENCHANTS[s.key] ?? null,
+  }));
   const candidates = buildCandidates(xinfa, slots, gains);
   // 戒指 1：引用任务原型里的 6 件候选
   candidates.ring1 = sortCandidates([
@@ -677,16 +891,23 @@ export function seedLoadoutZixia(): Loadout {
     target: "134 级木桩 · 304 秒",
     dps: 2302267,
     haste: { value: 2089, tier: "一段", nextTier: "二段", nextValue: 9232 },
-    // 引用任务看板原型的面板属性
+    // 计算器紫霞功默认方案的面板（不含增益），推算过程见 research-notes.md
     panel: {
+      score: 512287,
+      hp: 1979703,
+      vitality: 136220,
       primary: 7872,
+      baseAttack: 52111,
       attack: 68320,
-      crit: 28.28,
-      critDmg: 185.32,
-      overcome: 22.24,
-      strain: 66.13,
+      critLv: 55908,
+      critDmgLv: 7518,
+      overcomeLv: 50253,
+      strainLv: 88172,
       surplus: 12239,
+      versatility: 0,
     },
+    big: { ...ALL_HERO },
+    stone: "彩·灭气·激流·月华(陆)",
     gains,
     slots,
     candidates,
@@ -738,7 +959,22 @@ export function seedLoadoutZixiaAlt(): Loadout {
         }
       : s
   );
-  const adj = adjustPanel(base.panel, base.haste.value, base.slots, slots);
+  const main = primaryAttr(base.xinfa);
+  const adj = adjustPanel(
+    base.panel,
+    base.haste.value,
+    base.slots,
+    slots,
+    main
+  );
+  // 五彩石换成无双
+  const stone = "彩·无双·激流·灭气(陆)";
+  const withStone = applyDeltaToPanel(
+    adj.panel,
+    adj.hasteValue,
+    configDelta(main, configOf(base), { ...configOf(base), stone }),
+    main
+  );
   const dps = 2321146;
   return {
     ...base,
@@ -749,8 +985,9 @@ export function seedLoadoutZixiaAlt(): Loadout {
     sourceId: null,
     importedAt: "2026-10-26T21:15:00+08:00",
     dps,
-    haste: hasteOf(adj.hasteValue),
-    panel: adj.panel,
+    haste: hasteOf(withStone.hasteValue),
+    panel: withStone.panel,
+    stone,
     slots,
     candidates: buildCandidates(base.xinfa, slots, base.gains),
     history: [

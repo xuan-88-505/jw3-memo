@@ -19,12 +19,16 @@ import {
   rivalEdit,
   seedSchemes,
 } from "@/data/seed";
+import type { GearConfig } from "@/data/enchants";
 import {
+  applyConfig,
+  hasteOf,
   makeLoadout,
   patchDelta,
   seedLoadoutZixia,
   seedLoadoutZixiaAlt,
   sortCandidates,
+  swapPanel,
   type Loadout,
   type LoadoutSource,
 } from "@/data/gear";
@@ -850,17 +854,30 @@ function useActions(
         charId: string | null;
         source: LoadoutSource;
         sourceId: string | null;
+        /** 新建时改过的附魔和五彩石；不传就用导入的 */
+        config?: GearConfig;
       }): string => {
         const s = stateRef.current;
         const id = `lo${Date.now()}`;
         const sameXinfa = Object.values(s.loadouts).some(
           l => l.xinfa === p.xinfa
         );
-        const lo = makeLoadout({
-          ...p,
+        const { config, ...rest } = p;
+        const made = makeLoadout({
+          ...rest,
           id,
           variant: sameXinfa ? id : undefined,
         });
+        const lo = config
+          ? (() => {
+              const next = applyConfig(made, config);
+              // 导入时就是这套附魔，历史从改过的秒伤开始
+              return {
+                ...next,
+                history: [{ ...made.history[0], dps: next.dps }],
+              };
+            })()
+          : made;
         update(st => ({
           loadouts: { ...st.loadouts, [id]: lo },
           activeLoadoutId: id,
@@ -899,6 +916,26 @@ function useActions(
           if (!lo) return {};
           return { loadouts: { ...st.loadouts, [id]: { ...lo, ...p } } };
         }),
+      /** 改小附魔、大附魔、五彩石：面板和秒伤一起重算，秒伤变了就记一笔 */
+      configureLoadout: (id: string, config: GearConfig) =>
+        update(st => {
+          const lo = st.loadouts[id];
+          if (!lo) return {};
+          const next = applyConfig(lo, config);
+          const history =
+            next.dps === lo.dps
+              ? lo.history
+              : [
+                  ...lo.history,
+                  {
+                    at: new Date().toISOString(),
+                    dps: next.dps,
+                    label: "改附魔",
+                    kind: "gear" as const,
+                  },
+                ];
+          return { loadouts: { ...st.loadouts, [id]: { ...next, history } } };
+        }),
       removeLoadout: (id: string) =>
         update(st => {
           const loadouts = { ...st.loadouts };
@@ -921,9 +958,12 @@ function useActions(
         if (!lo || !cand || !slot || cand.current) return lo?.dps ?? 0;
         const dps = Math.round(lo.dps * (1 + cand.pct / 100));
         const at = new Date().toISOString();
+        const swapped = swapPanel(lo, slotKey, cand.tags);
         const next: Loadout = {
           ...lo,
           dps,
+          panel: swapped.panel,
+          haste: hasteOf(swapped.hasteValue),
           slots: lo.slots.map(x =>
             x.key === slotKey
               ? {

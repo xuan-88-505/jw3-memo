@@ -3,6 +3,7 @@ import type { Loadout } from "@/data/gear";
 import { Btn } from "@/components/common/ui";
 import { buffLabel, estimateBuffs, hasteWithBuffs } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
+import { PanelStrip } from "./PanelStrip";
 import { DpsChart } from "./DpsChart";
 
 export const fmt = (n: number) => n.toLocaleString("en-US");
@@ -200,6 +201,13 @@ export function Dashboard({
           )}
         </section>
       </div>
+
+      <PanelStrip
+        xinfa={lo.xinfa}
+        panel={lo.panel}
+        hasteValue={lo.haste.value}
+        note={buffed ? "不含增益" : undefined}
+      />
 
       <div className="grid grid-cols-[1fr_1.15fr] gap-3">
         <section className={card} aria-label="属性收益">

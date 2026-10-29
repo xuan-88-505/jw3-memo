@@ -6,6 +6,7 @@
  * 正式版把选择原样交给计算器引擎重算；原型里用属性收益估算，界面上标「≈」。
  */
 import { BUFF_DB } from "@/data/buffData";
+import { perPoint } from "@/data/enchants";
 import { HASTE_TIERS, type Attr, type Loadout } from "@/data/gear";
 
 /* ---------- 数据类型（buffData.ts 的结构） ---------- */
@@ -180,21 +181,6 @@ export function enableTeamBuff(
 
 /* ---------- 秒伤估算 ---------- */
 
-/** 一个紫色附魔给的点数（属性收益的单位），取自计算器附魔数据 */
-const ENCHANT_POINTS: Record<Attr, number> = {
-  无双: 3279,
-  会心: 3279,
-  破防: 3279,
-  破招: 3279,
-  加速: 3279,
-  会心效果: 3279,
-  根骨: 420,
-  元气: 420,
-  身法: 420,
-  力道: 420,
-  攻击: 994,
-};
-
 /** 点数类属性键 → 原型的属性；MAIN 表示本心法主属性 */
 const POINT_KEYS: Record<string, Attr | "MAIN"> = {
   atStrainBase: "无双",
@@ -250,25 +236,8 @@ const WEAPON_KEY = "atMeleeWeaponDamageBase";
 
 /** 每点属性的秒伤比例（相对不带增益的秒伤） */
 function perPointPct(lo: Loadout): Partial<Record<Attr, number>> {
-  const out: Partial<Record<Attr, number>> = {};
-  const secondaries: number[] = [];
-  // 外功的攻击附魔是 891 点
-  const outer = buffProfile(lo.xinfa).group === "外功";
-  for (const g of lo.gains) {
-    const points = g.attr === "攻击" && outer ? 891 : ENCHANT_POINTS[g.attr];
-    const p = g.pct / 100 / points;
-    out[g.attr] = p;
-    if (ENCHANT_POINTS[g.attr] === 3279) secondaries.push(p);
-  }
-  const avg = secondaries.length
-    ? secondaries.reduce((a, b) => a + b, 0) / secondaries.length
-    : 0.0000035;
-  for (const a of ["无双", "会心", "破防", "破招", "会心效果"] as Attr[]) {
-    if (out[a] == null) out[a] = avg;
-  }
-  return out;
+  return perPoint(lo.gains, buffProfile(lo.xinfa).group === "外功");
 }
-
 export interface EffectResult {
   /** 秒伤比例（0.012 = 1.2%） */
   pct: number;

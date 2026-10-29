@@ -1,10 +1,18 @@
 import { Check, RotateCcw } from "lucide-react";
 import { useState } from "react";
-import type { Candidate, GearSlot, Loadout, SlotGroup } from "@/data/gear";
+import {
+  swapPanel,
+  type Candidate,
+  type GearSlot,
+  type Loadout,
+  type SlotGroup,
+} from "@/data/gear";
 import { Btn } from "@/components/common/ui";
-import { buffedDps } from "@/lib/buffs";
+import { buffedDps, buffFactor } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
 import { Delta, fmt } from "./Dashboard";
+import { BigIcon, ExtrasLine, slotExtras } from "./EnchantBits";
+import { PanelStrip } from "./PanelStrip";
 
 const GROUPS: SlotGroup[] = ["防具", "饰品", "武器"];
 
@@ -106,6 +114,10 @@ export function TryOn({
   // 秒伤按当前增益显示，和看板一致
   const cur = buffedDps(lo);
   const after = tried ? Math.round(cur * (1 + tried.pct / 100)) : cur;
+  const preview =
+    tried && trying
+      ? swapPanel(lo, trying.slotKey, tried.tags)
+      : { panel: lo.panel, hasteValue: lo.haste.value };
 
   const pick = (c: Candidate) => {
     if (c.current) setTrying(null);
@@ -114,63 +126,58 @@ export function TryOn({
 
   return (
     <div className="flex h-full flex-col gap-3">
-      {/* 结果条 */}
-      <div
+      {/* 面板属性；试穿时显示换上后的面板，变了的标出涨跌 */}
+      <PanelStrip
+        xinfa={lo.xinfa}
+        panel={preview.panel}
+        hasteValue={preview.hasteValue}
+        base={
+          tried ? { panel: lo.panel, hasteValue: lo.haste.value } : undefined
+        }
+        note={buffFactor(lo) > 1.00005 ? "不含增益" : undefined}
         className={cn(
-          "flex min-h-[60px] shrink-0 items-center gap-4 rounded-xl px-4 py-3 ring-1 ring-inset transition-colors",
-          tried ? "bg-jade/[0.07] ring-jade/25" : "bg-ink-3 ring-paper/8"
+          "shrink-0 transition-colors",
+          tried && "bg-jade/[0.05] ring-jade/25"
         )}
-        aria-live="polite"
-      >
-        {tried && triedSlot ? (
-          <>
-            <div className="min-w-0 flex-1">
-              <p className="flex flex-wrap items-baseline gap-x-2 text-[13px] text-paper-3">
-                <span className="tabular-nums">{fmt(cur)}</span>
-                <span aria-hidden="true">→</span>
+        footer={
+          tried && triedSlot ? (
+            <div
+              className="flex items-center gap-3 border-t border-jade/15 px-4 py-2.5"
+              aria-live="polite"
+            >
+              <p className="min-w-0 flex-1 truncate text-[12.5px] text-paper-3">
+                <span className="text-paper-2">
+                  {triedSlot.label} → {tried.name.split(" · ")[1] ?? tried.name}
+                </span>
+                <span className="ml-3 tabular-nums">{fmt(cur)}</span>
+                <span aria-hidden="true"> → </span>
                 <span className="sr-only">试穿后</span>
-                <span className="text-[20px] font-semibold tabular-nums text-paper">
+                <span className="font-medium tabular-nums text-paper">
                   {fmt(after)}
                 </span>
-                <Delta pct={tried.pct} className="text-[13px] font-medium" />
-                <span className="tabular-nums">
-                  （{after - cur >= 0 ? "+" : "−"}
-                  {fmt(Math.abs(after - cur))}）
-                </span>
+                <Delta pct={tried.pct} className="ml-2 text-[12.5px]" />
               </p>
-              <p className="mt-0.5 truncate text-[12px] text-paper-3">
-                试穿中：{triedSlot.label} →{" "}
-                {tried.name.split(" · ")[1] ?? tried.name}
-              </p>
+              <Btn
+                variant="ghost"
+                icon={<RotateCcw className="h-3.5 w-3.5" />}
+                onClick={() => setTrying(null)}
+              >
+                撤销
+              </Btn>
+              <Btn
+                variant="primary"
+                icon={<Check className="h-3.5 w-3.5" />}
+                onClick={() => {
+                  onApply(trying!.slotKey, trying!.candId);
+                  setTrying(null);
+                }}
+              >
+                应用到配装
+              </Btn>
             </div>
-            <Btn
-              variant="ghost"
-              icon={<RotateCcw className="h-3.5 w-3.5" />}
-              onClick={() => setTrying(null)}
-            >
-              撤销
-            </Btn>
-            <Btn
-              variant="primary"
-              icon={<Check className="h-3.5 w-3.5" />}
-              onClick={() => {
-                onApply(trying!.slotKey, trying!.candId);
-                setTrying(null);
-              }}
-            >
-              应用到配装
-            </Btn>
-          </>
-        ) : (
-          <p className="flex items-baseline gap-2 text-[13px] text-paper-3">
-            当前秒伤
-            <span className="text-[20px] font-semibold tabular-nums text-paper">
-              {fmt(cur)}
-            </span>
-            <span className="ml-2">点右边的候选试穿，不会改动配装</span>
-          </p>
-        )}
-      </div>
+          ) : null
+        }
+      />
 
       <div className="grid min-h-0 flex-1 grid-cols-[236px_1fr] gap-3">
         {/* 部位 */}
@@ -189,6 +196,7 @@ export function TryOn({
                   .map(s => (
                     <SlotRow
                       key={s.key}
+                      lo={lo}
                       slot={s}
                       best={slotBest(lo, s.key)}
                       active={s.key === slot.key}
@@ -247,18 +255,21 @@ export function TryOn({
 }
 
 function SlotRow({
+  lo,
   slot,
   best,
   active,
   trying,
   onClick,
 }: {
+  lo: Loadout;
   slot: GearSlot;
   best: number;
   active: boolean;
   trying: boolean;
   onClick: () => void;
 }) {
+  const big = slotExtras(lo, slot).big;
   return (
     <li>
       <button
@@ -278,15 +289,19 @@ function SlotRow({
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5 text-[13px] text-paper">
             {slot.label}
+            {big && big.level > 0 && (
+              <BigIcon level={big.level as 1 | 2} label={big.label} size={15} />
+            )}
             {trying && (
               <span className="rounded bg-jade/15 px-1 text-[10.5px] text-jade">
                 试穿中
               </span>
             )}
           </span>
-          <span className="block truncate text-[11.5px] text-paper-3">
+          <span className="block truncate text-[11.5px] text-paper-2/80">
             {slot.item.tags.join(" ")}
           </span>
+          <ExtrasLine lo={lo} slot={slot} className="mt-0.5" />
         </span>
         {best > 0 && <Delta pct={best} className="shrink-0 text-[11.5px]" />}
       </button>
