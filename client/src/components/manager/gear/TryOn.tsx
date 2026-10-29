@@ -20,7 +20,7 @@ const QUALITY_EDGE = {
 } as const;
 
 /** 装备图标：有图标编号时显示游戏图标，加载失败或没有编号时显示部位的一个字 */
-function ItemTile({
+export function ItemTile({
   text,
   iconId,
   quality,

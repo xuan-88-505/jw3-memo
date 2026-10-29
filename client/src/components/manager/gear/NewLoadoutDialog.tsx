@@ -1,81 +1,139 @@
-import { Check, Download, Plus } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
-import { CharAvatar } from "@/components/brand/CharAvatar";
+import { Download, Trash2 } from "lucide-react";
+import { useEffect, useId, useState } from "react";
 import { InlineModal } from "@/components/common/overlay";
 import { Btn } from "@/components/common/ui";
-import type { LoadoutSource } from "@/data/gear";
-import { SERVERS, XINFA_LIST } from "@/data/seed";
+import type { Loadout, LoadoutSource } from "@/data/gear";
+import { XINFA_LIST } from "@/data/seed";
 import { findScheme, latest, myCharacters, useProto } from "@/state/store";
-import { cn } from "@/lib/utils";
-import { nameError } from "../CharactersView";
-import { SelectBox, XinfaOptions, inputCls } from "../shared";
+import { Field, SelectBox, XinfaOptions, inputCls } from "../shared";
 import { ImportField, OfflineHint, useImportInput } from "./ImportCard";
 
-const NEW = "__new__";
+const NAME_MAX = 12;
+
+/** 没填名字时的默认名：配装 1、配装 2……同一心法里不重复 */
+export function autoLoadoutName(all: Loadout[], xinfa: string) {
+  const names = new Set(all.filter(l => l.xinfa === xinfa).map(l => l.name));
+  let n = names.size + 1;
+  while (names.has(`配装 ${n}`)) n++;
+  return `配装 ${n}`;
+}
+
+function loadoutNameError(
+  all: Loadout[],
+  xinfa: string,
+  name: string,
+  selfId?: string
+) {
+  if (name.length > NAME_MAX) return `名字最多 ${NAME_MAX} 个字`;
+  if (
+    name &&
+    all.some(l => l.xinfa === xinfa && l.name === name && l.id !== selfId)
+  )
+    return `${xinfa}里已经有「${name}」了`;
+  return "";
+}
+
+/** 关联角色的下拉：只列这个心法的我的角色；没有就不显示 */
+function CharLinkSelect({
+  xinfa,
+  value,
+  onChange,
+}: {
+  xinfa: string;
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const { state } = useProto();
+  const id = useId();
+  const chars = myCharacters(state).filter(c => c.xinfa === xinfa);
+  if (chars.length === 0) return null;
+  return (
+    <Field label="关联角色（可选）" htmlFor={id}>
+      <SelectBox
+        id={id}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        wrapClassName="w-full"
+        className={inputCls()}
+      >
+        <option value="">不关联</option>
+        {chars.map(c => (
+          <option key={c.id} value={c.id}>
+            {c.name} · {c.server}
+          </option>
+        ))}
+      </SelectBox>
+    </Field>
+  );
+}
 
 /**
- * 新建配装：给还没有配装的角色导入，或者新加一个角色再导入。
- * 角色和配装一起提交；取消时什么都不会创建。
+ * 新建配装：按心法建，大多数人只是想看某个心法不同配装的属性。
+ * 关联角色放在最后，默认不关联。取消时什么都不会创建。
  */
 export function NewLoadoutDialog({
   open,
+  defaultXinfa,
   onClose,
   onStart,
 }: {
   open: boolean;
+  /** 打开时默认选中的心法，一般是正在看的那套配装的心法 */
+  defaultXinfa?: string;
   onClose: () => void;
   /** 关闭弹窗后开始计算 */
-  onStart: (
-    charId: string,
-    source: LoadoutSource,
-    sourceId: string | null,
-    isNew: boolean
-  ) => void;
+  onStart: (p: {
+    xinfa: string;
+    name: string;
+    charId: string | null;
+    source: LoadoutSource;
+    sourceId: string | null;
+  }) => void;
 }) {
-  const { state, actions } = useProto();
+  const { state } = useProto();
+  const all = Object.values(state.loadouts);
   const mine = myCharacters(state);
-  const free = mine.filter(c => !state.loadouts[c.id]);
   const offline = state.dataState === "offline";
   const input = useImportInput();
+  const xinfaId = useId();
+  const nameId = useId();
 
-  const [pick, setPick] = useState<string>(NEW);
+  const fallbackXinfa = defaultXinfa ?? mine[0]?.xinfa ?? XINFA_LIST[0];
+  const [xinfa, setXinfa] = useState(fallbackXinfa);
   const [name, setName] = useState("");
-  const [server, setServer] = useState(SERVERS[0]);
-  const [xinfa, setXinfa] = useState(XINFA_LIST[0]);
+  const [charId, setCharId] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!open) return;
-    setPick(free[0]?.id ?? NEW);
+    setXinfa(fallbackXinfa);
     setName("");
+    setCharId("");
     setError("");
     input.setText("");
     // 只在打开时重置
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const picked = free.find(c => c.id === pick);
-  const isNew = !picked;
-  const charName = picked?.name ?? (name.trim() || "新角色");
-  const charXinfa = picked?.xinfa ?? xinfa;
-  const v = latest(findScheme(state, charXinfa, "PVE"));
-  const talentSource = v ? `${charXinfa} PVE v${v.version}` : null;
+  const linked = mine.find(c => c.id === charId);
+  const v = latest(findScheme(state, xinfa, "PVE"));
+  const talentSource = v ? `${xinfa} PVE v${v.version}` : null;
+  const placeholder = autoLoadoutName(all, xinfa);
 
   const submit = () => {
     const r = input.submit();
     const n = name.trim();
-    const err = isNew ? nameError(mine, n, server) : "";
+    const err = loadoutNameError(all, xinfa, n);
     setError(err);
     if (err || !r || offline) return;
-    let id: string;
-    if (picked) {
-      id = picked.id;
-      actions.selectCharacter(id);
-    } else {
-      id = actions.addCharacter({ name: n, server, xinfa });
-    }
     onClose();
-    onStart(id, r.source, r.sourceId, isNew);
+    onStart({
+      xinfa,
+      name: n || placeholder,
+      charId: linked ? linked.id : null,
+      source: r.source,
+      sourceId: r.sourceId,
+    });
   };
 
   return (
@@ -104,135 +162,157 @@ export function NewLoadoutDialog({
       }
     >
       <div className="space-y-5 pb-1">
-        <div>
-          <p id="new-lo-role" className="text-[12.5px] font-medium text-paper">
-            角色
-          </p>
-          <div
-            role="radiogroup"
-            aria-labelledby="new-lo-role"
-            className="mt-2 space-y-1.5"
-          >
-            {free.map(c => (
-              <RoleOption
-                key={c.id}
-                checked={pick === c.id}
-                onSelect={() => setPick(c.id)}
-              >
-                <CharAvatar character={c} size={22} />
-                <span className="text-[13px] text-paper">{c.name}</span>
-                <span className="text-[12px] text-paper-3">
-                  {c.server} · {c.xinfa}
-                </span>
-              </RoleOption>
-            ))}
-            <RoleOption checked={isNew} onSelect={() => setPick(NEW)}>
-              <span className="grid h-[22px] w-[22px] place-items-center rounded-md bg-paper/[0.06] text-paper-2">
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              </span>
-              <span className="text-[13px] text-paper">新角色</span>
-            </RoleOption>
-          </div>
-
-          {isNew && (
-            <div className="mt-2.5">
-              <div className="grid grid-cols-[1fr_120px_140px] gap-2">
-                <input
-                  aria-label="角色名"
-                  value={name}
-                  maxLength={20}
-                  autoFocus={free.length > 0}
-                  data-autofocus={free.length === 0 || undefined}
-                  onChange={e => {
-                    setName(e.target.value);
-                    setError("");
-                  }}
-                  placeholder="游戏里的角色名"
-                  aria-invalid={!!error}
-                  className={inputCls(!!error)}
-                />
-                <SelectBox
-                  aria-label="服务器"
-                  value={server}
-                  onChange={e => {
-                    setServer(e.target.value);
-                    setError("");
-                  }}
-                  wrapClassName="w-full"
-                  className={inputCls()}
-                >
-                  {SERVERS.map(s => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </SelectBox>
-                <SelectBox
-                  aria-label="心法"
-                  value={xinfa}
-                  onChange={e => setXinfa(e.target.value)}
-                  wrapClassName="w-full"
-                  className={inputCls()}
-                >
-                  <XinfaOptions />
-                </SelectBox>
-              </div>
-              {error && (
-                <p
-                  role="alert"
-                  className="mt-1.5 text-[12px] text-cinnabar-text"
-                >
-                  {error}
-                </p>
-              )}
-            </div>
-          )}
+        <div className="grid grid-cols-[168px_1fr] gap-3">
+          <Field label="心法" htmlFor={xinfaId}>
+            <SelectBox
+              id={xinfaId}
+              value={xinfa}
+              onChange={e => {
+                setXinfa(e.target.value);
+                setCharId("");
+                setError("");
+              }}
+              wrapClassName="w-full"
+              className={inputCls()}
+            >
+              <XinfaOptions />
+            </SelectBox>
+          </Field>
+          <Field label="名称" htmlFor={nameId} error={error}>
+            <input
+              id={nameId}
+              value={name}
+              maxLength={NAME_MAX + 4}
+              onChange={e => {
+                setName(e.target.value);
+                setError("");
+              }}
+              onKeyDown={e => {
+                if (e.key === "Enter") submit();
+              }}
+              placeholder={placeholder}
+              aria-invalid={!!error}
+              className={inputCls(!!error)}
+            />
+          </Field>
         </div>
 
         <ImportField
           input={input}
           label="配装"
           labelClassName="text-[12.5px] font-medium text-paper"
-          charName={charName}
-          xinfa={charXinfa}
+          charName={linked?.name}
+          xinfa={xinfa}
           talentSource={talentSource}
           onSubmitKey={submit}
         />
+
+        <CharLinkSelect xinfa={xinfa} value={charId} onChange={setCharId} />
       </div>
     </InlineModal>
   );
 }
 
-function RoleOption({
-  checked,
-  onSelect,
-  children,
+/** 编辑配装：改名、改关联角色、删除 */
+export function EditLoadoutDialog({
+  loadout,
+  open,
+  onClose,
 }: {
-  checked: boolean;
-  onSelect: () => void;
-  children: ReactNode;
+  loadout: Loadout;
+  open: boolean;
+  onClose: () => void;
 }) {
+  const { state, actions } = useProto();
+  const all = Object.values(state.loadouts);
+  const nameId = useId();
+  const [name, setName] = useState(loadout.name);
+  const [charId, setCharId] = useState(loadout.charId ?? "");
+  const [error, setError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setName(loadout.name);
+    setCharId(loadout.charId ?? "");
+    setError("");
+    setConfirmDelete(false);
+    // 只在打开时重置
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const save = () => {
+    const n = name.trim();
+    const err = n
+      ? loadoutNameError(all, loadout.xinfa, n, loadout.id)
+      : "名字不能为空";
+    setError(err);
+    if (err) return;
+    actions.updateLoadout(loadout.id, { name: n, charId: charId || null });
+    onClose();
+    actions.toast("manager", "success", "已保存");
+  };
+
+  const remove = () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    actions.removeLoadout(loadout.id);
+    onClose();
+    actions.toast("manager", "success", `已删除「${loadout.name}」`);
+  };
+
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={checked}
-      onClick={onSelect}
-      className={cn(
-        "flex h-10 w-full items-center gap-2.5 rounded-lg px-3 text-left ring-1 ring-inset transition-colors",
-        checked
-          ? "bg-paper/[0.06] ring-cinnabar-text/50"
-          : "ring-paper/10 hover:bg-paper/[0.03]"
-      )}
+    <InlineModal
+      open={open}
+      onClose={onClose}
+      title="编辑配装"
+      width={440}
+      footer={
+        <>
+          <Btn
+            variant={confirmDelete ? "danger" : "ghost"}
+            size="md"
+            icon={<Trash2 className="h-4 w-4" />}
+            onClick={remove}
+            className="mr-auto"
+          >
+            {confirmDelete ? "确认删除" : "删除"}
+          </Btn>
+          <Btn variant="ghost" size="md" onClick={onClose}>
+            取消
+          </Btn>
+          <Btn variant="primary" size="md" onClick={save}>
+            保存
+          </Btn>
+        </>
+      }
     >
-      {children}
-      <span
-        className={cn(
-          "ml-auto grid h-4 w-4 place-items-center rounded-full ring-1 ring-inset",
-          checked ? "bg-cinnabar ring-cinnabar" : "ring-paper/25"
-        )}
-        aria-hidden="true"
-      >
-        {checked && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
-      </span>
-    </button>
+      <div className="space-y-5 pb-1">
+        <Field label="名称" htmlFor={nameId} error={error}>
+          <input
+            id={nameId}
+            value={name}
+            data-autofocus
+            maxLength={NAME_MAX + 4}
+            onChange={e => {
+              setName(e.target.value);
+              setError("");
+            }}
+            onKeyDown={e => {
+              if (e.key === "Enter") save();
+            }}
+            aria-invalid={!!error}
+            className={inputCls(!!error)}
+          />
+        </Field>
+        <CharLinkSelect
+          xinfa={loadout.xinfa}
+          value={charId}
+          onChange={setCharId}
+        />
+      </div>
+    </InlineModal>
   );
 }

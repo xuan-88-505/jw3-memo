@@ -23,6 +23,7 @@ import {
   makeLoadout,
   patchDelta,
   seedLoadoutZixia,
+  seedLoadoutZixiaAlt,
   sortCandidates,
   type Loadout,
   type LoadoutSource,
@@ -125,8 +126,13 @@ export interface ProtoState {
    * 原型存在浏览器本地；正式版跟着账号同步到自己的其他电脑。
    */
   notes: Record<string, CharNote>;
-  /** 配装与木桩：按角色 id 存。和便签一样只属于本人 */
+  /**
+   * 配装与木桩：按配装 id 存，和便签一样只属于本人。
+   * 配装按心法建，关联角色是可选的（Loadout.charId）。
+   */
   loadouts: Record<string, Loadout>;
+  /** 配装页正在看的配装 */
+  activeLoadoutId: string | null;
   /** 本机设置：每台电脑分开保存，不同步给亲友 */
   hotkeys: Record<Platform, Hotkey>;
   /** 记录：打本记录和避雷名单，亲友团共享 */
@@ -231,7 +237,8 @@ function readCoachSeen() {
 const initialState: ProtoState = {
   ...seedData(),
   notes: readNotes(),
-  loadouts: { c1: seedLoadoutZixia() },
+  loadouts: { lo1: seedLoadoutZixia(), lo2: seedLoadoutZixiaAlt() },
+  activeLoadoutId: "lo1",
   platform: "win",
   scene: "desktop",
   dataState: "normal",
@@ -400,6 +407,31 @@ function newInviteCode() {
   return `TD-${pick(4)}-${pick(4)}`;
 }
 
+/** 解除角色和配装的关联。keepXinfa：只保留这个心法的关联 */
+function unlinkLoadouts(
+  loadouts: Record<string, Loadout>,
+  charId: string,
+  keepXinfa?: string
+): Record<string, Loadout> {
+  let changed = false;
+  const out: Record<string, Loadout> = {};
+  for (const [k, lo] of Object.entries(loadouts)) {
+    if (lo.charId === charId && lo.xinfa !== keepXinfa) {
+      out[k] = { ...lo, charId: null };
+      changed = true;
+    } else out[k] = lo;
+  }
+  return changed ? out : loadouts;
+}
+
+/** 配装列表：同一心法的放在一起，按第一次出现的顺序 */
+export function loadoutList(state: ProtoState): Loadout[] {
+  const all = Object.values(state.loadouts);
+  const order: string[] = [];
+  for (const lo of all) if (!order.includes(lo.xinfa)) order.push(lo.xinfa);
+  return order.flatMap(x => all.filter(lo => lo.xinfa === x));
+}
+
 /** 技改后重算（原型：按版本号给一个稳定的小幅变化） */
 function recalcAfterPatch(
   st: ProtoState,
@@ -408,12 +440,10 @@ function recalcAfterPatch(
   at: string
 ): Record<string, Loadout> {
   const out = { ...st.loadouts };
-  for (const c of st.characters) {
-    const lo = out[c.id];
-    if (c.ownerId !== ME_ID || c.xinfa !== xinfa || !lo || lo.xinfa !== xinfa)
-      continue;
+  for (const lo of Object.values(out)) {
+    if (lo.xinfa !== xinfa) continue;
     const dps = Math.round(lo.dps * (1 + patchDelta(xinfa, version) / 100));
-    out[c.id] = {
+    out[lo.id] = {
       ...lo,
       dps,
       history: [
@@ -790,6 +820,10 @@ function useActions(
         }
         update(s => ({
           characters: s.characters.map(c => (c.id === id ? next : c)),
+          // 配装按心法建：角色换了心法，就不再关联其他心法的配装
+          loadouts: p.xinfa
+            ? unlinkLoadouts(s.loadouts, id, p.xinfa)
+            : s.loadouts,
         }));
         return { restored };
       },
@@ -807,47 +841,81 @@ function useActions(
           ),
         })),
       /**
-       * 导入配装（原型：生成示例数值）。
-       * 同心法重新导入：原型里魔盒那边没有改动，所以保留原数值，只更新导入时间。
-       * 返回 "new"（第一次或换了心法）或 "same"（配装没有变化）
+       * 新建配装（原型：生成示例数值）。配装按心法建，charId 可以为空。
+       * 同一心法已经有配装时换几件装备，方便对比。返回新配装的 id
        */
-      importLoadout: (
-        charId: string,
+      createLoadout: (p: {
+        xinfa: string;
+        name: string;
+        charId: string | null;
+        source: LoadoutSource;
+        sourceId: string | null;
+      }): string => {
+        const s = stateRef.current;
+        const id = `lo${Date.now()}`;
+        const sameXinfa = Object.values(s.loadouts).some(
+          l => l.xinfa === p.xinfa
+        );
+        const lo = makeLoadout({
+          ...p,
+          id,
+          variant: sameXinfa ? id : undefined,
+        });
+        update(st => ({
+          loadouts: { ...st.loadouts, [id]: lo },
+          activeLoadoutId: id,
+        }));
+        return id;
+      },
+      /** 重新导入：原型里魔盒那边没有改动，所以保留原数值，只更新来源和时间 */
+      reimportLoadout: (
+        id: string,
         source: LoadoutSource,
         sourceId: string | null
-      ): "new" | "same" => {
-        const s = stateRef.current;
-        const char = s.characters.find(c => c.id === charId);
-        if (!char) return "new";
-        const at = new Date().toISOString();
-        const prev = s.loadouts[charId];
-        if (prev && prev.xinfa === char.xinfa) {
-          update(st => ({
+      ) =>
+        update(st => {
+          const lo = st.loadouts[id];
+          if (!lo) return {};
+          return {
             loadouts: {
               ...st.loadouts,
-              [charId]: {
-                ...prev,
-                importedAt: at,
+              [id]: {
+                ...lo,
+                importedAt: new Date().toISOString(),
                 source,
                 sourceId:
-                  source === "jx3box" ? (sourceId ?? prev.sourceId) : null,
+                  source === "jx3box" ? (sourceId ?? lo.sourceId) : null,
               },
             },
-          }));
-          return "same";
-        }
-        update(st => ({
-          loadouts: {
-            ...st.loadouts,
-            [charId]: makeLoadout(char.xinfa, source, sourceId, at),
-          },
-        }));
-        return "new";
-      },
+          };
+        }),
+      /** 改配装名、改关联角色 */
+      updateLoadout: (
+        id: string,
+        p: { name?: string; charId?: string | null }
+      ) =>
+        update(st => {
+          const lo = st.loadouts[id];
+          if (!lo) return {};
+          return { loadouts: { ...st.loadouts, [id]: { ...lo, ...p } } };
+        }),
+      removeLoadout: (id: string) =>
+        update(st => {
+          const loadouts = { ...st.loadouts };
+          delete loadouts[id];
+          return {
+            loadouts,
+            activeLoadoutId:
+              st.activeLoadoutId === id
+                ? (Object.keys(loadouts)[0] ?? null)
+                : st.activeLoadoutId,
+          };
+        }),
+      selectLoadout: (activeLoadoutId: string) => patch({ activeLoadoutId }),
       /** 把试穿的装备应用到配装；返回新秒伤 */
-      applyCandidate: (charId: string, slotKey: string, candId: string) => {
+      applyCandidate: (loId: string, slotKey: string, candId: string) => {
         const s = stateRef.current;
-        const lo = s.loadouts[charId];
+        const lo = s.loadouts[loId];
         const cand = lo?.candidates[slotKey]?.find(c => c.id === candId);
         const slot = lo?.slots.find(x => x.key === slotKey);
         if (!lo || !cand || !slot || cand.current) return lo?.dps ?? 0;
@@ -903,15 +971,15 @@ function useActions(
             },
           ],
         };
-        update(st => ({ loadouts: { ...st.loadouts, [charId]: next } }));
+        update(st => ({ loadouts: { ...st.loadouts, [loId]: next } }));
         return dps;
       },
       /** 改配装的增益（小药、团队增益、阵眼）。只影响本人看到的估算 */
-      setLoadoutBuffs: (charId: string, buffs: BuffSelection) =>
+      setLoadoutBuffs: (loId: string, buffs: BuffSelection) =>
         update(st => {
-          const lo = st.loadouts[charId];
+          const lo = st.loadouts[loId];
           if (!lo) return {};
-          return { loadouts: { ...st.loadouts, [charId]: { ...lo, buffs } } };
+          return { loadouts: { ...st.loadouts, [loId]: { ...lo, buffs } } };
         }),
       /** 写便签。空内容直接删掉这条记录 */
       setNote: (charId: string, text: string) =>
@@ -929,11 +997,10 @@ function useActions(
           // 角色删了，它的便签也一起删
           const notes = { ...s.notes };
           delete notes[id];
-          const loadouts = { ...s.loadouts };
-          delete loadouts[id];
+          // 配装不跟着删，只解除关联
           return {
             notes,
-            loadouts,
+            loadouts: unlinkLoadouts(s.loadouts, id),
             characters,
             activeCharId:
               s.activeCharId === id ? (mine[0]?.id ?? "") : s.activeCharId,

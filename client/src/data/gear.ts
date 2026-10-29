@@ -86,16 +86,37 @@ export interface DpsPoint {
 /** 配装从哪里导入 */
 export type LoadoutSource = "myplugin" | "jx3box" | "json";
 
+/**
+ * 面板属性（不含增益）。百分比属性存百分数，例如会心 28.28 表示 28.28%。
+ * 加速单独放在 Loadout.haste 里，因为它按段位生效。
+ */
+export interface PanelStats {
+  /** 主属性：根骨、身法、元气或力道，见 primaryAttr() */
+  primary: number;
+  attack: number;
+  crit: number;
+  critDmg: number;
+  overcome: number;
+  strain: number;
+  surplus: number;
+}
+
+/** 配装属于本人，按心法建；关联角色是可选的 */
 export interface Loadout {
+  id: string;
   xinfa: string;
+  /** 关联的角色；只按心法建配装时为 null */
+  charId: string | null;
   source: LoadoutSource;
   /** 魔盒方案 ID；装备码、数据版 JSON 导入时为 null */
   sourceId: string | null;
+  /** 配装名，用户自己起，例如"毕业""过渡" */
   name: string;
   importedAt: string;
   target: string;
   dps: number;
   haste: { value: number; tier: string; nextTier: string; nextValue: number };
+  panel: PanelStats;
   gains: AttrGain[];
   slots: GearSlot[];
   candidates: Record<string, Candidate[]>;
@@ -112,6 +133,18 @@ export const HASTE_TIERS = [
   { tier: "一段", value: 206 },
   { tier: "二段", value: 9232 },
 ];
+
+export function hasteOf(value: number): Loadout["haste"] {
+  let i = 0;
+  while (i + 1 < HASTE_TIERS.length && value >= HASTE_TIERS[i + 1].value) i++;
+  const next = HASTE_TIERS[i + 1] ?? HASTE_TIERS[i];
+  return {
+    value,
+    tier: HASTE_TIERS[i].tier,
+    nextTier: next.tier,
+    nextValue: next.value,
+  };
+}
 
 const SLOT_DEFS: Array<Omit<GearSlot, "item"> & { tags: Attr[] }> = [
   {
@@ -238,18 +271,105 @@ function itemDetail(slot: Omit<GearSlot, "item">) {
   return "精 6 · 镶 8/8";
 }
 
-function buildSlots(xinfa: string): GearSlot[] {
-  return SLOT_DEFS.map(({ tags, ...def }) => ({
-    ...def,
-    short: def.key === "weapon" ? weaponShort(xinfa) : def.short,
-    item: {
-      name: `${def.label}·${tags.join(" ")}`,
-      quality: def.key === "weapon" ? "orange" : "purple",
-      iconId: gearIconId(xinfa, def.key),
-      detail: itemDetail(def),
-      tags,
-    },
-  }));
+/**
+ * 生成全身装备。variant 为空时是这个心法的默认配装；
+ * 不为空时按它随机换掉几件防具和饰品的属性组合（同一个 variant 结果固定）。
+ */
+function buildSlots(xinfa: string, variant?: string): GearSlot[] {
+  return SLOT_DEFS.map(({ tags: baseTags, ...def }) => {
+    let tags = baseTags;
+    // 带加速的部位不换，避免加速掉段
+    if (variant && def.group !== "武器" && !baseTags.includes("加速")) {
+      const r = hash(`${variant}-${def.key}`);
+      if (r < 0.4) {
+        const pool = SWAP_PAIRS.filter(p => p.join() !== baseTags.join());
+        tags = pool[Math.floor(hash(`${variant}-${def.key}-p`) * pool.length)];
+      }
+    }
+    return {
+      ...def,
+      short: def.key === "weapon" ? weaponShort(xinfa) : def.short,
+      item: {
+        name: `${def.label}·${tags.join(" ")}`,
+        quality: def.key === "weapon" ? "orange" : "purple",
+        iconId: gearIconId(xinfa, def.key),
+        detail: itemDetail(def),
+        tags,
+      },
+    };
+  });
+}
+
+/** 换装时可选的属性组合（不含加速，避免跨段位） */
+const SWAP_PAIRS: Attr[][] = [
+  ["无双", "会心"],
+  ["无双", "破防"],
+  ["会心", "攻击"],
+  ["会心效果", "破招"],
+  ["破防", "会心"],
+  ["无双", "破招"],
+];
+
+/** 每多一条属性词条，面板加多少（示例数值，和试穿里的效果一致） */
+const TAG_STEP: Partial<Record<Attr, [keyof PanelStats, number]>> = {
+  攻击: ["attack", 420],
+  会心: ["crit", 1.1],
+  会心效果: ["critDmg", 3.6],
+  破防: ["overcome", 1.0],
+  无双: ["strain", 0.9],
+  破招: ["surplus", 410],
+};
+const HASTE_STEP = 2743;
+
+function tagCounts(slots: GearSlot[]) {
+  const out: Partial<Record<Attr, number>> = {};
+  for (const s of slots)
+    for (const t of s.item.tags) out[t] = (out[t] ?? 0) + 1;
+  return out;
+}
+
+/** 按两套装备的词条差，调整面板和加速 */
+function adjustPanel(
+  panel: PanelStats,
+  hasteValue: number,
+  from: GearSlot[],
+  to: GearSlot[]
+): { panel: PanelStats; hasteValue: number } {
+  const a = tagCounts(from);
+  const b = tagCounts(to);
+  const next = { ...panel };
+  for (const [attr, step] of Object.entries(TAG_STEP) as [
+    Attr,
+    [keyof PanelStats, number],
+  ][]) {
+    const d = (b[attr] ?? 0) - (a[attr] ?? 0);
+    if (d) next[step[0]] = round2(next[step[0]] + d * step[1]);
+  }
+  const dh = (b["加速"] ?? 0) - (a["加速"] ?? 0);
+  return { panel: next, hasteValue: hasteValue + dh * HASTE_STEP };
+}
+
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
+/** 这个心法默认配装的面板（示例数值） */
+function basePanel(xinfa: string): PanelStats {
+  const h = (k: string) => hash(`${xinfa}-panel-${k}`);
+  return {
+    primary: Math.round(7400 + h("p") * 900),
+    attack: Math.round(64000 + h("a") * 7000),
+    crit: round2(24 + h("c") * 6),
+    critDmg: round2(178 + h("cd") * 10),
+    overcome: round2(19 + h("o") * 5),
+    strain: round2(60 + h("s") * 8),
+    surplus: Math.round(10800 + h("su") * 2200),
+  };
+}
+
+/** 装备总分（示例算法）：换装后秒伤按分差变化 */
+function slotsScore(slots: GearSlot[], gains: AttrGain[]) {
+  return slots.reduce((sum, s) => sum + scorePair(s.item.tags, gains), 0);
 }
 
 function weaponShort(xinfa: string) {
@@ -362,15 +482,24 @@ export function sortCandidates(list: Candidate[]) {
   return [...list].sort((a, b) => b.pct - a.pct);
 }
 
-/** 生成一份示例配装（导入后用） */
-export function makeLoadout(
-  xinfa: string,
-  source: LoadoutSource,
-  sourceId: string | null,
-  at = new Date().toISOString()
-): Loadout {
+/**
+ * 生成一份示例配装（导入后用）。
+ * variant 为空时是这个心法的默认配装；同一心法再建一套时传配装 id，换几件装备，数值也跟着变。
+ */
+export function makeLoadout(opts: {
+  id: string;
+  xinfa: string;
+  name: string;
+  charId: string | null;
+  source: LoadoutSource;
+  sourceId: string | null;
+  at?: string;
+  variant?: string;
+}): Loadout {
+  const { id, xinfa, name, charId, source, sourceId, variant } = opts;
+  const at = opts.at ?? new Date().toISOString();
   const r = hash(xinfa);
-  const dps = Math.round(2_150_000 + r * 260_000);
+  const baseDps = Math.round(2_150_000 + r * 260_000);
   const primary = primaryAttr(xinfa);
   const order: Attr[] = [
     "无双",
@@ -391,25 +520,37 @@ export function makeLoadout(
       const pct =
         Math.round((1.42 - i * 0.075 - hash(`${xinfa}-g${i}`) * 0.04) * 100) /
         100;
-      return { attr, pct, dps: Math.round((dps * pct) / 100) };
+      return { attr, pct, dps: Math.round((baseDps * pct) / 100) };
     })
     .sort((a, b) => b.pct - a.pct);
-  const slots = buildSlots(xinfa);
-  const hasteValue = Math.round(1200 + r * 2400);
+  const baseSlots = buildSlots(xinfa);
+  const slots = variant ? buildSlots(xinfa, variant) : baseSlots;
+  const adj = adjustPanel(
+    basePanel(xinfa),
+    Math.round(1200 + r * 2400),
+    baseSlots,
+    slots
+  );
+  const dps = variant
+    ? Math.round(
+        baseDps *
+          (1 +
+            (slotsScore(slots, gains) - slotsScore(baseSlots, gains)) / 100 +
+            (hash(`${variant}-dps`) - 0.5) * 0.004)
+      )
+    : baseDps;
   return {
+    id,
     xinfa,
+    charId,
     source,
     sourceId,
-    name: "日常木桩",
+    name,
     importedAt: at,
     target: "134 级木桩 · 304 秒",
     dps,
-    haste: {
-      value: hasteValue,
-      tier: "一段",
-      nextTier: "二段",
-      nextValue: 9232,
-    },
+    haste: hasteOf(adj.hasteValue),
+    panel: adj.panel,
     gains,
     slots,
     candidates: buildCandidates(xinfa, slots, gains),
@@ -526,7 +667,9 @@ export function seedLoadoutZixia(): Loadout {
     );
   }
   return {
+    id: "lo1",
     xinfa,
+    charId: "c1",
     source: "jx3box",
     sourceId: "87412",
     name: "日常木桩",
@@ -534,6 +677,16 @@ export function seedLoadoutZixia(): Loadout {
     target: "134 级木桩 · 304 秒",
     dps: 2302267,
     haste: { value: 2089, tier: "一段", nextTier: "二段", nextValue: 9232 },
+    // 引用任务看板原型的面板属性
+    panel: {
+      primary: 7872,
+      attack: 68320,
+      crit: 28.28,
+      critDmg: 185.32,
+      overcome: 22.24,
+      strain: 66.13,
+      surplus: 12239,
+    },
     gains,
     slots,
     candidates,
@@ -562,6 +715,60 @@ export function seedLoadoutZixia(): Loadout {
       },
     ],
     sample: false,
+  };
+}
+
+/** 第二套紫霞功配装（示例）：换了戒指 1 和腰带，用来演示对比；不关联角色 */
+export function seedLoadoutZixiaAlt(): Loadout {
+  const base = seedLoadoutZixia();
+  const swap: Record<string, Attr[]> = {
+    ring1: ["无双", "会心"],
+    belt: ["无双", "破防"],
+  };
+  const slots = base.slots.map(s =>
+    swap[s.key]
+      ? {
+          ...s,
+          item: {
+            ...s.item,
+            name: `${s.label.replace(/ \d$/, "")}·${swap[s.key].join(" ")}`,
+            iconId: candidateIconId(base.xinfa, s.key, "秘境掉落"),
+            tags: swap[s.key],
+          },
+        }
+      : s
+  );
+  const adj = adjustPanel(base.panel, base.haste.value, base.slots, slots);
+  const dps = 2321146;
+  return {
+    ...base,
+    id: "lo2",
+    charId: null,
+    name: "无双流",
+    source: "myplugin",
+    sourceId: null,
+    importedAt: "2026-10-26T21:15:00+08:00",
+    dps,
+    haste: hasteOf(adj.hasteValue),
+    panel: adj.panel,
+    slots,
+    candidates: buildCandidates(base.xinfa, slots, base.gains),
+    history: [
+      {
+        at: "2026-10-26T21:15:00+08:00",
+        dps: 2312400,
+        label: "导入",
+        kind: "import",
+      },
+      {
+        at: "2026-10-28T21:40:00+08:00",
+        dps,
+        label: "v4 技改",
+        kind: "patch",
+        detail: "第 7 重 抱一 → 正气",
+      },
+    ],
+    sample: true,
   };
 }
 

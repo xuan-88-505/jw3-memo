@@ -173,7 +173,7 @@ export function CharactersView() {
         open={!!removing}
         onClose={() => setRemoving(null)}
         title={`删除「${removing?.name}」？`}
-        description="只删除角色和它的同步记录，方案不受影响。"
+        description="只删除角色和它的同步记录，方案和配装不受影响。"
         footer={
           <>
             <Btn variant="ghost" size="md" onClick={() => setRemoving(null)}>

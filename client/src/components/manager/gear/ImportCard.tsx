@@ -83,7 +83,8 @@ export function ImportField({
   input: ImportInput;
   label: ReactNode;
   labelClassName?: string;
-  charName: string;
+  /** 关联的角色名；没关联角色时为空 */
+  charName?: string;
   xinfa: string;
   /** "紫霞功 PVE v4"；没有方案时为 null */
   talentSource: string | null;
@@ -167,7 +168,9 @@ export function ImportField({
               </p>
               {code && (
                 <p className="mt-0.5 text-paper-3">
-                  装备码里没有角色名，确认是「{charName}」身上这套
+                  {charName
+                    ? `装备码里没有角色名，确认是「${charName}」身上这套`
+                    : `装备码里没有心法，确认是${xinfa}的配装`}
                 </p>
               )}
             </div>
@@ -193,8 +196,9 @@ export function ImportField({
   );
 }
 
-/** 页面里的导入卡片：重新导入、心法对不上、计算中 */
+/** 页面里的导入卡片：重新导入、计算中 */
 export function ImportCard({
+  title,
   charName,
   xinfa,
   talentSource,
@@ -204,7 +208,8 @@ export function ImportCard({
   onCancel,
   onImport,
 }: {
-  charName: string;
+  title: string;
+  charName?: string;
   xinfa: string;
   talentSource: string | null;
   offline: boolean;
@@ -258,7 +263,7 @@ export function ImportCard({
       )}
       <ImportField
         input={input}
-        label={`给「${charName}」导入配装`}
+        label={title}
         labelClassName="font-serif text-[15px] font-semibold text-paper"
         charName={charName}
         xinfa={xinfa}
