@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, History } from "lucide-react";
+import { Check, ChevronDown, History, Plus, X } from "lucide-react";
 import { XinfaMark } from "@/components/brand/Marks";
-import { Avatar } from "@/components/common/ui";
-import { XINFA_LIST, layersOf } from "@/data/seed";
+import { InlineModal } from "@/components/common/overlay";
+import { Avatar, Btn } from "@/components/common/ui";
+import { XINFA_GROUPS, layersOf } from "@/data/seed";
 import type { Scheme, SchemeVersion } from "@/data/types";
 import { diffVersions } from "@/lib/diff";
 import { absoluteTime, relativeTime } from "@/lib/format";
-import { useProto } from "@/state/store";
+import { followedXinfa, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { DiffDetails, EmptyState, SectionHeader, diffSummary } from "./shared";
 
@@ -32,11 +33,15 @@ export function ChangelogView() {
   const { state, actions } = useProto();
   const filter = state.changelogFilter;
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
+  const followed = followedXinfa(state);
 
   const entries = useMemo(() => {
     const list: Entry[] = [];
     for (const s of state.schemes) {
-      if (filter !== "全部" && s.xinfa !== filter) continue;
+      // "全部"只看关注的心法
+      if (filter === "全部" ? !followed.includes(s.xinfa) : s.xinfa !== filter)
+        continue;
       s.versions.forEach((v, i) =>
         list.push({
           key: `${s.id}-${v.version}`,
@@ -50,7 +55,7 @@ export function ChangelogView() {
       (a, b) =>
         new Date(b.version.at).getTime() - new Date(a.version.at).getTime()
     );
-  }, [state.schemes, filter]);
+  }, [state.schemes, filter, followed]);
 
   const groups = useMemo(() => {
     const g: { label: string; items: Entry[] }[] = [];
@@ -63,42 +68,70 @@ export function ChangelogView() {
     return g;
   }, [entries]);
 
-  // 只列出有方案记录的心法，按门派顺序
-  const filters = [
-    "全部",
-    ...XINFA_LIST.filter(x => state.schemes.some(s => s.xinfa === x)),
-  ];
+  // 从配装页、方案库跳过来时，可能选中一个没关注的心法：临时显示一个标签，× 只清掉筛选
+  const chips =
+    filter !== "全部" && !followed.includes(filter)
+      ? [...followed, filter]
+      : followed;
+  const countOf = (xinfa: string) =>
+    state.schemes
+      .filter(s => s.xinfa === xinfa)
+      .reduce((n, s) => n + s.versions.length, 0);
 
   return (
     <div>
       <SectionHeader title="技改记录" />
 
       <div
-        className="mb-5 flex flex-wrap gap-1.5"
-        role="radiogroup"
+        className="mb-5 flex flex-wrap items-center gap-1.5"
+        role="group"
         aria-label="按心法筛选"
       >
-        {filters.map(f => (
-          <button
-            key={f}
-            type="button"
-            role="radio"
-            aria-checked={filter === f}
-            onClick={() => actions.setChangelogFilter(f)}
-            className={cn(
-              "inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[12.5px] ring-1 ring-inset transition-colors",
-              filter === f
-                ? "bg-paper/[0.09] text-paper ring-paper/20"
-                : "text-paper-3 ring-paper/10 hover:text-paper hover:ring-paper/20"
-            )}
-          >
-            {f !== "全部" && <XinfaMark xinfa={f} size={16} />}
-            {f}
-          </button>
+        <FilterChip
+          label="全部"
+          selected={filter === "全部"}
+          onSelect={() => actions.setChangelogFilter("全部")}
+        />
+        {chips.map(x => (
+          <FilterChip
+            key={x}
+            label={x}
+            xinfa={x}
+            selected={filter === x}
+            onSelect={() => actions.setChangelogFilter(x)}
+            onRemove={() =>
+              followed.includes(x)
+                ? actions.unfollowXinfa(x)
+                : actions.setChangelogFilter("全部")
+            }
+          />
         ))}
+        <button
+          type="button"
+          onClick={() => setPicking(true)}
+          aria-label="添加关注的心法"
+          title="添加关注的心法"
+          className="inline-grid h-7 w-7 place-items-center rounded-full border border-dashed border-paper/20 text-paper-3 transition-colors hover:border-paper/35 hover:text-paper"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
       </div>
 
-      {groups.length === 0 ? (
+      {filter === "全部" && followed.length === 0 ? (
+        <EmptyState
+          icon={<History className="h-5 w-5" />}
+          title="还没有关注的心法"
+          action={
+            <Btn
+              variant="primary"
+              icon={<Plus className="h-3.5 w-3.5" />}
+              onClick={() => setPicking(true)}
+            >
+              添加心法
+            </Btn>
+          }
+        />
+      ) : groups.length === 0 ? (
         <EmptyState
           icon={<History className="h-5 w-5" />}
           title="还没有修改记录"
@@ -209,6 +242,152 @@ export function ChangelogView() {
           ))}
         </div>
       )}
+
+      <FollowPicker
+        open={picking}
+        onClose={() => setPicking(false)}
+        followed={followed}
+        countOf={countOf}
+        onToggle={x =>
+          followed.includes(x)
+            ? actions.unfollowXinfa(x)
+            : actions.followXinfa(x)
+        }
+      />
     </div>
+  );
+}
+
+/** 筛选标签：点名字筛选，点 × 不再关注 */
+function FilterChip({
+  label,
+  xinfa,
+  selected,
+  onSelect,
+  onRemove,
+}: {
+  label: string;
+  xinfa?: string;
+  selected: boolean;
+  onSelect: () => void;
+  onRemove?: () => void;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex h-7 items-center rounded-full ring-1 ring-inset transition-colors",
+        selected
+          ? "bg-paper/[0.09] text-paper ring-paper/20"
+          : "text-paper-3 ring-paper/10 hover:text-paper hover:ring-paper/20"
+      )}
+    >
+      <button
+        type="button"
+        aria-pressed={selected}
+        onClick={onSelect}
+        className={cn(
+          "inline-flex h-full items-center gap-1.5 rounded-full text-[12.5px]",
+          onRemove ? "pl-3 pr-1" : "px-3"
+        )}
+      >
+        {xinfa && (
+          <span aria-hidden="true" className="inline-flex">
+            <XinfaMark xinfa={xinfa} size={16} />
+          </span>
+        )}
+        {label}
+      </button>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`不再关注${label}`}
+          title="不再关注"
+          className="mr-1 inline-grid h-5 w-5 place-items-center rounded-full text-paper-3 transition-colors hover:bg-paper/10 hover:text-paper"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </span>
+  );
+}
+
+/** 选择关注的心法：按门派分组，点一下关注，再点一下取消，立即生效 */
+function FollowPicker({
+  open,
+  onClose,
+  followed,
+  countOf,
+  onToggle,
+}: {
+  open: boolean;
+  onClose: () => void;
+  followed: string[];
+  countOf: (xinfa: string) => number;
+  onToggle: (xinfa: string) => void;
+}) {
+  return (
+    <InlineModal
+      open={open}
+      onClose={onClose}
+      title="关注的心法"
+      width={600}
+      bodyMaxHeight={440}
+      footer={
+        <Btn variant="primary" size="md" onClick={onClose}>
+          完成
+        </Btn>
+      }
+    >
+      <ul className="divide-y divide-paper/[0.05]">
+        {XINFA_GROUPS.map(g => (
+          <li key={g.school} className="flex items-start gap-3 py-2">
+            <span className="w-[72px] shrink-0 pt-1 text-[12px] text-paper-3">
+              {g.school}
+            </span>
+            <span className="flex flex-1 flex-wrap gap-1.5">
+              {g.xinfa.map(x => {
+                const on = followed.includes(x);
+                const n = countOf(x);
+                return (
+                  <button
+                    key={x}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => onToggle(x)}
+                    className={cn(
+                      "inline-flex h-7 items-center gap-1.5 rounded-full pl-1.5 pr-3 text-[12.5px] ring-1 ring-inset transition-colors",
+                      on
+                        ? "bg-cinnabar/12 text-paper ring-cinnabar/45"
+                        : "text-paper-2 ring-paper/10 hover:text-paper hover:ring-paper/25"
+                    )}
+                  >
+                    {on ? (
+                      <span className="grid h-4 w-4 place-items-center rounded-full bg-cinnabar-fill text-[#FFF7F0]">
+                        <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                      </span>
+                    ) : (
+                      <span aria-hidden="true" className="inline-flex">
+                        <XinfaMark xinfa={x} size={16} />
+                      </span>
+                    )}
+                    {x}
+                    {n > 0 && (
+                      <span
+                        aria-hidden="true"
+                        className="text-[11px] tabular-nums text-paper-3"
+                        title={`${n} 条修改记录`}
+                      >
+                        {n}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </InlineModal>
   );
 }

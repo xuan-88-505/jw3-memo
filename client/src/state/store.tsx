@@ -13,6 +13,7 @@ import {
   SEED_CHARACTERS,
   SEED_MEMBERS,
   SEED_TEAM,
+  XINFA_LIST,
   defaultTalents,
   layersOf,
   rivalEdit,
@@ -101,6 +102,11 @@ export interface ProtoState {
   activeMode: Record<string, Mode>;
   selectedSchemeId: string;
   changelogFilter: string;
+  /**
+   * 技改记录里关注的心法。null 表示用户还没改过，用默认值（见 followedXinfa）。
+   * 只属于本人，存在本机，不同步给亲友。
+   */
+  followedXinfa: string[] | null;
   toasts: UiToast[];
   /**
    * 便签：按角色 id 存。只属于本人，不进亲友团共享的数据，管理窗口也不显示。
@@ -150,6 +156,18 @@ function readNotes(): Record<string, CharNote> {
   }
 }
 
+/** 关注心法的本地记录；必须在 initialState 之前定义 */
+const FOLLOW_KEY = "tongdiao.followedXinfa.v1";
+function readFollowed(): string[] | null {
+  try {
+    const raw =
+      typeof window !== "undefined" ? localStorage.getItem(FOLLOW_KEY) : null;
+    const v = raw ? JSON.parse(raw) : null;
+    return Array.isArray(v) ? v.filter(x => typeof x === "string") : null;
+  } catch {
+    return null;
+  }
+}
 /** 托盘提示"看过"的本地记录；必须在 initialState 之前定义 */
 const COACH_KEY = "tongdiao.coachSeen";
 
@@ -184,6 +202,7 @@ const initialState: ProtoState = {
   activeMode: {},
   selectedSchemeId: "紫霞功-PVE",
   changelogFilter: "全部",
+  followedXinfa: readFollowed(),
   toasts: [],
   hotkeys: { ...DEFAULT_HOTKEYS },
   recordingHotkey: false,
@@ -221,6 +240,15 @@ export function statusOf(
 
 export function isPending(s: SyncStatus) {
   return s === "pending" || s === "never";
+}
+
+/** 关注的心法；用户没改过时，默认是有方案的心法 + 自己角色的心法 */
+export function followedXinfa(state: ProtoState): string[] {
+  if (state.followedXinfa) return state.followedXinfa;
+  const mine = myCharacters(state).map(c => c.xinfa);
+  return XINFA_LIST.filter(
+    x => mine.includes(x) || state.schemes.some(s => s.xinfa === x)
+  );
 }
 
 export function myCharacters(state: ProtoState) {
@@ -516,6 +544,21 @@ function useActions(
       selectScheme: (selectedSchemeId: string) => patch({ selectedSchemeId }),
       setChangelogFilter: (changelogFilter: string) =>
         patch({ changelogFilter }),
+      followXinfa: (xinfa: string) => {
+        const list = followedXinfa(stateRef.current);
+        if (list.includes(xinfa)) return;
+        // 按门派顺序排，和添加弹窗里的顺序一致
+        const next = XINFA_LIST.filter(x => x === xinfa || list.includes(x));
+        patch({ followedXinfa: next });
+      },
+      unfollowXinfa: (xinfa: string) => {
+        const s = stateRef.current;
+        patch({
+          followedXinfa: followedXinfa(s).filter(x => x !== xinfa),
+          changelogFilter:
+            s.changelogFilter === xinfa ? "全部" : s.changelogFilter,
+        });
+      },
 
       // 方案编辑
       startDraft: (xinfa: string, mode: Mode) =>
@@ -908,6 +951,16 @@ export function ProtoProvider({
       /* 浏览器禁用本地存储时，只在本次打开期间记住 */
     }
   }, [state.notes]);
+  // 关注的心法存到本地；没改过时不写，继续用默认值
+  useEffect(() => {
+    try {
+      if (state.followedXinfa)
+        localStorage.setItem(FOLLOW_KEY, JSON.stringify(state.followedXinfa));
+      else localStorage.removeItem(FOLLOW_KEY);
+    } catch {
+      /* 浏览器禁用本地存储时，只在本次打开期间记住 */
+    }
+  }, [state.followedXinfa]);
   // 托盘提示看过一次就记下来，刷新后也不再出现
   useEffect(() => {
     try {
