@@ -2,6 +2,7 @@ import {
   BookOpen,
   History,
   Loader2,
+  NotebookPen,
   Pencil,
   Settings,
   Shirt,
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { ChangelogView } from "./ChangelogView";
 import { GearView } from "./gear/GearView";
 import { ProfileDialog } from "./ProfileDialog";
+import { RecordsView } from "./records/RecordsView";
 import { CharactersView } from "./CharactersView";
 import { SchemesView } from "./SchemesView";
 import { SettingsView } from "./SettingsView";
@@ -29,6 +31,7 @@ const NAV: { key: ManagerSection; label: string; icon: typeof BookOpen }[] = [
   { key: "characters", label: "我的角色", icon: UserRound },
   { key: "gear", label: "配装", icon: Shirt },
   { key: "changelog", label: "技改记录", icon: History },
+  { key: "records", label: "记录", icon: NotebookPen },
   { key: "team", label: "亲友团", icon: Users },
 ];
 
@@ -43,6 +46,7 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
     characters: myCharacters(state).length,
     gear: null,
     changelog: null,
+    records: null,
     team: state.members.length,
     settings: null,
   };
@@ -206,6 +210,7 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
             <div className="scroll-thin h-full overflow-y-auto px-8 pb-10 pt-7">
               {state.managerSection === "characters" && <CharactersView />}
               {state.managerSection === "changelog" && <ChangelogView />}
+              {state.managerSection === "records" && <RecordsView />}
               {state.managerSection === "team" && <TeamView />}
             </div>
           )}

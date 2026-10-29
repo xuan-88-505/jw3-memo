@@ -108,5 +108,6 @@ export type ManagerSection =
   | "characters"
   | "gear"
   | "changelog"
+  | "records"
   | "team"
   | "settings";

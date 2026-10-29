@@ -27,6 +27,12 @@ import {
   type Loadout,
   type LoadoutSource,
 } from "@/data/gear";
+import {
+  seedBlacklist,
+  seedRaidLogs,
+  type BlackEntry,
+  type RaidLog,
+} from "@/data/records";
 import { MODES } from "@/data/types";
 import type { BuffSelection } from "@/lib/buffs";
 import { diffVersions } from "@/lib/diff";
@@ -118,6 +124,9 @@ export interface ProtoState {
   loadouts: Record<string, Loadout>;
   /** 本机设置：每台电脑分开保存，不同步给亲友 */
   hotkeys: Record<Platform, Hotkey>;
+  /** 记录：打本记录和避雷名单，亲友团共享 */
+  raidLogs: RaidLog[];
+  blacklist: BlackEntry[];
   /** 正在录制新快捷键时，暂停全局快捷键 */
   recordingHotkey: boolean;
 }
@@ -130,6 +139,8 @@ function seedData() {
     schemes: seedSchemes(),
     drafts: {},
     pendingConflict: null,
+    raidLogs: seedRaidLogs(),
+    blacklist: seedBlacklist(),
   };
 }
 
@@ -891,6 +902,8 @@ function useActions(
           ],
           schemes: [],
           characters: [],
+          raidLogs: [],
+          blacklist: [],
           dataState: "normal",
         })),
       joinTeam: (code: string): boolean => {
@@ -913,6 +926,54 @@ function useActions(
           };
         });
         return true;
+      },
+      // 记录：打本记录
+      saveRaidLog: (
+        input: Omit<RaidLog, "id" | "by" | "updatedAt">,
+        id?: string
+      ) => {
+        const now = new Date().toISOString();
+        update(s => ({
+          raidLogs: id
+            ? s.raidLogs.map(r =>
+                r.id === id ? { ...r, ...input, updatedAt: now } : r
+              )
+            : [
+                {
+                  ...input,
+                  id: `r${Date.now().toString(36)}`,
+                  by: ME_ID,
+                  updatedAt: now,
+                },
+                ...s.raidLogs,
+              ],
+        }));
+        toast("manager", "success", id ? "已保存修改" : "已记下");
+      },
+      deleteRaidLog: (id: string) => {
+        update(s => ({ raidLogs: s.raidLogs.filter(r => r.id !== id) }));
+        toast("manager", "success", "已删除这条记录");
+      },
+      // 记录：避雷名单
+      saveBlack: (input: Omit<BlackEntry, "id" | "by" | "at">, id?: string) => {
+        update(s => ({
+          blacklist: id
+            ? s.blacklist.map(b => (b.id === id ? { ...b, ...input } : b))
+            : [
+                {
+                  ...input,
+                  id: `b${Date.now().toString(36)}`,
+                  by: ME_ID,
+                  at: new Date().toISOString(),
+                },
+                ...s.blacklist,
+              ],
+        }));
+        toast("manager", "success", id ? "已保存修改" : "已加入避雷名单");
+      },
+      deleteBlack: (id: string) => {
+        update(s => ({ blacklist: s.blacklist.filter(b => b.id !== id) }));
+        toast("manager", "success", "已移出避雷名单");
       },
       setRole: (memberId: string, role: Role) =>
         update(s => ({

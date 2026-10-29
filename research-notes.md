@@ -104,3 +104,13 @@
 - 原型增益估算（client/src/lib/buffs.ts，2026-10-29 17:44 UTC+8）：每点属性秒伤比例 = 属性收益 pct ÷ 一个附魔的点数；百分比类按固定系数折算（攻击% ×0.75、会心率 ×0.55、会效% ×0.3、破防% ×0.4、无双% ×0.45、伤害加成 ×1、无视防御 ×0.35、目标防御降低 ×0.35），加速跨段每段 +2%；各项相加。系数是估算，不是公式结果。
 - 云间鹤（紫霞功，木桩裸装 2,302,267）测算：副本不吃药 +67.3%，副本常用 +78.5%，开荒拉满 +87.9%（阵眼天罗阵 12.7%，团队增益约 51–56%，主要是治疗/坦克的无双叠层）。未和计算器实际结果对比（未验证）。
 - 生成脚本 /tmp/gen_buffs.py → client/src/data/buffData.ts（约 117 KB）。兜底心法：冰心诀→冰心阵、莫问→莫问阵、傲血战意→天策阵、惊羽诀→鲸鱼阵（外功阵眼里唐门的阵叫鲸鱼阵）、太虚剑意→剑纯阵、问水诀→藏剑阵、隐龙诀→凌雪阵；主属性小药按同类别、同品级替换。
+
+## 角色查询与改名追踪（2026-10-29 17:56 UTC+8，用于「记录」功能）
+
+- 名字 → ID：JX3API `/role/detail`（参数 token、server、name），返回 zoneName、serverName、roleName、roleId、globalId、forceName、bodyName、tongName、campName。需要 JX3API 令牌（按档位收费）。来源：JX3API-TS `src/types.ts` 的 `RoleDetailData`（https://github.com/JX3API/JX3API-TS）；Inkar-Suki `src/utils/database/player.py` 的 `get_role_id`（https://github.com/HornCopper/Inkar-Suki）。
+- ID → 当前名字：推栏 `POST https://m.pvp.xoyo.com/role/indicator`（参数 role_id、zone、server，需要推栏凭证签名），返回 role_info：name、force、body_type、camp、role_id、server。名字可能被打码成含 `*`，机器人此时退回用旧名字。来源：Inkar-Suki `get_uid_data`。
+- 改名追踪：Inkar-Suki 用 globalRoleId 做主键；按 roleId+server 查到旧记录后，删除旧记录、写入新名字，提示「原始数据 → 更新数据」。说明改名后 roleId/globalId 不变（间接证据，未找到官方说明，标"未经官方确认"）。转服后 roleId 是否变化：未验证。
+- 机器人提示文案「提交角色 服务器 UID」：玩家用"服务器 + UID"提交角色。
+- 玩家口语里"ID"通常指角色名（例：17173《ID从此不怕被占坑? 剑网3官方推出@隐士后缀》https://jx3.17173.com/content/08142017/182349801.shtml）。所以「输入 ID 匹配」按"输入角色名 + 服务器 → 匹配到 UID"实现，同时支持直接输入 UID。
+- 改名是官方增值服务（百度经验《剑网3如何修改角色名？》提到 6000 通宝，https://jingyan.baidu.com/article/84b4f565dc8fcf21f7da3268.html）。
+- 副本名（示例数据用）：《苍生铸世》10月29日公测，等级上限回到 50 级，新增 25 人本《洛阳之战》（关底史朝义）。来源：什么值得买 AI 汇总文章 https://post.smzdm.com/p/aggqrgwd/（引用官方微博，AI 生成，未逐条核实）。旧赛季 25 人本「一之窟」见 B 站《25人普通一之窟超详细教学》https://www.bilibili.com/video/BV1o2SkYLE5C/ 。副本难度分 10人普通 / 10人英雄 / 25人普通 / 25人英雄 / 25人挑战（剑网3官方攻略站 https://jx3.xoyo.com/show-3776-63-1.html ）。
