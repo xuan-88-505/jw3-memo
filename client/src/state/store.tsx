@@ -94,6 +94,11 @@ export interface ProtoState {
   selectedSchemeId: string;
   changelogFilter: string;
   toasts: UiToast[];
+  /**
+   * 便签：按角色 id 存。只属于本人，不进亲友团共享的数据，管理窗口也不显示。
+   * 原型存在浏览器本地；正式版跟着账号同步到自己的其他电脑。
+   */
+  notes: Record<string, CharNote>;
   /** 本机设置：每台电脑分开保存，不同步给亲友 */
   hotkeys: Record<Platform, Hotkey>;
   /** 正在录制新快捷键时，暂停全局快捷键 */
@@ -111,6 +116,30 @@ function seedData() {
   };
 }
 
+export interface CharNote {
+  text: string;
+  /** 最后编辑时间 */
+  at: string;
+}
+export const NOTE_MAX = 2000;
+/** 便签的本地记录；必须在 initialState 之前定义 */
+const NOTES_KEY = "tongdiao.notes.v1";
+const SEED_NOTES: Record<string, CharNote> = {
+  c1: {
+    text: "周三、周日 20:00 打 25 人英雄，团长 YY 88123\n还缺：腰坠、暗器\n每周一记得领帮会资源",
+    at: "2026-10-28T21:12:00+08:00",
+  },
+};
+function readNotes(): Record<string, CharNote> {
+  try {
+    const raw =
+      typeof window !== "undefined" ? localStorage.getItem(NOTES_KEY) : null;
+    return raw ? (JSON.parse(raw) as Record<string, CharNote>) : SEED_NOTES;
+  } catch {
+    return SEED_NOTES;
+  }
+}
+
 /** 托盘提示"看过"的本地记录；必须在 initialState 之前定义 */
 const COACH_KEY = "tongdiao.coachSeen";
 
@@ -126,6 +155,7 @@ function readCoachSeen() {
 
 const initialState: ProtoState = {
   ...seedData(),
+  notes: readNotes(),
   platform: "win",
   scene: "desktop",
   dataState: "normal",
@@ -621,11 +651,24 @@ function useActions(
             c.id === id ? { ...c, avatar } : c
           ),
         })),
+      /** 写便签。空内容直接删掉这条记录 */
+      setNote: (charId: string, text: string) =>
+        update(s => {
+          const notes = { ...s.notes };
+          if (text.trim())
+            notes[charId] = { text, at: new Date().toISOString() };
+          else delete notes[charId];
+          return { notes };
+        }),
       removeCharacter: (id: string) =>
         update(s => {
           const characters = s.characters.filter(c => c.id !== id);
           const mine = characters.filter(c => c.ownerId === ME_ID);
+          // 角色删了，它的便签也一起删
+          const notes = { ...s.notes };
+          delete notes[id];
           return {
+            notes,
             characters,
             activeCharId:
               s.activeCharId === id ? (mine[0]?.id ?? "") : s.activeCharId,
@@ -705,6 +748,14 @@ export function ProtoProvider({
   const stateRef = useRef(state);
   stateRef.current = state;
   const actions = useActions(dispatch, stateRef);
+  // 便签存到本地，刷新后还在
+  useEffect(() => {
+    try {
+      localStorage.setItem(NOTES_KEY, JSON.stringify(state.notes));
+    } catch {
+      /* 浏览器禁用本地存储时，只在本次打开期间记住 */
+    }
+  }, [state.notes]);
   // 托盘提示看过一次就记下来，刷新后也不再出现
   useEffect(() => {
     try {

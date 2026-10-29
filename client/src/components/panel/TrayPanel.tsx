@@ -33,6 +33,7 @@ import {
 } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { Inbox } from "./Inbox";
+import { NotePad } from "./NotePad";
 import { ChangeDot, MacroList, TalentList } from "./PanelContent";
 
 export interface TrayPanelProps {
@@ -102,7 +103,7 @@ function PanelMain({
 }) {
   const { state, actions } = useProto();
   const [view, setView] = useState<"main" | "inbox">("main");
-  const [tab, setTab] = useState<"macro" | "talent">("macro");
+  const [tab, setTab] = useState<"macro" | "talent" | "note">("macro");
   const mine = myCharacters(state);
   const char = mine.find(c => c.id === state.activeCharId) ?? mine[0];
   // 只玩一种模式的心法不显示 PVE/PVP 切换
@@ -209,26 +210,31 @@ function PanelMain({
             [
               ["macro", "宏", macroChanged],
               ["talent", "奇穴", talentChanged],
+              ["note", "便签", false],
             ] as const
-          ).map(([key, label, changed]) => (
-            <button
-              key={key}
-              role="tab"
-              type="button"
-              aria-selected={tab === key}
-              onClick={() => setTab(key)}
-              disabled={!last}
-              className={cn(
-                "relative -mb-px flex items-center gap-1.5 border-b-2 text-[13px] font-medium transition-colors disabled:opacity-40",
-                tab === key && last
-                  ? "border-cinnabar text-paper"
-                  : "border-transparent text-paper-3 hover:text-paper"
-              )}
-            >
-              {label}
-              {changed && <ChangeDot />}
-            </button>
-          ))}
+          ).map(([key, label, changed]) => {
+            // 没有方案时宏、奇穴不能点；便签和方案无关，一直能用
+            const enabled = key === "note" || !!last;
+            return (
+              <button
+                key={key}
+                role="tab"
+                type="button"
+                aria-selected={tab === key && enabled}
+                onClick={() => setTab(key)}
+                disabled={!enabled}
+                className={cn(
+                  "relative -mb-px flex items-center gap-1.5 border-b-2 text-[13px] font-medium transition-colors disabled:opacity-40",
+                  tab === key && enabled
+                    ? "border-cinnabar text-paper"
+                    : "border-transparent text-paper-3 hover:text-paper"
+                )}
+              >
+                {label}
+                {changed && <ChangeDot />}
+              </button>
+            );
+          })}
         </div>
         {modes.length > 1 && (
           <div className="ml-auto">
@@ -251,7 +257,9 @@ function PanelMain({
         )}
       </div>
 
-      {!scheme || !last ? (
+      {tab === "note" ? (
+        <NotePad key={char.id} char={char} />
+      ) : !scheme || !last ? (
         <NoScheme
           xinfa={char.xinfa}
           mode={mode}
