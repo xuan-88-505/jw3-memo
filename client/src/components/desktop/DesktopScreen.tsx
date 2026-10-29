@@ -20,7 +20,7 @@ import {
   Volume2,
   Wifi,
 } from "lucide-react";
-import { TrayGlyph } from "@/components/brand/Marks";
+import { HuangjiLaugh } from "@/components/brand/Marks";
 import { ManagerApp } from "@/components/manager/ManagerApp";
 import { TrayPanel } from "@/components/panel/TrayPanel";
 import { pendingCount, myCharacters, useProto } from "@/state/store";
@@ -342,9 +342,9 @@ function WinTaskbar({
             active && "bg-white/[0.1]"
           )}
         >
-          <TrayGlyph size={18} color="#f2efe9" />
+          <HuangjiLaugh size={22} />
           {pending > 0 && (
-            <span className="absolute right-0.5 top-0.5 grid h-[14px] min-w-[14px] animate-pop place-items-center rounded-[3px] bg-cinnabar px-[3px] text-[9.5px] font-semibold leading-none text-white ring-2 ring-[#1c1c1c]">
+            <span className="absolute -right-0.5 -top-0.5 grid h-[14px] min-w-[14px] animate-pop place-items-center rounded-[3px] bg-cinnabar px-[3px] text-[9.5px] font-semibold leading-none text-white ring-2 ring-[#1c1c1c]">
               {pending}
             </span>
           )}
@@ -420,7 +420,7 @@ function MacMenuBar({
             active && "bg-white/[0.18]"
           )}
         >
-          <TrayGlyph size={15} color="#f5f5f5" />
+          <HuangjiLaugh size={17} />
           {pending > 0 && (
             <span className="text-[12px] font-medium tabular-nums text-[#ff9b85]">
               {pending}
