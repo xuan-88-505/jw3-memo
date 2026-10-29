@@ -251,3 +251,7 @@
 - 来源 `src/数据/常量/装备来源映射.json`，键为 `装备ID_装备品级`。
 - 属性枚举（`src/@types/属性.ts`）：atSpiritBase 根骨、atSpunkBase 元气、atAgilityBase 身法、atStrengthBase 力道、atVitalityBase 体质；atAllTypeCriticalStrike/atMagicCriticalStrike/atPhysicsCriticalStrike 会心；…CriticalDamagePowerBase 会心效果；atAllOvercome/atMagicOvercome/atPhysicsOvercomeBase 破防；atMagicAttackPowerBase/atPhysicsAttackPowerBase 基础攻击；无双、加速、破招、全能见同文件。
 - 紫霞功默认方案 `src/心法模块/心法/紫霞功/默认数据/配装.ts`：装备列表含 id、装备部位、当前精炼等级 6、镶嵌孔数组（每孔 8 级）、附魔（例如帽子「攻击+633」）。
+
+## 心法图标（2026-10-30）
+
+来源：魔盒公开数据包 `@jx3box/jx3box-data` 3.9.9 的 `data/xf/xf.json` 提供心法 ID（如紫霞功 10014、山海心诀 10756）；图片 `https://img.jx3box.com/image/xf/<ID>.png`，48×48 透明底 PNG，32 个心法都能取到。没有更高清的版本（`@2x`、`hd` 等路径都是 404）。原型把 32 张图存进 `client/public/xinfa/`，编号表在 `client/src/data/xinfaIcons.ts`。藏剑只收录问水诀（山居剑意 10145 未用）。

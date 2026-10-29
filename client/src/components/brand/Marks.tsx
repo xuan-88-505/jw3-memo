@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Huangji, huangjiSrc } from "./Huangji";
 import { XINFA_META } from "@/data/seed";
+import { xinfaIconUrl } from "@/data/xinfaIcons";
 import { cn } from "@/lib/utils";
 
 /** 朱砂方印：两道平行短横，像两根调到同一个音的琴弦 */
@@ -114,7 +115,7 @@ export function HuangjiLaugh({
   return <Huangji mood="大笑" size={size} animated={animated} />;
 }
 
-/** 心法标记：方印里一个字 */
+/** 心法标记：游戏里的心法图标；没有图标或加载失败时，显示方印里一个字 */
 export function XinfaMark({
   xinfa,
   size = 28,
@@ -124,11 +125,33 @@ export function XinfaMark({
   size?: number;
   className?: string;
 }) {
+  const [failed, setFailed] = useState(false);
   const meta = XINFA_META[xinfa] ?? {
     short: xinfa.slice(0, 1),
     color: "#968F82",
     school: "",
   };
+  const label = meta.school ? `${meta.school} · ${xinfa}` : xinfa;
+  const src = xinfaIconUrl(xinfa);
+  if (src && !failed) {
+    return (
+      <span
+        className={cn("inline-grid shrink-0 place-items-center", className)}
+        style={{ width: size, height: size }}
+        title={label}
+      >
+        <img
+          src={src}
+          alt=""
+          width={size}
+          height={size}
+          draggable={false}
+          onError={() => setFailed(true)}
+          className="h-full w-full select-none object-contain"
+        />
+      </span>
+    );
+  }
   return (
     <span
       className={cn(
@@ -143,7 +166,7 @@ export function XinfaMark({
         background: `${meta.color}1f`,
         boxShadow: `inset 0 0 0 1px ${meta.color}55`,
       }}
-      title={meta.school ? `${meta.school} · ${xinfa}` : xinfa}
+      title={label}
     >
       {meta.short}
     </span>

@@ -111,7 +111,7 @@ function SchemeList() {
             const missing = MODES.filter(m => !modes.includes(m));
             return (
               <li key={x} className="group/x">
-                <div className="flex h-8 items-center gap-2 px-2">
+                <div className="flex h-7 items-center gap-2 px-2">
                   <XinfaMark xinfa={x} size={20} />
                   <span className="text-[13.5px] font-semibold text-paper">
                     {x}
@@ -126,16 +126,17 @@ function SchemeList() {
                     </IconBtn>
                   )}
                 </div>
-                <ul className="mt-0.5">
+                <ul>
                   {modes.map(m => {
                     const id = `${x}-${m}`;
                     const last = latest(findScheme(state, x, m));
                     const draft = state.drafts[id];
                     const active = activeId === id;
+                    // 列表不显示版本号，只写谁、什么时候改的
                     const meta = last
                       ? isSolo(state)
-                        ? `v${last.version} · ${relativeTime(last.at)}`
-                        : `v${last.version} · ${memberName(state, last.authorId)} · ${relativeTime(last.at)}`
+                        ? relativeTime(last.at)
+                        : `${memberName(state, last.authorId)} · ${relativeTime(last.at)}`
                       : "新建中，未保存";
                     return (
                       <li key={m}>
