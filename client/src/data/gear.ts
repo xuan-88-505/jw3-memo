@@ -1,3 +1,4 @@
+import type { BuffSelection } from "@/lib/buffs";
 import { candidateIconId, gearIconId } from "./gearIcons";
 /**
  * 配装与木桩（原型）。
@@ -101,6 +102,8 @@ export interface Loadout {
   history: DpsPoint[];
   /** 生成的示例数值（不是实测） */
   sample: boolean;
+  /** 小药、团队增益、阵眼；没有就是不加增益 */
+  buffs?: BuffSelection;
 }
 
 /** 加速段位阈值（1.5 秒 GCD），取自上游源码 */

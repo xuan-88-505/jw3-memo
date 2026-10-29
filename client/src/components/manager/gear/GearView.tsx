@@ -4,14 +4,16 @@ import { CharAvatar } from "@/components/brand/CharAvatar";
 import { Btn } from "@/components/common/ui";
 import { findScheme, latest, myCharacters, useProto } from "@/state/store";
 import { SOURCE_LABEL, type LoadoutSource } from "@/data/gear";
+import { buffFactor, buffLabel } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
 import { EmptyState, SectionHeader } from "../shared";
+import { BuffsView } from "./BuffsView";
 import { Dashboard, fmt } from "./Dashboard";
 import { ImportCard } from "./ImportCard";
 import { NewLoadoutDialog } from "./NewLoadoutDialog";
 import { TryOn } from "./TryOn";
 
-type Tab = "board" | "try";
+type Tab = "board" | "try" | "buffs";
 
 function dateLabel(iso: string) {
   const d = new Date(iso);
@@ -202,6 +204,7 @@ export function GearView() {
                 [
                   ["board", "看板"],
                   ["try", "试穿"],
+                  ["buffs", "增益"],
                 ] as const
               ).map(([k, label]) => (
                 <button
@@ -236,6 +239,16 @@ export function GearView() {
                 ·
               </span>
               奇穴用 {talentSource ?? "配装里自带的"}
+              <span className="mx-1.5" aria-hidden="true">
+                ·
+              </span>
+              <button
+                type="button"
+                onClick={() => setTab("buffs")}
+                className="underline-offset-2 hover:text-paper-2 hover:underline"
+              >
+                {buffLabel(lo.buffs)}
+              </button>
               <span className="mx-1.5" aria-hidden="true">
                 ·
               </span>
@@ -280,10 +293,19 @@ export function GearView() {
               actions.setChangelogFilter(char.xinfa);
               actions.setSection("changelog");
             }}
+            onOpenBuffs={() => setTab("buffs")}
           />
           <p className="mt-3 text-[11.5px] text-paper-3">
             木桩理想环境下的期望值，适合比较同一心法的不同配装
           </p>
+        </div>
+      ) : tab === "buffs" ? (
+        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-8 pb-8 pt-5">
+          <BuffsView
+            loadout={lo!}
+            onChange={sel => actions.setLoadoutBuffs(char.id, sel)}
+            onNotice={text => actions.toast("manager", "info", text)}
+          />
         </div>
       ) : (
         <div className="min-h-0 flex-1 px-8 pb-6 pt-4">
@@ -296,7 +318,7 @@ export function GearView() {
               actions.toast(
                 "manager",
                 "success",
-                `已应用到配装，秒伤 ${fmt(dps)}`
+                `已应用到配装，秒伤 ${fmt(Math.round(dps * buffFactor(lo!)))}`
               );
             }}
           />

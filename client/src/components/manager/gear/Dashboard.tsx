@@ -1,7 +1,7 @@
 import { ArrowRight, Info } from "lucide-react";
 import type { Loadout } from "@/data/gear";
-import { HASTE_TIERS } from "@/data/gear";
 import { Btn } from "@/components/common/ui";
+import { buffLabel, estimateBuffs, hasteWithBuffs } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
 import { DpsChart } from "./DpsChart";
 
@@ -55,18 +55,28 @@ export function Dashboard({
   loadout: lo,
   onTry,
   onOpenChangelog,
+  onOpenBuffs,
 }: {
   loadout: Loadout;
   onTry: (slotKey: string, candId: string) => void;
   onOpenChangelog: () => void;
+  onOpenBuffs: () => void;
 }) {
+  // 所有秒伤都按当前增益显示，前后可比
+  const est = estimateBuffs(lo, lo.buffs);
+  const f = 1 + est.pct;
+  const D = (n: number) => Math.round(n * f);
+  const haste = hasteWithBuffs(lo, est.haste);
+  const buffed = est.pct > 0.00005;
   const prev = lo.history.length > 1 ? lo.history[lo.history.length - 2] : null;
   const deltaPct = prev ? ((lo.dps - prev.dps) / prev.dps) * 100 : 0;
-  const from = HASTE_TIERS.find(t => t.tier === lo.haste.tier)?.value ?? 0;
-  const hastePct = Math.min(
-    100,
-    Math.max(3, ((lo.haste.value - from) / (lo.haste.nextValue - from)) * 100)
-  );
+  const from = haste.from;
+  const hastePct = haste.nextValue
+    ? Math.min(
+        100,
+        Math.max(3, ((haste.value - from) / (haste.nextValue - from)) * 100)
+      )
+    : 100;
   const best = bestMove(lo);
   const maxGain = Math.max(...lo.gains.map(g => g.pct));
 
@@ -83,15 +93,30 @@ export function Dashboard({
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-3">
         <section className={card} aria-label="木桩秒伤">
-          <h3 className={cardTitle}>木桩秒伤</h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className={cardTitle}>木桩秒伤</h3>
+            <button
+              type="button"
+              onClick={onOpenBuffs}
+              className={cn(
+                "-my-1 rounded px-1.5 py-0.5 text-[11.5px] transition-colors",
+                buffed
+                  ? "bg-jade/10 text-jade hover:bg-jade/15"
+                  : "text-paper-3 hover:bg-paper/[0.05] hover:text-paper-2"
+              )}
+            >
+              {buffed ? buffLabel(lo.buffs) : "+ 增益"}
+            </button>
+          </div>
           <p className="mt-2 text-[28px] font-semibold leading-none tabular-nums text-paper">
-            {fmt(lo.dps)}
+            {buffed && <span className="mr-1 text-[20px] text-paper-3">≈</span>}
+            {fmt(D(lo.dps))}
           </p>
           <p className="mt-2.5 text-[12px] text-paper-3">
             {prev ? (
               <>
                 <Delta pct={deltaPct} className="font-medium" />
-                <span className="ml-1.5">较上次 {fmt(prev.dps)}</span>
+                <span className="ml-1.5">较上次 {fmt(D(prev.dps))}</span>
               </>
             ) : (
               "第一次计算"
@@ -103,19 +128,24 @@ export function Dashboard({
           <h3 className={cardTitle}>加速段位</h3>
           <p className="mt-2 flex items-baseline gap-2">
             <span className="font-serif text-[24px] font-semibold leading-none text-paper">
-              {lo.haste.tier}
+              {haste.tier}
             </span>
             <span className="text-[13px] tabular-nums text-paper-2">
-              {fmt(lo.haste.value)}
+              {fmt(haste.value)}
             </span>
+            {est.haste > 0 && (
+              <span className="text-[11.5px] tabular-nums text-jade">
+                含增益 +{fmt(Math.round(est.haste))}
+              </span>
+            )}
           </p>
           <div
             className="mt-3 h-1.5 overflow-hidden rounded-full bg-paper/[0.08]"
             role="progressbar"
             aria-valuemin={from}
-            aria-valuemax={lo.haste.nextValue}
-            aria-valuenow={lo.haste.value}
-            aria-label={`距离${lo.haste.nextTier}`}
+            aria-valuemax={haste.nextValue ?? haste.value}
+            aria-valuenow={haste.value}
+            aria-label={haste.nextTier ? `距离${haste.nextTier}` : "加速段位"}
           >
             <div
               className="h-full rounded-full bg-gold/80"
@@ -123,11 +153,17 @@ export function Dashboard({
             />
           </div>
           <p className="mt-2 text-[12px] text-paper-3">
-            再加{" "}
-            <span className="tabular-nums text-paper-2">
-              {fmt(lo.haste.nextValue - lo.haste.value)}
-            </span>{" "}
-            到{lo.haste.nextTier}
+            {haste.nextValue ? (
+              <>
+                再加{" "}
+                <span className="tabular-nums text-paper-2">
+                  {fmt(haste.nextValue - haste.value)}
+                </span>{" "}
+                到{haste.nextTier}
+              </>
+            ) : (
+              "已经是最高段"
+            )}
           </p>
         </section>
 
@@ -200,7 +236,7 @@ export function Dashboard({
                   />
                 </span>
                 <span className="text-right text-[12px] tabular-nums text-paper-2">
-                  +{fmt(g.dps)}
+                  +{fmt(D(g.dps))}
                 </span>
                 <span className="text-right text-[12px] tabular-nums text-paper-3">
                   {g.pct.toFixed(2)}%
@@ -217,7 +253,9 @@ export function Dashboard({
           <h3 className={cardTitle}>秒伤变化</h3>
           <div className="relative mt-1 min-h-[160px] flex-1">
             <div className="absolute inset-0">
-              <DpsChart history={lo.history} />
+              <DpsChart
+                history={lo.history.map(p => ({ ...p, dps: D(p.dps) }))}
+              />
             </div>
           </div>
           {patch && (

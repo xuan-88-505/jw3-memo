@@ -28,6 +28,7 @@ import {
   type LoadoutSource,
 } from "@/data/gear";
 import { MODES } from "@/data/types";
+import type { BuffSelection } from "@/lib/buffs";
 import { diffVersions } from "@/lib/diff";
 import { DEFAULT_HOTKEYS, type Hotkey } from "@/lib/hotkey";
 import { HUANGJI_MOODS, type HuangjiMood } from "@/components/brand/Huangji";
@@ -843,6 +844,13 @@ function useActions(
         update(st => ({ loadouts: { ...st.loadouts, [charId]: next } }));
         return dps;
       },
+      /** 改配装的增益（小药、团队增益、阵眼）。只影响本人看到的估算 */
+      setLoadoutBuffs: (charId: string, buffs: BuffSelection) =>
+        update(st => {
+          const lo = st.loadouts[charId];
+          if (!lo) return {};
+          return { loadouts: { ...st.loadouts, [charId]: { ...lo, buffs } } };
+        }),
       /** 写便签。空内容直接删掉这条记录 */
       setNote: (charId: string, text: string) =>
         update(s => {

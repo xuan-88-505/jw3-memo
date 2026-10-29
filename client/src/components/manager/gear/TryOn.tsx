@@ -2,6 +2,7 @@ import { Check, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import type { Candidate, GearSlot, Loadout, SlotGroup } from "@/data/gear";
 import { Btn } from "@/components/common/ui";
+import { buffedDps } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
 import { Delta, fmt } from "./Dashboard";
 
@@ -102,7 +103,9 @@ export function TryOn({
   const triedSlot = trying
     ? lo.slots.find(s => s.key === trying.slotKey)
     : undefined;
-  const after = tried ? Math.round(lo.dps * (1 + tried.pct / 100)) : lo.dps;
+  // 秒伤按当前增益显示，和看板一致
+  const cur = buffedDps(lo);
+  const after = tried ? Math.round(cur * (1 + tried.pct / 100)) : cur;
 
   const pick = (c: Candidate) => {
     if (c.current) setTrying(null);
@@ -123,7 +126,7 @@ export function TryOn({
           <>
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-baseline gap-x-2 text-[13px] text-paper-3">
-                <span className="tabular-nums">{fmt(lo.dps)}</span>
+                <span className="tabular-nums">{fmt(cur)}</span>
                 <span aria-hidden="true">→</span>
                 <span className="sr-only">试穿后</span>
                 <span className="text-[20px] font-semibold tabular-nums text-paper">
@@ -131,8 +134,8 @@ export function TryOn({
                 </span>
                 <Delta pct={tried.pct} className="text-[13px] font-medium" />
                 <span className="tabular-nums">
-                  （{after - lo.dps >= 0 ? "+" : "−"}
-                  {fmt(Math.abs(after - lo.dps))}）
+                  （{after - cur >= 0 ? "+" : "−"}
+                  {fmt(Math.abs(after - cur))}）
                 </span>
               </p>
               <p className="mt-0.5 truncate text-[12px] text-paper-3">
@@ -162,7 +165,7 @@ export function TryOn({
           <p className="flex items-baseline gap-2 text-[13px] text-paper-3">
             当前秒伤
             <span className="text-[20px] font-semibold tabular-nums text-paper">
-              {fmt(lo.dps)}
+              {fmt(cur)}
             </span>
             <span className="ml-2">点右边的候选试穿，不会改动配装</span>
           </p>
