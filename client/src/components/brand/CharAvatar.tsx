@@ -1,10 +1,10 @@
-import { XINFA_META } from "@/data/seed";
+import { schoolColor, schoolLabel } from "@/data/seed";
 import type { Character } from "@/data/types";
 import { cn } from "@/lib/utils";
 import { Huangji, chickSize } from "./Huangji";
 
 /**
- * 角色头像：默认是黄鸡表情，底色取心法颜色，方便一眼分出心法；
+ * 角色头像：默认是黄鸡表情，底色取门派颜色，方便一眼分出门派；
  * 上传了图片就显示图片。
  */
 export function CharAvatar({
@@ -13,18 +13,22 @@ export function CharAvatar({
   animated = false,
   className,
 }: {
-  character: Pick<Character, "xinfa" | "avatar"> & { name?: string };
+  character: Pick<Character, "school" | "avatar"> &
+    Partial<Pick<Character, "name" | "only" | "liupai">>;
   size?: number;
   /** 播放黄鸡动图；默认静态 */
   animated?: boolean;
   className?: string;
 }) {
-  const color = XINFA_META[character.xinfa]?.color ?? "#968F82";
+  const color = schoolColor(character.school);
   const av = character.avatar ?? { kind: "preset", mood: "大笑" };
   const radius = Math.max(6, Math.round(size * 0.24));
-  const title = character.name
-    ? `${character.name} · ${character.xinfa}`
-    : character.xinfa;
+  const label = schoolLabel({
+    school: character.school,
+    only: character.only ?? null,
+    liupai: character.liupai ?? [],
+  });
+  const title = character.name ? `${character.name} · ${label}` : label;
 
   if (av.kind === "upload") {
     return (

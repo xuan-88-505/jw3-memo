@@ -73,6 +73,40 @@ export const XINFA_GROUPS: { school: string; xinfa: string[] }[] =
     return acc;
   }, []);
 
+/**
+ * 流派：不分门派，任何满级角色都能学。
+ * 无相楼随 2025-10-30 资料片「山海源流」上线，心法「幽罗引」
+ */
+export const LIUPAI_SCHOOLS = ["无相楼"];
+/** 门派（不含流派）。角色必须属于一个门派 */
+export const SCHOOL_GROUPS = XINFA_GROUPS.filter(
+  g => !LIUPAI_SCHOOLS.includes(g.school)
+);
+/** 流派心法，目前只有幽罗引 */
+export const LIUPAI_XINFA = XINFA_GROUPS.filter(g =>
+  LIUPAI_SCHOOLS.includes(g.school)
+).flatMap(g => g.xinfa);
+export function schoolXinfa(school: string): string[] {
+  return XINFA_GROUPS.find(g => g.school === school)?.xinfa ?? [];
+}
+export function schoolOf(xinfa: string) {
+  return XINFA_META[xinfa]?.school ?? "";
+}
+export function schoolColor(school: string) {
+  return XINFA_META[schoolXinfa(school)[0]]?.color ?? "#968F82";
+}
+type CharSchool = Pick<Character, "school" | "only" | "liupai">;
+/** 角色玩的全部心法：门派心法（选了一个就只有它）+ 学了的流派心法 */
+export function xinfasOf(c: CharSchool): string[] {
+  return [...(c.only ? [c.only] : schoolXinfa(c.school)), ...c.liupai];
+}
+/** 「纯阳 · 紫霞功 + 无相楼」；没选心法时只写门派 */
+export function schoolLabel(c: CharSchool) {
+  return (
+    [c.school, c.only].filter(Boolean).join(" · ") +
+    c.liupai.map(x => ` + ${schoolOf(x)}`).join("")
+  );
+}
 export function layersOf(xinfa: string) {
   return TALENTS[xinfa] ?? JX3_SAMPLE.xinfa[xinfa]?.layers ?? [];
 }
@@ -119,63 +153,77 @@ export const SEED_CHARACTERS: Character[] = [
     id: "c1",
     name: "云间鹤",
     server: "梦江南",
-    xinfa: "紫霞功",
+    school: "纯阳",
+    only: null,
+    liupai: ["幽罗引"],
     ownerId: ME_ID,
-    synced: { PVE: 3 },
+    synced: { 紫霞功: { PVE: 3 } },
     avatar: { kind: "preset", mood: "大笑" },
   },
   {
     id: "c2",
     name: "雪满弓",
     server: "梦江南",
-    xinfa: "冰心诀",
+    school: "七秀",
+    only: "冰心诀",
+    liupai: [],
     ownerId: ME_ID,
-    synced: { PVE: 2 },
+    synced: { 冰心诀: { PVE: 2 } },
     avatar: { kind: "preset", mood: "害羞" },
   },
   {
     id: "c3",
     name: "山鬼",
     server: "梦江南",
-    xinfa: "山海心诀",
+    school: "万灵山庄",
+    only: null,
+    liupai: [],
     ownerId: ME_ID,
-    synced: { PVE: 1 },
+    synced: { 山海心诀: { PVE: 1 } },
     avatar: { kind: "preset", mood: "发怒" },
   },
   {
     id: "c4",
     name: "花不语",
     server: "梦江南",
-    xinfa: "花间游",
+    school: "万花",
+    only: "花间游",
+    liupai: [],
     ownerId: ME_ID,
-    synced: { PVE: 2 },
+    synced: { 花间游: { PVE: 2 } },
     avatar: { kind: "preset", mood: "色" },
   },
   {
     id: "f1",
     name: "桃夭夭",
     server: "梦江南",
-    xinfa: "冰心诀",
+    school: "七秀",
+    only: "冰心诀",
+    liupai: [],
     ownerId: "xiaotao",
-    synced: { PVE: 2 },
+    synced: { 冰心诀: { PVE: 2 } },
     avatar: { kind: "preset", mood: "嘤嘤" },
   },
   {
     id: "f2",
     name: "九歌",
     server: "梦江南",
-    xinfa: "紫霞功",
+    school: "纯阳",
+    only: "紫霞功",
+    liupai: [],
     ownerId: "ajiu",
-    synced: { PVE: 4 },
+    synced: { 紫霞功: { PVE: 4 } },
     avatar: { kind: "preset", mood: "晕" },
   },
   {
     id: "f3",
     name: "香菜不要",
     server: "梦江南",
-    xinfa: "山海心诀",
+    school: "万灵山庄",
+    only: null,
+    liupai: [],
     ownerId: "xiangcai",
-    synced: { PVE: 3 },
+    synced: { 山海心诀: { PVE: 3 } },
     avatar: { kind: "preset", mood: "流汗" },
   },
 ];

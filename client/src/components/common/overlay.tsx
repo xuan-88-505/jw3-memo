@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import { useProto, type ToastSurface } from "@/state/store";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,9 @@ export function InlineModal({
   bodyMaxHeight?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // 读屏用标题作为弹窗名称、说明作为描述
+  const titleId = useId();
+  const descId = useId();
 
   useEffect(() => {
     if (!open) return;
@@ -62,6 +65,8 @@ export function InlineModal({
         ref={ref}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={description ? descId : undefined}
         className="flex max-h-full w-full flex-col overflow-hidden rounded-xl bg-ink-2 shadow-[0_24px_60px_-12px_rgb(0_0_0/0.7)] ring-1 ring-paper/12"
         style={{ maxWidth: width }}
       >
@@ -72,11 +77,17 @@ export function InlineModal({
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <h2 className="font-serif text-[16px] font-semibold text-paper">
+            <h2
+              id={titleId}
+              className="font-serif text-[16px] font-semibold text-paper"
+            >
               {title}
             </h2>
             {description && (
-              <div className="mt-1 text-[13px] leading-relaxed text-paper-2">
+              <div
+                id={descId}
+                className="mt-1 text-[13px] leading-relaxed text-paper-2"
+              >
                 {description}
               </div>
             )}

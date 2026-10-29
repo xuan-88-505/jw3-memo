@@ -84,12 +84,18 @@ export interface Character {
   id: string;
   name: string;
   server: string;
-  xinfa: string;
+  /** 门派（职业），必选 */
+  school: string;
+  /** 只玩这一个心法；null 表示这个门派的心法都玩 */
+  only: string | null;
+  /** 学了的流派心法（如无相楼「幽罗引」），任何门派都能学 */
+  liupai: string[];
   ownerId: string;
-  /** 每个模式已同步到的版本号；没有表示从没同步过 */
-  synced: Partial<Record<Mode, number>>;
-  /** 改心法时，旧心法的同步记录暂存在这里；改回去时恢复 */
-  syncedByXinfa?: Record<string, Partial<Record<Mode, number>>>;
+  /**
+   * 每个心法、每个模式已同步到的版本号；没有表示从没同步过。
+   * 改心法后旧心法的记录保留，改回去自动恢复
+   */
+  synced: Record<string, Partial<Record<Mode, number>>>;
   avatar?: CharacterAvatar;
 }
 

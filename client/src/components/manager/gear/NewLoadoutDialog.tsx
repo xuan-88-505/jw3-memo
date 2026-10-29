@@ -10,9 +10,10 @@ import {
   type LoadoutSource,
 } from "@/data/gear";
 import { cn } from "@/lib/utils";
-import { XINFA_LIST } from "@/data/seed";
+import { XINFA_LIST, xinfasOf } from "@/data/seed";
 import { findScheme, latest, myCharacters, useProto } from "@/state/store";
-import { Field, SelectBox, XinfaOptions, inputCls } from "../shared";
+import { Field, SelectBox, inputCls } from "../shared";
+import { XinfaPairSelect } from "../SchoolPicker";
 import { EnchantEditor } from "./EnchantEditor";
 import { ImportField, OfflineHint, useImportInput } from "./ImportCard";
 
@@ -56,7 +57,7 @@ function CharLinkSelect({
 }) {
   const { state } = useProto();
   const id = useId();
-  const chars = myCharacters(state).filter(c => c.xinfa === xinfa);
+  const chars = myCharacters(state).filter(c => xinfasOf(c).includes(xinfa));
   if (chars.length === 0) return null;
   return (
     <Field label="关联角色（可选）" htmlFor={id}>
@@ -111,7 +112,8 @@ export function NewLoadoutDialog({
   const xinfaId = useId();
   const nameId = useId();
 
-  const fallbackXinfa = defaultXinfa ?? mine[0]?.xinfa ?? XINFA_LIST[0];
+  const fallbackXinfa =
+    defaultXinfa ?? (mine[0] && xinfasOf(mine[0])[0]) ?? XINFA_LIST[0];
   const [xinfa, setXinfa] = useState(fallbackXinfa);
   const [name, setName] = useState("");
   const [charId, setCharId] = useState("");
@@ -194,13 +196,13 @@ export function NewLoadoutDialog({
       }
     >
       <div className="space-y-5 pb-1">
-        <div className="grid grid-cols-[168px_1fr] gap-3">
+        <div className="grid grid-cols-[minmax(0,5fr)_minmax(0,4fr)] gap-3">
           <Field label="心法" htmlFor={xinfaId}>
-            <SelectBox
+            <XinfaPairSelect
               id={xinfaId}
               value={xinfa}
-              onChange={e => {
-                setXinfa(e.target.value);
+              onChange={x => {
+                setXinfa(x);
                 setCharId("");
                 setError("");
                 // 换心法后附魔选项不同，回到默认
@@ -208,7 +210,7 @@ export function NewLoadoutDialog({
                   configOf(
                     makeLoadout({
                       id: "draft",
-                      xinfa: e.target.value,
+                      xinfa: x,
                       name: "",
                       charId: null,
                       source: "json",
@@ -217,11 +219,7 @@ export function NewLoadoutDialog({
                   )
                 );
               }}
-              wrapClassName="w-full"
-              className={inputCls()}
-            >
-              <XinfaOptions />
-            </SelectBox>
+            />
           </Field>
           <Field label="名称" htmlFor={nameId} error={error}>
             <input

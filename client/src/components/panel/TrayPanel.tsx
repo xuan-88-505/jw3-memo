@@ -17,8 +17,13 @@ import { CharAvatar } from "@/components/brand/CharAvatar";
 import { Wordmark, XinfaMark } from "@/components/brand/Marks";
 import { OfflineBar, ToastStack } from "@/components/common/overlay";
 import { Btn, IconBtn, Segmented } from "@/components/common/ui";
-import { SEED_TEAM } from "@/data/seed";
-import type { Character, ManagerSection, Mode } from "@/data/types";
+import { SEED_TEAM, XINFA_META, schoolLabel, xinfasOf } from "@/data/seed";
+import {
+  MODES,
+  type Character,
+  type ManagerSection,
+  type Mode,
+} from "@/data/types";
 import {
   charPending,
   findScheme,
@@ -30,6 +35,7 @@ import {
   myCharacters,
   statusOf,
   useProto,
+  viewXinfa,
 } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { Inbox } from "./Inbox";
@@ -106,18 +112,21 @@ function PanelMain({
   const [tab, setTab] = useState<"macro" | "talent" | "note">("macro");
   const mine = myCharacters(state);
   const char = mine.find(c => c.id === state.activeCharId) ?? mine[0];
+  // 多心法角色（双心法、学了流派）在面板里切着看
+  const xinfas = xinfasOf(char);
+  const xinfa = viewXinfa(state, char);
   // 只玩一种模式的心法不显示 PVE/PVP 切换
-  const modes = modesOf(state, char.xinfa);
+  const modes = modesOf(state, xinfa);
   const picked: Mode = state.activeMode[char.id] ?? "PVE";
   const mode: Mode =
     modes.length > 0 && !modes.includes(picked) ? modes[0] : picked;
-  const scheme = findScheme(state, char.xinfa, mode);
+  const scheme = findScheme(state, xinfa, mode);
   const last = latest(scheme);
-  const status = statusOf(state, char, mode);
+  const status = statusOf(state, char, mode, xinfa);
   // 只在"有更新还没同步"时标出变化；从没同步过的角色不逐条标
   const base =
     status === "pending"
-      ? scheme?.versions.find(v => v.version === char.synced[mode])
+      ? scheme?.versions.find(v => v.version === char.synced[xinfa]?.[mode])
       : undefined;
   const inboxCount = inboxItems(state).length;
   const draggable = state.pinned && !!onHeaderPointerDown;
@@ -126,8 +135,9 @@ function PanelMain({
     return (
       <Inbox
         onBack={() => setView("main")}
-        onOpenItem={(charId, m) => {
+        onOpenItem={(charId, m, x) => {
           actions.selectCharacter(charId);
+          actions.setXinfa(charId, x);
           actions.setMode(charId, m);
           setView("main");
         }}
@@ -190,7 +200,7 @@ function PanelMain({
           <IconBtn
             label="打开管理窗口"
             onClick={() =>
-              openManager("schemes", scheme?.id ?? `${char.xinfa}-${mode}`)
+              openManager("schemes", scheme?.id ?? `${xinfa}-${mode}`)
             }
           >
             <AppWindow className="h-4 w-4" />
@@ -236,23 +246,50 @@ function PanelMain({
             );
           })}
         </div>
-        {modes.length > 1 && (
-          <div className="ml-auto">
-            <Segmented<Mode>
-              label="方案类型"
-              size="xs"
-              value={mode}
-              onChange={m => actions.setMode(char.id, m)}
-              options={modes.map(m => ({
-                value: m,
-                label: (
-                  <span className="inline-flex items-center gap-1">
-                    {m}
-                    {isPending(statusOf(state, char, m)) && <ChangeDot />}
-                  </span>
-                ),
-              }))}
-            />
+        {(xinfas.length > 1 || modes.length > 1) && (
+          <div className="ml-auto flex items-center gap-1.5">
+            {xinfas.length > 1 && (
+              <Segmented<string>
+                label="心法"
+                size="xs"
+                value={xinfa}
+                onChange={x => actions.setXinfa(char.id, x)}
+                options={xinfas.map(x => ({
+                  value: x,
+                  title: x,
+                  label: (
+                    <span className="inline-flex items-center gap-1">
+                      <span aria-hidden="true">
+                        {XINFA_META[x]?.short ?? x.slice(0, 1)}
+                      </span>
+                      <span className="sr-only">{x}</span>
+                      {MODES.some(m =>
+                        isPending(statusOf(state, char, m, x))
+                      ) && <ChangeDot />}
+                    </span>
+                  ),
+                }))}
+              />
+            )}
+            {modes.length > 1 && (
+              <Segmented<Mode>
+                label="方案类型"
+                size="xs"
+                value={mode}
+                onChange={m => actions.setMode(char.id, m)}
+                options={modes.map(m => ({
+                  value: m,
+                  label: (
+                    <span className="inline-flex items-center gap-1">
+                      {m}
+                      {isPending(statusOf(state, char, m, xinfa)) && (
+                        <ChangeDot />
+                      )}
+                    </span>
+                  ),
+                }))}
+              />
+            )}
           </div>
         )}
       </div>
@@ -261,19 +298,19 @@ function PanelMain({
         <NotePad key={char.id} char={char} />
       ) : !scheme || !last ? (
         <NoScheme
-          xinfa={char.xinfa}
+          xinfa={xinfa}
           mode={mode}
-          onCreate={() => openManager("schemes", `${char.xinfa}-${mode}`)}
+          onCreate={() => openManager("schemes", `${xinfa}-${mode}`)}
         />
       ) : (
         <div
-          key={`${char.id}-${mode}-${tab}`}
+          key={`${char.id}-${xinfa}-${mode}-${tab}`}
           className="scroll-thin min-h-0 flex-1 animate-fade overflow-y-auto"
         >
           {tab === "macro" ? (
             <MacroList macros={last.macros} base={base} />
           ) : (
-            <TalentList xinfa={char.xinfa} talents={last.talents} base={base} />
+            <TalentList xinfa={xinfa} talents={last.talents} base={base} />
           )}
         </div>
       )}
@@ -319,7 +356,7 @@ function CharacterSwitcher({
         onClick={() => setOpen(o => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title={`${current.server} · ${current.xinfa}`}
+        title={`${current.server} · ${schoolLabel(current)}`}
         className="flex min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 text-left hover:bg-paper/[0.06]"
       >
         <CharAvatar character={current} size={28} />
@@ -361,7 +398,7 @@ function CharacterSwitcher({
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-paper">
                       {c.name}
                       <span className="ml-2 text-[11.5px] font-normal text-paper-3">
-                        {c.xinfa}
+                        {schoolLabel(c)}
                       </span>
                     </span>
                     {pending && <span className="sr-only">待同步</span>}

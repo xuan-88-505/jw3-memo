@@ -16,6 +16,7 @@ import {
   XINFA_LIST,
   defaultTalents,
   layersOf,
+  xinfasOf,
   rivalEdit,
   seedSchemes,
 } from "@/data/seed";
@@ -112,6 +113,8 @@ export interface ProtoState {
   managerIntent: "add-character" | null;
   activeCharId: string;
   activeMode: Record<string, Mode>;
+  /** 多心法角色在面板里正在看的心法 */
+  activeXinfa: Record<string, string>;
   selectedSchemeId: string;
   changelogFilter: string;
   /**
@@ -258,6 +261,7 @@ const initialState: ProtoState = {
   managerIntent: null,
   activeCharId: "c1",
   activeMode: {},
+  activeXinfa: {},
   selectedSchemeId: "紫霞功-PVE",
   changelogFilter: "全部",
   followedXinfa: readFollowed(),
@@ -287,14 +291,29 @@ export function findScheme(state: ProtoState, xinfa: string, mode: Mode) {
 export function statusOf(
   state: ProtoState,
   char: Character,
-  mode: Mode
+  mode: Mode,
+  xinfa: string
 ): SyncStatus {
-  const scheme = findScheme(state, char.xinfa, mode);
+  const scheme = findScheme(state, xinfa, mode);
   const last = latest(scheme);
   if (!last) return "none";
-  const synced = char.synced[mode];
+  const synced = char.synced[xinfa]?.[mode];
   if (synced === undefined) return "never";
   return synced >= last.version ? "synced" : "pending";
+}
+/**
+ * 面板里正在看的心法：用户切过就用切过的；
+ * 否则先看有待同步的，再看有方案的，最后是第一个
+ */
+export function viewXinfa(state: ProtoState, char: Character): string {
+  const xs = xinfasOf(char);
+  const picked = state.activeXinfa[char.id];
+  if (picked && xs.includes(picked)) return picked;
+  return (
+    xs.find(x => MODES.some(m => isPending(statusOf(state, char, m, x)))) ??
+    xs.find(x => modesOf(state, x).length > 0) ??
+    xs[0]
+  );
 }
 
 export function isPending(s: SyncStatus) {
@@ -310,7 +329,7 @@ export function isDefaultNav(state: ProtoState): boolean {
 }
 export function followedXinfa(state: ProtoState): string[] {
   if (state.followedXinfa) return state.followedXinfa;
-  const mine = myCharacters(state).map(c => c.xinfa);
+  const mine = myCharacters(state).flatMap(xinfasOf);
   return XINFA_LIST.filter(
     x => mine.includes(x) || state.schemes.some(s => s.xinfa === x)
   );
@@ -321,9 +340,8 @@ export function myCharacters(state: ProtoState) {
 }
 
 export function charPending(state: ProtoState, char: Character) {
-  return (
-    isPending(statusOf(state, char, "PVE")) ||
-    isPending(statusOf(state, char, "PVP"))
+  return xinfasOf(char).some(x =>
+    MODES.some(m => isPending(statusOf(state, char, m, x)))
   );
 }
 
@@ -335,6 +353,7 @@ export function pendingCount(state: ProtoState) {
 export interface InboxItem {
   key: string;
   char: Character;
+  xinfa: string;
   mode: Mode;
   scheme: Scheme;
   last: SchemeVersion;
@@ -347,23 +366,26 @@ export interface InboxItem {
 export function inboxItems(state: ProtoState): InboxItem[] {
   const items: InboxItem[] = [];
   for (const char of myCharacters(state)) {
-    for (const mode of MODES) {
-      if (!isPending(statusOf(state, char, mode))) continue;
-      const scheme = findScheme(state, char.xinfa, mode)!;
-      const last = latest(scheme)!;
-      const synced = char.synced[mode];
-      items.push({
-        key: `${char.id}-${mode}`,
-        char,
-        mode,
-        scheme,
-        last,
-        base:
-          synced === undefined
-            ? undefined
-            : scheme.versions.find(v => v.version === synced),
-        versions: scheme.versions.filter(v => v.version > (synced ?? 0)),
-      });
+    for (const xinfa of xinfasOf(char)) {
+      for (const mode of MODES) {
+        if (!isPending(statusOf(state, char, mode, xinfa))) continue;
+        const scheme = findScheme(state, xinfa, mode)!;
+        const last = latest(scheme)!;
+        const synced = char.synced[xinfa]?.[mode];
+        items.push({
+          key: `${char.id}-${xinfa}-${mode}`,
+          char,
+          xinfa,
+          mode,
+          scheme,
+          last,
+          base:
+            synced === undefined
+              ? undefined
+              : scheme.versions.find(v => v.version === synced),
+          versions: scheme.versions.filter(v => v.version > (synced ?? 0)),
+        });
+      }
     }
   }
   return items.sort((a, b) => b.last.at.localeCompare(a.last.at));
@@ -415,12 +437,12 @@ function newInviteCode() {
 function unlinkLoadouts(
   loadouts: Record<string, Loadout>,
   charId: string,
-  keepXinfa?: string
+  keepXinfa: string[] = []
 ): Record<string, Loadout> {
   let changed = false;
   const out: Record<string, Loadout> = {};
   for (const [k, lo] of Object.entries(loadouts)) {
-    if (lo.charId === charId && lo.xinfa !== keepXinfa) {
+    if (lo.charId === charId && !keepXinfa.includes(lo.xinfa)) {
       out[k] = { ...lo, charId: null };
       changed = true;
     } else out[k] = lo;
@@ -584,15 +606,23 @@ function useActions(
       selectCharacter: (activeCharId: string) => patch({ activeCharId }),
       setMode: (charId: string, mode: Mode) =>
         update(s => ({ activeMode: { ...s.activeMode, [charId]: mode } })),
-      markSynced: (charId: string, mode: Mode) => {
+      setXinfa: (charId: string, xinfa: string) =>
+        update(s => ({ activeXinfa: { ...s.activeXinfa, [charId]: xinfa } })),
+      markSynced: (charId: string, mode: Mode, xinfa: string) => {
         const s = stateRef.current;
         const char = s.characters.find(c => c.id === charId);
-        const last = char && latest(findScheme(s, char.xinfa, mode));
+        const last = char && latest(findScheme(s, xinfa, mode));
         if (!char || !last) return;
         update(st => ({
           characters: st.characters.map(c =>
             c.id === charId
-              ? { ...c, synced: { ...c.synced, [mode]: last.version } }
+              ? {
+                  ...c,
+                  synced: {
+                    ...c.synced,
+                    [xinfa]: { ...c.synced[xinfa], [mode]: last.version },
+                  },
+                }
               : c
           ),
         }));
@@ -606,7 +636,11 @@ function useActions(
             const mine = items.filter(i => i.char.id === c.id);
             if (!mine.length) return c;
             const synced = { ...c.synced };
-            for (const i of mine) synced[i.mode] = i.last.version;
+            for (const i of mine)
+              synced[i.xinfa] = {
+                ...synced[i.xinfa],
+                [i.mode]: i.last.version,
+              };
             return { ...c, synced };
           }),
         }));
@@ -736,11 +770,17 @@ function useActions(
                 : st.loadouts,
             characters: noGameChange
               ? st.characters.map(c =>
-                  c.xinfa === draft.xinfa &&
-                  c.synced[draft.mode] === last!.version
+                  xinfasOf(c).includes(draft.xinfa) &&
+                  c.synced[draft.xinfa]?.[draft.mode] === last!.version
                     ? {
                         ...c,
-                        synced: { ...c.synced, [draft.mode]: version.version },
+                        synced: {
+                          ...c.synced,
+                          [draft.xinfa]: {
+                            ...c.synced[draft.xinfa],
+                            [draft.mode]: version.version,
+                          },
+                        },
                       }
                     : c
                 )
@@ -798,35 +838,35 @@ function useActions(
         }));
         return id;
       },
-      /** 改名或改心法。改心法时按心法分开保存同步记录，改回去会恢复 */
+      /**
+       * 改名，或改门派、心法、流派。同步记录按心法存，改回去自动恢复。
+       * restored：新加的心法里有以前的同步记录
+       */
       updateCharacter: (
         id: string,
-        p: { name?: string; xinfa?: string }
+        p: Partial<Pick<Character, "name" | "school" | "only" | "liupai">>
       ): { restored: boolean } => {
         const char = stateRef.current.characters.find(c => c.id === id);
         if (!char) return { restored: false };
-        let next: Character = { ...char, ...(p.name ? { name: p.name } : {}) };
-        let restored = false;
-        if (p.xinfa && p.xinfa !== char.xinfa) {
-          const stash = {
-            ...(char.syncedByXinfa ?? {}),
-            [char.xinfa]: char.synced,
-          };
-          const back = stash[p.xinfa];
-          delete stash[p.xinfa];
-          restored = !!back && Object.keys(back).length > 0;
-          next = {
-            ...next,
-            xinfa: p.xinfa,
-            synced: back ?? {},
-            syncedByXinfa: stash,
-          };
-        }
+        const next: Character = {
+          ...char,
+          ...(p.name ? { name: p.name } : {}),
+          ...(p.school !== undefined ? { school: p.school } : {}),
+          ...(p.only !== undefined ? { only: p.only } : {}),
+          ...(p.liupai !== undefined ? { liupai: p.liupai } : {}),
+        };
+        const before = xinfasOf(char);
+        const after = xinfasOf(next);
+        const restored = after.some(
+          x =>
+            !before.includes(x) && Object.keys(char.synced[x] ?? {}).length > 0
+        );
+        const xinfaChanged = after.join() !== before.join();
         update(s => ({
           characters: s.characters.map(c => (c.id === id ? next : c)),
-          // 配装按心法建：角色换了心法，就不再关联其他心法的配装
-          loadouts: p.xinfa
-            ? unlinkLoadouts(s.loadouts, id, p.xinfa)
+          // 配装按心法建：角色不再玩的心法，解除关联
+          loadouts: xinfaChanged
+            ? unlinkLoadouts(s.loadouts, id, after)
             : s.loadouts,
         }));
         return { restored };

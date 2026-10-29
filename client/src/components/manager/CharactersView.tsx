@@ -1,16 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  CheckCircle2,
-  ChevronDown,
-  Pencil,
-  Plus,
-  Trash2,
-  UserPlus,
-} from "lucide-react";
+import { CheckCircle2, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { InlineModal } from "@/components/common/overlay";
 import { Btn, IconBtn, Segmented, StatusPill } from "@/components/common/ui";
-import { SERVERS, XINFA_LIST } from "@/data/seed";
+import { SCHOOL_GROUPS, SERVERS, schoolLabel, xinfasOf } from "@/data/seed";
 import type { Character, Mode } from "@/data/types";
 import {
   charPending,
@@ -30,9 +23,12 @@ import {
   Field,
   SectionHeader,
   SelectBox,
-  XinfaOptions,
   inputCls,
 } from "./shared";
+import { SchoolFields, SchoolMenu, type SchoolValue } from "./SchoolPicker";
+
+// 表格不裁切内容（门派菜单要浮出来），圆角由表头和最后一行的单元格自己画
+const TD = "px-4 py-2.5 group-hover/row:bg-paper/[0.02]";
 
 export function CharactersView() {
   const { state, actions } = useProto();
@@ -104,22 +100,22 @@ export function CharactersView() {
           title="全部已同步"
         />
       ) : (
-        <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-paper/8">
+        <div className="rounded-xl ring-1 ring-inset ring-paper/8">
           <table className="w-full text-left text-[13px]">
-            <thead className="bg-ink-3 text-[12px] text-paper-3">
-              <tr>
-                <th className="px-4 py-2.5 font-normal">角色</th>
+            <thead className="text-[12px] text-paper-3">
+              <tr className="[&>th]:bg-ink-3">
+                <th className="rounded-tl-xl px-4 py-2.5 font-normal">角色</th>
                 <th className="px-4 py-2.5 font-normal">服务器</th>
                 <th className="px-4 py-2.5 font-normal">同步状态</th>
-                <th className="px-4 py-2.5 text-right font-normal">
+                <th className="rounded-tr-xl px-4 py-2.5 text-right font-normal">
                   <span className="sr-only">操作</span>
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-paper/[0.06]">
+            <tbody className="divide-y divide-paper/[0.06] [&>tr:last-child>td:first-child]:rounded-bl-xl [&>tr:last-child>td:last-child]:rounded-br-xl">
               {rows.map(c => (
-                <tr key={c.id} className="hover:bg-paper/[0.02]">
-                  <td className="px-4 py-2.5">
+                <tr key={c.id} className="group/row">
+                  <td className={TD}>
                     <span className="flex items-center gap-2.5">
                       <button
                         type="button"
@@ -138,15 +134,15 @@ export function CharactersView() {
                       </button>
                       <span className="flex min-w-0 flex-col items-start">
                         <NameInput char={c} disabled={!online} />
-                        <XinfaSelect char={c} disabled={!online} />
+                        <SchoolCell char={c} disabled={!online} />
                       </span>
                     </span>
                   </td>
-                  <td className="px-4 py-2.5 text-paper-2">{c.server}</td>
-                  <td className="px-4 py-2.5">
+                  <td className={cn(TD, "text-paper-2")}>{c.server}</td>
+                  <td className={TD}>
                     <SyncCell char={c} online={online} />
                   </td>
-                  <td className="px-4 py-2.5 text-right">
+                  <td className={cn(TD, "text-right")}>
                     <IconBtn
                       label={`删除角色 ${c.name}`}
                       onClick={() => setRemoving(c)}
@@ -302,8 +298,8 @@ function NameInput({ char, disabled }: { char: Character; disabled: boolean }) {
   );
 }
 
-/** 心法：下拉选择，选完立即生效 */
-function XinfaSelect({
+/** 门派和心法：级联菜单，选完立即生效 */
+function SchoolCell({
   char,
   disabled,
 }: {
@@ -311,72 +307,106 @@ function XinfaSelect({
   disabled: boolean;
 }) {
   const { state, actions } = useProto();
-  const change = (x: string) => {
-    if (x === char.xinfa) return;
-    const { restored } = actions.updateCharacter(char.id, { xinfa: x });
-    const hasScheme = modesOf(state, x).length > 0;
+  const value: SchoolValue = {
+    school: char.school,
+    only: char.only,
+    liupai: char.liupai,
+  };
+  const change = (v: SchoolValue) => {
+    if (
+      v.school === char.school &&
+      v.only === char.only &&
+      v.liupai.join() === char.liupai.join()
+    )
+      return;
+    const before = xinfasOf(char);
+    const added = xinfasOf(v).filter(x => !before.includes(x));
+    const noScheme = added.filter(x => modesOf(state, x).length === 0);
+    const { restored } = actions.updateCharacter(char.id, v);
+    const head = `「${char.name}」改为${schoolLabel(v)}`;
     actions.toast(
       "manager",
       "success",
       restored
-        ? `「${char.name}」改回${x}，恢复了之前的同步记录`
-        : hasScheme
-          ? `「${char.name}」改成${x}，需要按新方案同步`
-          : `「${char.name}」改成${x}，${x}还没有方案`
+        ? `${head}，恢复了之前的同步记录`
+        : added.length === 0
+          ? head
+          : noScheme.length === added.length
+            ? `${head}，${noScheme.join("、")}还没有方案`
+            : `${head}，需要按新方案同步`
     );
   };
   return (
-    // 显示的文字决定宽度，上面盖一层透明的原生下拉框：点开仍是系统菜单，键盘和读屏照常可用
-    <span
-      className={cn(
-        "relative -ml-1.5 inline-flex h-6 items-center gap-1 rounded-md pl-1.5 pr-1 text-[12px] text-paper-3 transition-colors",
-        "has-[select:focus-visible]:ring-1 has-[select:focus-visible]:ring-inset has-[select:focus-visible]:ring-cinnabar-text/50",
-        !disabled && "hover:bg-paper/[0.05] hover:text-paper-2"
-      )}
-    >
-      <span aria-hidden="true">{char.xinfa}</span>
-      <ChevronDown className="h-3 w-3" aria-hidden="true" />
-      <select
-        value={char.xinfa}
-        disabled={disabled}
-        aria-label={`「${char.name}」的心法`}
-        title={disabled ? "离线时不能修改" : "修改心法"}
-        onChange={e => change(e.target.value)}
-        className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0 outline-none disabled:cursor-default"
-      >
-        <XinfaOptions />
-      </select>
-    </span>
+    <SchoolMenu
+      value={value}
+      onChange={change}
+      disabled={disabled}
+      label={`「${char.name}」`}
+    />
   );
 }
 
-/** 只列出这个心法已有的模式；一个方案都没有时显示"无方案" */
+/**
+ * 每个心法一行，只玩一个心法时不写心法名。
+ * 每行只列出这个心法已有的模式；一个方案都没有时显示「无方案」
+ */
 function SyncCell({ char, online }: { char: Character; online: boolean }) {
   const { state } = useProto();
-  const modes = modesOf(state, char.xinfa);
-  if (modes.length === 0) return <StatusPill status="none" />;
+  const xs = xinfasOf(char);
+  const multi = xs.length > 1;
   return (
     <div className="flex flex-col gap-1.5">
-      {modes.map(m => (
-        <ModeCell key={m} char={char} mode={m} online={online} />
-      ))}
+      {xs.map(x => {
+        const modes = modesOf(state, x);
+        return (
+          <div key={x} className="flex items-baseline gap-2">
+            {multi && (
+              <span
+                className={cn(
+                  "w-[62px] shrink-0 whitespace-nowrap text-[12px]",
+                  modes.length ? "text-paper-2" : "text-paper-3"
+                )}
+              >
+                {x}
+              </span>
+            )}
+            {modes.length === 0 ? (
+              <StatusPill status="none" />
+            ) : (
+              <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1.5">
+                {modes.map(m => (
+                  <ModeCell
+                    key={m}
+                    char={char}
+                    xinfa={x}
+                    mode={m}
+                    online={online}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 function ModeCell({
   char,
+  xinfa,
   mode,
   online,
 }: {
   char: Character;
+  xinfa: string;
   mode: Mode;
   online: boolean;
 }) {
   const { state, actions } = useProto();
-  const st = statusOf(state, char, mode);
-  const last = latest(findScheme(state, char.xinfa, mode));
-  const synced = char.synced[mode];
+  const st = statusOf(state, char, mode, xinfa);
+  const last = latest(findScheme(state, xinfa, mode));
+  const synced = char.synced[xinfa]?.[mode];
   return (
     <div className="flex items-center gap-2">
       <span className="w-8 shrink-0 text-[12px] font-medium text-paper-3">
@@ -393,13 +423,14 @@ function ModeCell({
             size="xs"
             disabled={!online}
             title={online ? "在游戏里改好后点这里" : "离线时不能标记"}
+            aria-label={`${xinfa} ${mode} 标记已同步`}
             onClick={() => {
-              const r = actions.markSynced(char.id, mode);
+              const r = actions.markSynced(char.id, mode, xinfa);
               if (r)
                 actions.toast(
                   "manager",
                   "success",
-                  `「${r.name}」${mode} 已同步到 v${r.version}`
+                  `「${r.name}」${xinfa} ${mode} 已同步到 v${r.version}`
                 );
             }}
           >
@@ -411,6 +442,12 @@ function ModeCell({
   );
 }
 
+const NEW_SCHOOL: SchoolValue = {
+  school: SCHOOL_GROUPS[0].school,
+  only: null,
+  liupai: [],
+};
+
 function AddCharacterDialog({
   open,
   onClose,
@@ -421,7 +458,7 @@ function AddCharacterDialog({
   const { state, actions } = useProto();
   const [name, setName] = useState("");
   const [server, setServer] = useState(SERVERS[0]);
-  const [xinfa, setXinfa] = useState(XINFA_LIST[0]);
+  const [school, setSchool] = useState<SchoolValue>(NEW_SCHOOL);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -435,14 +472,14 @@ function AddCharacterDialog({
     const n = name.trim();
     const err = nameError(myCharacters(state), n, server);
     if (err) return setError(err);
-    actions.addCharacter({ name: n, server, xinfa });
-    const hasScheme = !!findScheme(state, xinfa, "PVE");
+    actions.addCharacter({ name: n, server, ...school });
+    const hasScheme = xinfasOf(school).some(x => modesOf(state, x).length > 0);
     actions.toast(
       "manager",
       "success",
       hasScheme
         ? `已添加「${n}」。去面板里看它要用的宏和奇穴。`
-        : `已添加「${n}」，${xinfa}还没有方案`
+        : `已添加「${n}」，${schoolLabel(school)}还没有方案`
     );
     onClose();
   };
@@ -468,7 +505,7 @@ function AddCharacterDialog({
         </>
       }
     >
-      <div className="space-y-4 pb-1">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-4 pb-1">
         <Field label="角色名" htmlFor="char-name" error={error}>
           <input
             id="char-name"
@@ -485,32 +522,20 @@ function AddCharacterDialog({
             className={inputCls(!!error)}
           />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="服务器" htmlFor="char-server">
-            <SelectBox
-              id="char-server"
-              value={server}
-              onChange={e => setServer(e.target.value)}
-              wrapClassName="w-full"
-              className={inputCls()}
-            >
-              {SERVERS.map(s => (
-                <option key={s}>{s}</option>
-              ))}
-            </SelectBox>
-          </Field>
-          <Field label="心法" htmlFor="char-xinfa">
-            <SelectBox
-              id="char-xinfa"
-              value={xinfa}
-              onChange={e => setXinfa(e.target.value)}
-              wrapClassName="w-full"
-              className={inputCls()}
-            >
-              <XinfaOptions />
-            </SelectBox>
-          </Field>
-        </div>
+        <Field label="服务器" htmlFor="char-server">
+          <SelectBox
+            id="char-server"
+            value={server}
+            onChange={e => setServer(e.target.value)}
+            wrapClassName="w-full"
+            className={inputCls()}
+          >
+            {SERVERS.map(s => (
+              <option key={s}>{s}</option>
+            ))}
+          </SelectBox>
+        </Field>
+        <SchoolFields value={school} onChange={setSchool} idPrefix="char" />
       </div>
     </InlineModal>
   );

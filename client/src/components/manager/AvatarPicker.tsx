@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, ImagePlus, Loader2 } from "lucide-react";
+import { schoolLabel } from "@/data/seed";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { HUANGJI_MOODS, type HuangjiMood } from "@/components/brand/Huangji";
 import { InlineModal } from "@/components/common/overlay";
@@ -251,7 +252,7 @@ export function AvatarPicker({
               {character.name}
             </p>
             <p className="text-[12.5px] text-paper-3">
-              {character.server} · {character.xinfa}
+              {character.server} · {schoolLabel(character)}
             </p>
           </div>
         </div>
@@ -262,7 +263,7 @@ export function AvatarPicker({
           onBusyChange={setBusy}
           renderAvatar={(a, size, animated) => (
             <CharAvatar
-              character={{ xinfa: character.xinfa, avatar: a }}
+              character={{ school: character.school, avatar: a }}
               size={size}
               animated={animated}
             />

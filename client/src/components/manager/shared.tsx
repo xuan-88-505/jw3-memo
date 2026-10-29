@@ -1,6 +1,5 @@
 import type { ReactNode, SelectHTMLAttributes } from "react";
 import { ChevronDown } from "lucide-react";
-import { XINFA_GROUPS } from "@/data/seed";
 import { Jx3Icon } from "@/components/brand/Marks";
 import type { SchemeDiff } from "@/lib/diff";
 import { LAYER_LABEL } from "@/lib/format";
@@ -271,29 +270,5 @@ export function SelectBox({
         aria-hidden="true"
       />
     </span>
-  );
-}
-
-/** 心法选项：按门派分组。disabledReason 返回文字时，这个心法不能选，文字显示在括号里 */
-export function XinfaOptions({
-  disabledReason,
-}: {
-  disabledReason?: (xinfa: string) => string | false;
-}) {
-  return (
-    <>
-      {XINFA_GROUPS.map(g => (
-        <optgroup key={g.school} label={g.school}>
-          {g.xinfa.map(x => {
-            const reason = disabledReason?.(x);
-            return (
-              <option key={x} value={x} disabled={!!reason}>
-                {reason ? `${x}（${reason}）` : x}
-              </option>
-            );
-          })}
-        </optgroup>
-      ))}
-    </>
   );
 }

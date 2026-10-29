@@ -17,7 +17,7 @@ import {
   SectionLabel,
   Segmented,
 } from "@/components/common/ui";
-import { ME_ID, XINFA_LIST, layersOf } from "@/data/seed";
+import { ME_ID, XINFA_LIST, layersOf, xinfasOf } from "@/data/seed";
 import { MODES, type Macro, type Mode, type SchemeVersion } from "@/data/types";
 import { diffVersions } from "@/lib/diff";
 import { absoluteTime, relativeTime } from "@/lib/format";
@@ -33,14 +33,8 @@ import {
   type Draft,
 } from "@/state/store";
 import { cn } from "@/lib/utils";
-import {
-  DiffDetails,
-  Field,
-  SelectBox,
-  XinfaOptions,
-  diffSummary,
-  inputCls,
-} from "./shared";
+import { DiffDetails, Field, diffSummary, inputCls } from "./shared";
+import { XinfaPairSelect } from "./SchoolPicker";
 import { TalentPicker } from "./TalentPicker";
 
 export function SchemesView() {
@@ -195,7 +189,7 @@ function NewSchemeDialog({
     !!latest(findScheme(state, x, m)) || !!state.drafts[`${x}-${m}`];
   const firstMissing = (x: string) => MODES.find(m => !has(x, m)) ?? "PVE";
   const pickDefault = () => {
-    const mine = Array.from(new Set(myCharacters(state).map(c => c.xinfa)));
+    const mine = Array.from(new Set(myCharacters(state).flatMap(xinfasOf)));
     return (
       mine.find(x => MODES.some(m => !has(x, m))) ??
       XINFA_LIST.find(x => MODES.some(m => !has(x, m))) ??
@@ -252,25 +246,19 @@ function NewSchemeDialog({
     >
       <div className="space-y-4 pb-1">
         <Field label="心法" htmlFor="new-scheme-xinfa">
-          <SelectBox
+          <XinfaPairSelect
             id="new-scheme-xinfa"
-            data-autofocus
+            autoFocus
             value={xinfa}
-            onChange={e => {
-              const x = e.target.value;
+            onChange={x => {
               setXinfa(x);
               // 换心法后回到第一个可用的模式（通常是 PVE）
               setMode(firstMissing(x));
             }}
-            wrapClassName="w-full"
-            className={inputCls()}
-          >
-            <XinfaOptions
-              disabledReason={x =>
-                MODES.every(m => has(x, m)) ? "PVE、PVP 都有了" : false
-              }
-            />
-          </SelectBox>
+            disabledReason={x =>
+              MODES.every(m => has(x, m)) ? "PVE、PVP 都有了" : false
+            }
+          />
         </Field>
         <div>
           <p className="mb-1.5 text-[12.5px] text-paper-2">模式</p>
@@ -729,7 +717,9 @@ function SaveDialog({
       ),
     [last, draft]
   );
-  const affected = state.characters.filter(c => c.xinfa === draft.xinfa);
+  const affected = state.characters.filter(c =>
+    xinfasOf(c).includes(draft.xinfa)
+  );
   const nextV = (last?.version ?? 0) + 1;
 
   const submit = () => {
