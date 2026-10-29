@@ -36,7 +36,6 @@ import {
   myCharacters,
   statusOf,
   useProto,
-  viewXinfa,
   type ManagerIntent,
 } from "@/state/store";
 import { cn } from "@/lib/utils";
@@ -112,26 +111,61 @@ function PanelMain({
   const { state, actions } = useProto();
   const [view, setView] = useState<"main" | "inbox" | "note">("main");
   const [tab, setTab] = useState<"macro" | "talent">("macro");
+  const [focusXinfa, setFocusXinfa] = useState<string | null>(null);
+  const sectionRefs = useRef(new Map<string, HTMLElement>());
   const mine = myCharacters(state);
   const char = mine.find(c => c.id === state.activeCharId) ?? mine[0];
-  // 多心法角色（双心法、学了流派）在面板里切着看
+  // 多心法角色（双心法、学了流派）：列表按心法分段，每段一个小标题
   const xinfas = xinfasOf(char);
-  const xinfa = viewXinfa(state, char);
-  // 只玩一种模式的心法不显示 PVE/PVP 切换
-  const modes = modesOf(state, xinfa);
+  const multi = xinfas.length > 1;
+  // 这个角色所有心法里出现过的模式；只有一种时不显示 PVE/PVP 切换
+  const modes = MODES.filter(m =>
+    xinfas.some(x => modesOf(state, x).includes(m))
+  );
   const picked: Mode = state.activeMode[char.id] ?? "PVE";
   const mode: Mode =
     modes.length > 0 && !modes.includes(picked) ? modes[0] : picked;
-  const scheme = findScheme(state, xinfa, mode);
-  const last = latest(scheme);
-  const status = statusOf(state, char, mode, xinfa);
-  // 只在"有更新还没同步"时标出变化；从没同步过的角色不逐条标
-  const base =
-    status === "pending"
-      ? scheme?.versions.find(v => v.version === char.synced[xinfa]?.[mode])
-      : undefined;
+  const sections = xinfas.map(x => {
+    const scheme = findScheme(state, x, mode);
+    const last = latest(scheme);
+    const status = statusOf(state, char, mode, x);
+    // 只在"有更新还没同步"时标出变化；从没同步过的不逐条标
+    const base =
+      status === "pending"
+        ? scheme?.versions.find(v => v.version === char.synced[x]?.[mode])
+        : undefined;
+    const macroChanged =
+      !!base &&
+      !!last &&
+      last.macros.some(m => {
+        const p = base.macros.find(y => y.id === m.id);
+        return !p || p.content !== m.content;
+      });
+    const talentChanged =
+      !!base && !!last && base.talents.some((p, i) => p !== last.talents[i]);
+    return {
+      xinfa: x,
+      scheme,
+      last,
+      status,
+      base,
+      macroChanged,
+      talentChanged,
+    };
+  });
+  // 有方案的心法在前，还没有方案的放最后
+  const ready = sections.filter(x => x.scheme && x.last);
+  const missing = sections.filter(x => !x.scheme || !x.last);
+  const focusScheme = (ready.find(x => isPending(x.status)) ?? ready[0])
+    ?.scheme;
   const inboxCount = inboxItems(state).length;
   const draggable = state.pinned && !!onHeaderPointerDown;
+
+  useEffect(() => {
+    if (view !== "main" || !focusXinfa) return;
+    sectionRefs.current.get(focusXinfa)?.scrollIntoView({ block: "start" });
+    setFocusXinfa(null);
+  }, [view, focusXinfa]);
 
   if (view === "inbox") {
     return (
@@ -139,8 +173,8 @@ function PanelMain({
         onBack={() => setView("main")}
         onOpenItem={(charId, m, x) => {
           actions.selectCharacter(charId);
-          actions.setXinfa(charId, x);
           actions.setMode(charId, m);
+          setFocusXinfa(x);
           setView("main");
         }}
         onHeaderPointerDown={onHeaderPointerDown}
@@ -160,15 +194,8 @@ function PanelMain({
     );
   }
 
-  const macroChanged =
-    !!base &&
-    !!last &&
-    last.macros.some(m => {
-      const p = base.macros.find(x => x.id === m.id);
-      return !p || p.content !== m.content;
-    });
-  const talentChanged =
-    !!base && !!last && base.talents.some((p, i) => p !== last.talents[i]);
+  const macroChanged = sections.some(x => x.macroChanged);
+  const talentChanged = sections.some(x => x.talentChanged);
 
   return (
     <>
@@ -217,7 +244,7 @@ function PanelMain({
             label="打开管理窗口"
             onClick={() =>
               // 没有方案时不定位，方案库显示列表里的第一个
-              openManager("schemes", scheme?.id)
+              openManager("schemes", focusScheme?.id)
             }
           >
             <AppWindow className="h-4 w-4" />
@@ -226,14 +253,6 @@ function PanelMain({
       </header>
 
       <OfflineBar compact />
-
-      {xinfas.length > 1 && (
-        <XinfaSwitch
-          char={char}
-          value={xinfa}
-          onChange={x => actions.setXinfa(char.id, x)}
-        />
-      )}
 
       <div className="flex h-10 shrink-0 items-center gap-4 border-b border-paper/[0.07] px-4">
         <div
@@ -277,9 +296,9 @@ function PanelMain({
                 label: (
                   <span className="inline-flex items-center gap-1">
                     {m}
-                    {isPending(statusOf(state, char, m, xinfa)) && (
-                      <ChangeDot />
-                    )}
+                    {xinfas.some(x =>
+                      isPending(statusOf(state, char, m, x))
+                    ) && <ChangeDot />}
                   </span>
                 ),
               }))}
@@ -288,23 +307,76 @@ function PanelMain({
         )}
       </div>
 
-      {!scheme || !last ? (
+      {!multi && missing.length ? (
         <NoScheme
-          xinfa={xinfa}
+          xinfa={xinfas[0]}
           mode={mode}
           onCreate={() =>
-            openManager("schemes", undefined, { newScheme: { xinfa, mode } })
+            openManager("schemes", undefined, {
+              newScheme: { xinfa: xinfas[0], mode },
+            })
           }
         />
       ) : (
         <div
-          key={`${char.id}-${xinfa}-${mode}-${tab}`}
+          key={`${char.id}-${mode}-${tab}`}
           className="scroll-thin min-h-0 flex-1 animate-fade overflow-y-auto"
         >
-          {tab === "macro" ? (
-            <MacroList macros={last.macros} base={base} />
-          ) : (
-            <TalentList xinfa={xinfa} talents={last.talents} base={base} />
+          {ready.map(sec => {
+            const id = `panel-sec-${char.id}-${sec.xinfa}`;
+            const list =
+              tab === "macro" ? (
+                <MacroList macros={sec.last!.macros} base={sec.base} />
+              ) : (
+                <TalentList
+                  xinfa={sec.xinfa}
+                  talents={sec.last!.talents}
+                  base={sec.base}
+                />
+              );
+            // 只玩一个心法时不加小标题
+            if (!multi) return <div key={sec.xinfa}>{list}</div>;
+            return (
+              <section
+                key={sec.xinfa}
+                aria-labelledby={id}
+                ref={el => {
+                  if (el) sectionRefs.current.set(sec.xinfa, el);
+                  else sectionRefs.current.delete(sec.xinfa);
+                }}
+              >
+                <SectionHeading
+                  id={id}
+                  xinfa={sec.xinfa}
+                  version={sec.last!.version}
+                  changed={
+                    tab === "macro" ? sec.macroChanged : sec.talentChanged
+                  }
+                />
+                {list}
+              </section>
+            );
+          })}
+          {multi && missing.length > 0 && (
+            <div
+              className={cn(
+                "py-1",
+                ready.length > 0 && "border-t border-paper/[0.06]"
+              )}
+            >
+              {missing.map(sec => (
+                <MissingRow
+                  key={sec.xinfa}
+                  xinfa={sec.xinfa}
+                  mode={modes.length > 1 ? mode : undefined}
+                  onCreate={() =>
+                    openManager("schemes", undefined, {
+                      newScheme: { xinfa: sec.xinfa, mode },
+                    })
+                  }
+                />
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -312,56 +384,73 @@ function PanelMain({
   );
 }
 
-/**
- * 多心法角色（双心法、学了流派）的心法切换：单独一行，显示心法标识和全名。
- * 有更新的心法后面带红点。
- */
-function XinfaSwitch({
-  char,
-  value,
-  onChange,
+/** 多心法角色列表里的心法小标题：滚动时贴在顶部 */
+function SectionHeading({
+  id,
+  xinfa,
+  version,
+  changed,
 }: {
-  char: Character;
-  value: string;
-  onChange: (xinfa: string) => void;
+  id: string;
+  xinfa: string;
+  version: number;
+  changed: boolean;
+}) {
+  return (
+    <h3
+      id={id}
+      className="sticky top-0 z-10 flex h-8 items-center gap-2 bg-[#181714] px-4 text-[12px] font-medium text-paper-2"
+    >
+      <span aria-hidden="true" className="inline-flex shrink-0">
+        <XinfaMark xinfa={xinfa} size={16} />
+      </span>
+      <span className="truncate">{xinfa}</span>
+      {changed && (
+        <>
+          <ChangeDot />
+          <span className="sr-only">有改动</span>
+        </>
+      )}
+      <span className="ml-auto shrink-0 text-[11px] font-normal tabular-nums text-paper-3">
+        v{version}
+      </span>
+    </h3>
+  );
+}
+
+/** 多心法角色里还没有方案的心法：一行，放在列表最后 */
+function MissingRow({
+  xinfa,
+  mode,
+  onCreate,
+}: {
+  xinfa: string;
+  /** 角色有 PVE/PVP 两种时写明是哪种 */
+  mode?: Mode;
+  onCreate: () => void;
 }) {
   const { state } = useProto();
+  const viewer = me(state)?.role === "viewer";
   return (
-    <div className="shrink-0 border-b border-paper/[0.07] px-3 py-2">
-      <div
-        role="radiogroup"
-        aria-label="心法"
-        className="flex rounded-md bg-ink p-0.5 ring-1 ring-inset ring-paper/10"
-      >
-        {xinfasOf(char).map(x => {
-          const active = x === value;
-          const pending = MODES.some(m =>
-            isPending(statusOf(state, char, m, x))
-          );
-          return (
-            <button
-              key={x}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              title={pending ? `${x}有更新` : x}
-              onClick={() => onChange(x)}
-              className={cn(
-                "flex h-7 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[5px] px-2 text-[12.5px] font-medium transition-colors",
-                active
-                  ? "bg-ink-4 text-paper shadow-[0_1px_0_rgb(255_255_255/0.06)_inset]"
-                  : "text-paper-3 hover:text-paper"
-              )}
-            >
-              <span aria-hidden="true" className="inline-flex shrink-0">
-                <XinfaMark xinfa={x} size={16} />
-              </span>
-              <span className="truncate">{x}</span>
-              {pending && <ChangeDot />}
-            </button>
-          );
-        })}
-      </div>
+    <div className="flex h-9 items-center gap-2 px-4 text-[12px]">
+      <span aria-hidden="true" className="inline-flex shrink-0 opacity-60">
+        <XinfaMark xinfa={xinfa} size={16} />
+      </span>
+      <span className="truncate text-paper-2">{xinfa}</span>
+      <span className="shrink-0 text-paper-3">
+        还没有{mode ? ` ${mode} ` : ""}方案
+      </span>
+      {!viewer && (
+        <button
+          type="button"
+          onClick={onCreate}
+          aria-label={`新建${xinfa}${mode ? ` ${mode}` : ""}方案`}
+          className="ml-auto inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-paper-2 transition-colors hover:bg-paper/[0.06] hover:text-paper"
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+          新建
+        </button>
+      )}
     </div>
   );
 }
