@@ -23,6 +23,7 @@ import { diffVersions } from "@/lib/diff";
 import { absoluteTime, relativeTime } from "@/lib/format";
 import { MACRO_LIMIT, cleanMacro, lintMacro } from "@/lib/macro";
 import {
+  activeSchemeId,
   canEdit,
   findScheme,
   isOnline,
@@ -39,18 +40,12 @@ import { TalentPicker } from "./TalentPicker";
 
 export function SchemesView() {
   const { state } = useProto();
+  const id = activeSchemeId(state);
   return (
     <div className="flex h-full min-h-0">
       <SchemeList />
       <div className="scroll-thin min-w-0 flex-1 overflow-y-auto">
-        {state.schemes.length === 0 &&
-        Object.keys(state.drafts).length === 0 &&
-        !state.selectedSchemeId ? null : (
-          <SchemeEditor
-            key={state.selectedSchemeId}
-            schemeId={state.selectedSchemeId}
-          />
-        )}
+        {id && <SchemeEditor key={id} schemeId={id} />}
       </div>
     </div>
   );
@@ -60,6 +55,17 @@ function SchemeList() {
   const { state, actions } = useProto();
   const editable = canEdit(state);
   const [creating, setCreating] = useState(false);
+  const [prefill, setPrefill] = useState<{ xinfa: string; mode: Mode }>();
+  const activeId = activeSchemeId(state);
+  // 从托盘「新建方案」进来：直接打开新建弹窗，心法和模式先填好
+  useEffect(() => {
+    const it = state.managerIntent;
+    if (it && typeof it === "object" && "newScheme" in it) {
+      setPrefill(it.newScheme);
+      setCreating(true);
+      actions.clearIntent();
+    }
+  }, [state.managerIntent, actions]);
   // 只列出有方案或正在新建的心法，按门派顺序
   const listed = XINFA_LIST.filter(x =>
     MODES.some(
@@ -131,7 +137,7 @@ function SchemeList() {
                   const id = `${x}-${m}`;
                   const last = latest(findScheme(state, x, m));
                   const draft = state.drafts[id];
-                  const active = state.selectedSchemeId === id;
+                  const active = activeId === id;
                   return (
                     <li key={m}>
                       <button
@@ -167,7 +173,14 @@ function SchemeList() {
           );
         })}
       </ul>
-      <NewSchemeDialog open={creating} onClose={() => setCreating(false)} />
+      <NewSchemeDialog
+        open={creating}
+        initial={prefill}
+        onClose={() => {
+          setCreating(false);
+          setPrefill(undefined);
+        }}
+      />
     </nav>
   );
 }
@@ -178,9 +191,12 @@ function SchemeList() {
  */
 function NewSchemeDialog({
   open,
+  initial,
   onClose,
 }: {
   open: boolean;
+  /** 预先填好的心法和模式（从托盘「新建方案」进来时） */
+  initial?: { xinfa: string; mode: Mode };
   onClose: () => void;
 }) {
   const { state, actions } = useProto();
@@ -202,6 +218,11 @@ function NewSchemeDialog({
   // 每次打开时重新选默认值
   useEffect(() => {
     if (!open) return;
+    if (initial && !has(initial.xinfa, initial.mode)) {
+      setXinfa(initial.xinfa);
+      setMode(initial.mode);
+      return;
+    }
     const x = pickDefault();
     setXinfa(x);
     setMode(firstMissing(x));

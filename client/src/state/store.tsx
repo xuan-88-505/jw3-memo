@@ -110,7 +110,7 @@ export interface ProtoState {
   trayMotion: TrayMotion;
   managerOpen: boolean;
   managerSection: ManagerSection;
-  managerIntent: "add-character" | null;
+  managerIntent: ManagerIntent | null;
   activeCharId: string;
   activeMode: Record<string, Mode>;
   /** 多心法角色在面板里正在看的心法 */
@@ -161,6 +161,11 @@ function seedData() {
     blacklist: seedBlacklist(),
   };
 }
+
+/** 打开管理窗口时顺便要做的事：添加角色，或新建某心法某模式的方案 */
+export type ManagerIntent =
+  | "add-character"
+  | { newScheme: { xinfa: string; mode: Mode } };
 
 export interface Note {
   text: string;
@@ -299,6 +304,22 @@ export function modesOf(state: ProtoState, xinfa: string): Mode[] {
 
 export function findScheme(state: ProtoState, xinfa: string, mode: Mode) {
   return state.schemes.find(s => s.xinfa === xinfa && s.mode === mode);
+}
+
+/**
+ * 方案库里实际显示的方案：选中的方案存在（或正在新建）就用它；
+ * 否则用列表里的第一个，避免停在一个不存在的方案上。没有任何方案时返回 null。
+ */
+export function activeSchemeId(s: ProtoState): string | null {
+  const exists = (id: string) => {
+    const [x, m] = id.split("-") as [string, Mode];
+    return !!latest(findScheme(s, x, m)) || !!s.drafts[id];
+  };
+  if (s.selectedSchemeId && exists(s.selectedSchemeId))
+    return s.selectedSchemeId;
+  for (const x of XINFA_LIST)
+    for (const m of MODES) if (exists(`${x}-${m}`)) return `${x}-${m}`;
+  return null;
 }
 
 export function statusOf(
@@ -664,7 +685,7 @@ function useActions(
       openManager: (
         section?: ManagerSection,
         schemeId?: string,
-        intent?: "add-character"
+        intent?: ManagerIntent
       ) =>
         update(s => ({
           managerOpen: true,

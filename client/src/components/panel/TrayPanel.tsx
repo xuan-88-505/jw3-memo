@@ -37,6 +37,7 @@ import {
   statusOf,
   useProto,
   viewXinfa,
+  type ManagerIntent,
 } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { Inbox } from "./Inbox";
@@ -50,7 +51,7 @@ export interface TrayPanelProps {
   onOpenManager?: (
     section?: ManagerSection,
     schemeId?: string,
-    intent?: "add-character"
+    intent?: ManagerIntent
   ) => void;
   showPin?: boolean;
   className?: string;
@@ -215,7 +216,8 @@ function PanelMain({
           <IconBtn
             label="打开管理窗口"
             onClick={() =>
-              openManager("schemes", scheme?.id ?? `${xinfa}-${mode}`)
+              // 没有方案时不定位，方案库显示列表里的第一个
+              openManager("schemes", scheme?.id)
             }
           >
             <AppWindow className="h-4 w-4" />
@@ -290,7 +292,9 @@ function PanelMain({
         <NoScheme
           xinfa={xinfa}
           mode={mode}
-          onCreate={() => openManager("schemes", `${xinfa}-${mode}`)}
+          onCreate={() =>
+            openManager("schemes", undefined, { newScheme: { xinfa, mode } })
+          }
         />
       ) : (
         <div
