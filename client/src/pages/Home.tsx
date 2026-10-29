@@ -5,7 +5,7 @@ import { Segmented } from "@/components/common/ui";
 import { DesktopScreen } from "@/components/desktop/DesktopScreen";
 import { Stage } from "@/components/desktop/Stage";
 import type { DataState, Platform, Role, Scene } from "@/data/types";
-import { hotkeyKeys } from "@/lib/format";
+import { hotkeyText } from "@/lib/hotkey";
 import { me, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ export default function Home() {
   const { state, actions } = useProto();
   const role = me(state)?.role ?? "admin";
   const mac = state.platform === "mac";
-  const hk = hotkeyKeys(state.platform).join(" + ");
+  const hk = hotkeyText(state.hotkeys[state.platform], state.platform);
 
   return (
     <div className="min-h-screen bg-[#0e0d0c] text-paper">
@@ -140,7 +140,7 @@ export default function Home() {
 
         <section className="grid gap-x-8 gap-y-3 py-6 text-[13px] leading-relaxed text-paper-2 md:grid-cols-2 xl:grid-cols-4">
           <Tip n="1" title="打开面板">
-            点{mac ? "菜单栏" : "任务栏"}的同调图标，或按 {hk}。数字键 1–4
+            点{mac ? "菜单栏" : "任务栏"}的同调图标，或按 {hk}（可在设置里改）。数字键 1–4
             切角色。
           </Tip>
           <Tip n="2" title="通知">

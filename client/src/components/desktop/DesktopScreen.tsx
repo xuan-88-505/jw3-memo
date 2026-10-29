@@ -23,7 +23,7 @@ import { HuangjiLaugh } from "@/components/brand/Marks";
 import { ManagerApp } from "@/components/manager/ManagerApp";
 import { TrayPanel } from "@/components/panel/TrayPanel";
 import { pendingCount, myCharacters, useProto } from "@/state/store";
-import { hotkeyKeys } from "@/lib/format";
+import { hotkeyText, matchHotkey } from "@/lib/hotkey";
 import { cn } from "@/lib/utils";
 import {
   DemoNote,
@@ -79,10 +79,13 @@ export function DesktopScreen() {
   const [macAnchor, setMacAnchor] = useState(260);
   const [coachLeft, setCoachLeft] = useState(SCREEN_W - 240);
 
-  // 快捷键：Alt+Q / ⌥Q 开关；Esc 收起；1–9 切换角色
+  // 快捷键：用户设置的组合开关面板；Esc 收起；1–9 切换角色
+  const hotkey = state.hotkeys[state.platform];
+  const hk = hotkeyText(hotkey, state.platform);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.altKey && e.code === "KeyQ") {
+      if (state.recordingHotkey) return;
+      if (matchHotkey(e, hotkey)) {
         e.preventDefault();
         actions.togglePanel();
         return;
@@ -107,7 +110,7 @@ export function DesktopScreen() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [state, actions]);
+  }, [state, actions, hotkey]);
 
   // 点击面板外部收起（钉住时不收起）
   const onScreenPointerDown = useCallback(
@@ -236,12 +239,12 @@ export function DesktopScreen() {
           )}
           style={{ left: coachLeft }}
         >
-          点这里打开面板，或按 {hotkeyKeys(state.platform).join(" + ")}
+          点这里打开面板，或按 {hk}
         </DemoNote>
       )}
       {full && !state.panelOpen && (
         <DemoNote className="absolute left-1/2 top-6 z-30 w-[520px] -translate-x-1/2 text-center">
-          游戏全屏中，按 Alt + Q 呼出面板
+          游戏全屏中，按 {hk} 呼出面板
           <br />
           <span className="text-gold/75">
             需设为无边框窗口，独占全屏会被盖住（实机待验证）

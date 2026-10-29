@@ -25,10 +25,6 @@ export function absoluteTime(iso: string): string {
   )}（${tz}）`;
 }
 
-export function hotkeyKeys(platform: Platform): string[] {
-  return platform === "mac" ? ["⌥", "Q"] : ["Alt", "Q"];
-}
-
 export function pasteHint(platform: Platform): string {
   return platform === "mac" ? "⌘V" : "Ctrl+V";
 }

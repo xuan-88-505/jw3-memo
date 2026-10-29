@@ -19,6 +19,7 @@ import {
 } from "@/data/seed";
 import { MODES } from "@/data/types";
 import { diffVersions } from "@/lib/diff";
+import { DEFAULT_HOTKEYS, type Hotkey } from "@/lib/hotkey";
 import type {
   Character,
   DataState,
@@ -86,6 +87,10 @@ export interface ProtoState {
   selectedSchemeId: string;
   changelogFilter: string;
   toasts: UiToast[];
+  /** 本机设置：每台电脑分开保存，不同步给亲友 */
+  hotkeys: Record<Platform, Hotkey>;
+  /** 正在录制新快捷键时，暂停全局快捷键 */
+  recordingHotkey: boolean;
 }
 
 function seedData() {
@@ -117,6 +122,8 @@ const initialState: ProtoState = {
   selectedSchemeId: "紫霞功-PVE",
   changelogFilter: "全部",
   toasts: [],
+  hotkeys: { ...DEFAULT_HOTKEYS },
+  recordingHotkey: false,
 };
 
 // ---------- 派生数据 ----------
@@ -307,6 +314,14 @@ function useActions(
         })),
       setScene: (scene: Scene) => patch({ scene }),
       setSimulateConflict: (on: boolean) => patch({ simulateConflict: on }),
+      setHotkey: (platform: Platform, hk: Hotkey) =>
+        update(s => ({ hotkeys: { ...s.hotkeys, [platform]: hk } })),
+      resetHotkey: (platform: Platform) =>
+        update(s => ({
+          hotkeys: { ...s.hotkeys, [platform]: DEFAULT_HOTKEYS[platform] },
+        })),
+      setRecordingHotkey: (recordingHotkey: boolean) =>
+        patch({ recordingHotkey }),
       setMyRole: (role: Role) =>
         update(s => ({
           members: s.members.map(m => (m.id === ME_ID ? { ...m, role } : m)),

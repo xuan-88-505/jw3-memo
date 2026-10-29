@@ -92,4 +92,9 @@ export type SyncStatus = "synced" | "pending" | "never" | "none";
 export type Platform = "win" | "mac";
 export type Scene = "desktop" | "game-window" | "game-full";
 export type DataState = "normal" | "onboarding" | "offline" | "loading";
-export type ManagerSection = "schemes" | "characters" | "changelog" | "team";
+export type ManagerSection =
+  | "schemes"
+  | "characters"
+  | "changelog"
+  | "team"
+  | "settings";

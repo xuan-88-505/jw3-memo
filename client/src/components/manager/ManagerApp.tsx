@@ -1,4 +1,11 @@
-import { BookOpen, History, Loader2, UserRound, Users } from "lucide-react";
+import {
+  BookOpen,
+  History,
+  Loader2,
+  Settings,
+  UserRound,
+  Users,
+} from "lucide-react";
 import { Wordmark } from "@/components/brand/Marks";
 import { OfflineBar, ToastStack } from "@/components/common/overlay";
 import { Avatar, Btn, SealBadge } from "@/components/common/ui";
@@ -9,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { ChangelogView } from "./ChangelogView";
 import { CharactersView } from "./CharactersView";
 import { SchemesView } from "./SchemesView";
+import { SettingsView } from "./SettingsView";
 import { TeamView } from "./TeamView";
 
 const NAV: { key: ManagerSection; label: string; icon: typeof BookOpen }[] = [
@@ -28,6 +36,7 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
     characters: myCharacters(state).length,
     changelog: null,
     team: state.members.length,
+    settings: null,
   };
 
   return (
@@ -85,6 +94,31 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
             })}
           </ul>
         </nav>
+        <div className="px-2 pb-2">
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => actions.setSection("settings")}
+            aria-current={
+              state.managerSection === "settings" ? "page" : undefined
+            }
+            className={cn(
+              "relative flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-[13.5px] transition-colors",
+              state.managerSection === "settings"
+                ? "bg-paper/[0.08] font-medium text-paper"
+                : "text-paper-2 hover:bg-paper/[0.04] hover:text-paper"
+            )}
+          >
+            {state.managerSection === "settings" && (
+              <span
+                className="absolute left-0 top-2 h-5 w-[2px] rounded-full bg-cinnabar"
+                aria-hidden="true"
+              />
+            )}
+            <Settings className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="flex-1 text-left">设置</span>
+          </button>
+        </div>
         <div className="flex items-center gap-2.5 border-t border-paper/[0.07] px-4 py-3">
           {self ? (
             <Avatar member={self} size={28} />
@@ -133,6 +167,10 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
         <div className="min-h-0 flex-1">
           {loading ? (
             <ManagerSkeleton />
+          ) : state.managerSection === "settings" ? (
+            <div className="scroll-thin h-full overflow-y-auto px-8 pb-10 pt-7">
+              <SettingsView />
+            </div>
           ) : !state.team ? (
             <NoTeam onOpenPanel={onOpenPanel} />
           ) : state.managerSection === "schemes" ? (
