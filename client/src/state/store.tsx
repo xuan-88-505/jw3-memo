@@ -82,6 +82,8 @@ export interface ProtoState {
   pinned: boolean;
   panelOffset: { x: number; y: number };
   coachSeen: boolean;
+  /** 设置：开机自动启动（原型只记状态） */
+  launchAtLogin: boolean;
   managerOpen: boolean;
   managerSection: ManagerSection;
   managerIntent: "add-character" | null;
@@ -130,6 +132,7 @@ const initialState: ProtoState = {
   pinned: false,
   panelOffset: { x: 0, y: 0 },
   coachSeen: readCoachSeen(),
+  launchAtLogin: true,
   managerOpen: false,
   managerSection: "schemes",
   managerIntent: null,
@@ -367,6 +370,7 @@ function useActions(
 
       // 面板
       dismissCoach: () => patch({ coachSeen: true }),
+      setLaunchAtLogin: (launchAtLogin: boolean) => patch({ launchAtLogin }),
       togglePanel: () =>
         update(s => ({ panelOpen: !s.panelOpen, coachSeen: true })),
       setPanelOpen: (open: boolean) =>
