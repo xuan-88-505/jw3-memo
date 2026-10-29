@@ -1,4 +1,5 @@
 import type { Platform, Role } from "@/data/types";
+import { IS_DESKTOP, writeClipboard } from "@/lib/desktop";
 
 export function relativeTime(iso: string, now = Date.now()): string {
   const t = new Date(iso).getTime();
@@ -48,6 +49,15 @@ export const LAYER_LABEL = [
 ];
 
 export async function copyText(text: string): Promise<boolean> {
+  // 桌面版：直接写系统剪贴板，不受网页权限限制
+  if (IS_DESKTOP) {
+    try {
+      await writeClipboard(text);
+      return true;
+    } catch {
+      // 继续尝试网页的方式
+    }
+  }
   try {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text);

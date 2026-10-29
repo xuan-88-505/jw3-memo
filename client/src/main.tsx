@@ -6,7 +6,10 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
 import { startLogin } from "./const";
+import { IS_DESKTOP, installExternalLinks } from "./lib/desktop";
 import "./index.css";
+
+if (IS_DESKTOP) installExternalLinks();
 
 const queryClient = new QueryClient();
 

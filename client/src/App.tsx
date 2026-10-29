@@ -2,12 +2,18 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { WINDOW_LABEL } from "./lib/desktop";
+import DesktopManager from "./pages/DesktopManager";
+import DesktopPanel from "./pages/DesktopPanel";
 import Home from "./pages/Home";
 import ManagerPage from "./pages/ManagerPage";
 import PanelPage from "./pages/PanelPage";
 import { ProtoProvider } from "./state/store";
 
 function Router() {
+  // 桌面版：两个窗口加载同一个页面，按窗口选择界面
+  if (WINDOW_LABEL === "panel") return <DesktopPanel />;
+  if (WINDOW_LABEL === "manager") return <DesktopManager />;
   return (
     <Switch>
       <Route path={"/"} component={Home} />

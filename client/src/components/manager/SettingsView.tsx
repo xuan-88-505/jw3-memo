@@ -2,6 +2,13 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, Loader2, RotateCcw } from "lucide-react";
 import { Btn, Segmented } from "@/components/common/ui";
 import {
+  IS_DESKTOP,
+  RELEASES_URL,
+  exportFile,
+  openExternal,
+  resetPanelPosition,
+} from "@/lib/desktop";
+import {
   DEFAULT_HOTKEYS,
   checkHotkey,
   hotkeyFromEvent,
@@ -12,11 +19,18 @@ import {
   sameHotkey,
   type Hotkey,
 } from "@/lib/hotkey";
-import { isDefaultNav, useProto, type TrayMotion } from "@/state/store";
+import {
+  isDefaultNav,
+  parseData,
+  serializeData,
+  useProto,
+  type ProtoState,
+  type TrayMotion,
+} from "@/state/store";
 import { cn } from "@/lib/utils";
 import { SectionHeader } from "./shared";
 
-const APP_VERSION = "v0.1.0";
+const APP_VERSION = IS_DESKTOP ? "1.0.0" : "v0.1.0";
 
 const MOTION_DESC: Record<TrayMotion, string> = {
   hover: "鼠标移上去时动；有新的更新时动 3 秒",
@@ -31,6 +45,11 @@ export function SettingsView() {
   const [checking, setChecking] = useState(false);
 
   const checkUpdate = () => {
+    // 桌面版：打开发布页，看有没有新的安装包
+    if (IS_DESKTOP) {
+      void openExternal(RELEASES_URL);
+      return;
+    }
     setChecking(true);
     window.setTimeout(() => {
       setChecking(false);
@@ -47,22 +66,25 @@ export function SettingsView() {
         </SettingGroup>
 
         <SettingGroup title="通用">
-          <SettingRow
-            titleId="set-motion"
-            title="托盘表情动效"
-            desc={MOTION_DESC[state.trayMotion]}
-          >
-            <Segmented<TrayMotion>
-              label="托盘表情动效"
-              value={state.trayMotion}
-              onChange={actions.setTrayMotion}
-              options={[
-                { value: "hover", label: "悬停时" },
-                { value: "always", label: "一直动" },
-                { value: "off", label: "不动" },
-              ]}
-            />
-          </SettingRow>
+          {/* 系统托盘图标是静态图，桌面版没有动效可选 */}
+          {!IS_DESKTOP && (
+            <SettingRow
+              titleId="set-motion"
+              title="托盘表情动效"
+              desc={MOTION_DESC[state.trayMotion]}
+            >
+              <Segmented<TrayMotion>
+                label="托盘表情动效"
+                value={state.trayMotion}
+                onChange={actions.setTrayMotion}
+                options={[
+                  { value: "hover", label: "悬停时" },
+                  { value: "always", label: "一直动" },
+                  { value: "off", label: "不动" },
+                ]}
+              />
+            </SettingRow>
+          )}
           <SettingRow
             titleId="set-launch"
             title="开机自动启动"
@@ -81,12 +103,16 @@ export function SettingsView() {
             <Btn
               size="sm"
               onClick={() => {
-                actions.resetPanelOffset();
+                // 桌面版的位置由系统记录，这里不知道是否已在默认位置，按钮一直可用
+                if (IS_DESKTOP) void resetPanelPosition();
+                else actions.resetPanelOffset();
                 actions.toast("manager", "success", "面板已回到默认位置");
               }}
-              disabled={!state.panelOffset.x && !state.panelOffset.y}
+              disabled={
+                !IS_DESKTOP && !state.panelOffset.x && !state.panelOffset.y
+              }
               title={
-                !state.panelOffset.x && !state.panelOffset.y
+                !IS_DESKTOP && !state.panelOffset.x && !state.panelOffset.y
                   ? "现在就在默认位置"
                   : undefined
               }
@@ -107,12 +133,21 @@ export function SettingsView() {
               恢复默认
             </Btn>
           </SettingRow>
-          <SettingRow title="版本" desc={`${APP_VERSION} · 交互原型`}>
+          <SettingRow
+            title="版本"
+            desc={IS_DESKTOP ? APP_VERSION : `${APP_VERSION} · 交互原型`}
+          >
             <Btn
               size="sm"
               onClick={checkUpdate}
-              disabled={checking || offline}
-              title={offline ? "离线时不能检查更新" : undefined}
+              disabled={checking || (!IS_DESKTOP && offline)}
+              title={
+                IS_DESKTOP
+                  ? "打开发布页"
+                  : offline
+                    ? "离线时不能检查更新"
+                    : undefined
+              }
               icon={
                 checking ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -123,8 +158,113 @@ export function SettingsView() {
             </Btn>
           </SettingRow>
         </SettingGroup>
+
+        {IS_DESKTOP && (
+          <SettingGroup title="数据">
+            <DataRows />
+          </SettingGroup>
+        )}
       </div>
     </div>
+  );
+}
+
+/* ---------------- 数据：导出、导入 ---------------- */
+
+/** 文件名里的日期，如 20261030 */
+function today() {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
+}
+
+function DataRows() {
+  const { state, actions } = useProto();
+  const fileRef = useRef<HTMLInputElement>(null);
+  /** 选好了要导入的文件，等用户确认覆盖 */
+  const [pending, setPending] = useState<Partial<ProtoState> | null>(null);
+
+  const doExport = async () => {
+    try {
+      const ok = await exportFile(
+        `同调数据-${today()}.json`,
+        serializeData(state)
+      );
+      if (ok) actions.toast("manager", "success", "已导出");
+    } catch {
+      actions.toast("manager", "error", "导出失败，换个位置再试");
+    }
+  };
+
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    const data = parseData(await file.text());
+    if (!data) {
+      actions.toast("manager", "error", "这个文件不是同调导出的数据");
+      return;
+    }
+    setPending(data);
+  };
+
+  const summary = pending
+    ? `${pending.characters?.length ?? 0} 个角色、${pending.schemes?.length ?? 0} 个方案、${Object.keys(pending.loadouts ?? {}).length} 套配装`
+    : "";
+
+  return (
+    <>
+      <SettingRow title="导出数据" desc="存成一个文件，在另一台电脑上导入">
+        <Btn size="sm" onClick={() => void doExport()}>
+          导出
+        </Btn>
+      </SettingRow>
+      <SettingRow
+        title="导入数据"
+        desc={
+          pending ? (
+            <span className="text-gold">
+              文件里有 {summary}。导入后本机现有的数据会被替换。
+            </span>
+          ) : (
+            "用导出的文件替换本机数据"
+          )
+        }
+      >
+        {pending ? (
+          <>
+            <Btn size="sm" variant="ghost" onClick={() => setPending(null)}>
+              取消
+            </Btn>
+            <Btn
+              size="sm"
+              variant="danger"
+              onClick={() => {
+                actions.importData(pending);
+                setPending(null);
+                actions.toast("manager", "success", "已导入");
+              }}
+            >
+              替换并导入
+            </Btn>
+          </>
+        ) : (
+          <Btn size="sm" onClick={() => fileRef.current?.click()}>
+            选择文件
+          </Btn>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".json,application/json"
+          className="hidden"
+          aria-hidden="true"
+          tabIndex={-1}
+          onChange={e => {
+            void pick(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
+      </SettingRow>
+    </>
   );
 }
 
@@ -331,7 +471,7 @@ function SettingRow({
   children,
 }: {
   title: string;
-  desc?: string;
+  desc?: ReactNode;
   titleId?: string;
   children: ReactNode;
 }) {

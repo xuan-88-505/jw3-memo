@@ -12,6 +12,7 @@ import { useState } from "react";
 import { OfflineBar, ToastStack } from "@/components/common/overlay";
 import { Avatar } from "@/components/common/ui";
 import type { ManagerSection } from "@/data/types";
+import { IS_DESKTOP } from "@/lib/desktop";
 import { ROLE_LABEL } from "@/lib/format";
 import {
   me,
@@ -39,6 +40,10 @@ const NAV_BY_KEY: Record<NavSection, NavItem> = {
   records: { key: "records", label: "记录", icon: NotebookPen },
   team: { key: "team", label: "亲友团", icon: Users },
 };
+
+/** 1.0 单机版没有亲友团 */
+const visibleNav = (list: NavSection[]) =>
+  IS_DESKTOP ? list.filter(k => k !== "team") : list;
 
 export function ManagerApp() {
   const { state, actions } = useProto();
@@ -72,7 +77,7 @@ export function ManagerApp() {
       <aside className="flex w-[200px] shrink-0 flex-col">
         <nav aria-label="管理窗口导航" className="flex-1 px-2 pt-3">
           <SortableNav
-            items={navOrder(state).map(k => NAV_BY_KEY[k])}
+            items={visibleNav(navOrder(state)).map(k => NAV_BY_KEY[k])}
             activeKey={state.managerSection}
             disabled={loading}
             onSelect={actions.setSection}
@@ -137,38 +142,45 @@ export function ManagerApp() {
                     />
                   )}
                 </p>
-                <p className="truncate text-[11.5px] text-paper-3">
-                  {self && state.team ? ROLE_LABEL[self.role] : "未加入亲友团"}
-                </p>
+                {!IS_DESKTOP && (
+                  <p className="truncate text-[11.5px] text-paper-3">
+                    {self && state.team
+                      ? ROLE_LABEL[self.role]
+                      : "未加入亲友团"}
+                  </p>
+                )}
               </div>
             </button>
-            <span
-              className={cn(
-                "pointer-events-none relative inline-flex shrink-0 items-center gap-1 text-[11.5px]",
-                state.dataState === "offline"
-                  ? "text-gold"
-                  : state.dataState === "loading"
-                    ? "text-paper-3"
-                    : "text-jade"
-              )}
-            >
+            {/* 单机版不联网，没有在线状态 */}
+            {!IS_DESKTOP && (
               <span
                 className={cn(
-                  "h-1.5 w-1.5 rounded-full",
+                  "pointer-events-none relative inline-flex shrink-0 items-center gap-1 text-[11.5px]",
                   state.dataState === "offline"
-                    ? "bg-gold"
+                    ? "text-gold"
                     : state.dataState === "loading"
-                      ? "bg-paper-3"
-                      : "bg-jade"
+                      ? "text-paper-3"
+                      : "text-jade"
                 )}
-                aria-hidden="true"
-              />
-              {state.dataState === "offline"
-                ? "离线"
-                : state.dataState === "loading"
-                  ? "同步中"
-                  : "在线"}
-            </span>
+              >
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    state.dataState === "offline"
+                      ? "bg-gold"
+                      : state.dataState === "loading"
+                        ? "bg-paper-3"
+                        : "bg-jade"
+                  )}
+                  aria-hidden="true"
+                />
+                {state.dataState === "offline"
+                  ? "离线"
+                  : state.dataState === "loading"
+                    ? "同步中"
+                    : "在线"}
+              </span>
+            )}
           </div>
         </div>
       </aside>

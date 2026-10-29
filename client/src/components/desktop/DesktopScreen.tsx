@@ -85,7 +85,7 @@ const clamp = (v: number, lo: number, hi: number) =>
 /** 从这些控件上按下时不拖动面板 */
 const CONTROLS =
   'button, a, input, textarea, select, label, [role="button"], [role="combobox"], [role="tab"], [role="switch"], [contenteditable="true"]';
-const fromControl = (t: EventTarget | null) =>
+export const fromControl = (t: EventTarget | null) =>
   t instanceof Element && !!t.closest(CONTROLS);
 export function DesktopScreen() {
   const { state, actions } = useProto();

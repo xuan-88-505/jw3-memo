@@ -6,6 +6,7 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
 import {
@@ -52,6 +53,15 @@ import type { BuffSelection } from "@/lib/buffs";
 import { diffVersions } from "@/lib/diff";
 import { DEFAULT_HOTKEYS, type Hotkey } from "@/lib/hotkey";
 import type { NoteImage } from "@/lib/image";
+import {
+  DESKTOP_PLATFORM,
+  IS_DESKTOP,
+  WINDOW_LABEL,
+  backupData,
+  loadData,
+  onDataChanged,
+  saveData,
+} from "@/lib/desktop";
 import { HUANGJI_MOODS, type HuangjiMood } from "@/components/brand/Huangji";
 import type {
   Character,
@@ -325,6 +335,109 @@ const initialState: ProtoState = {
   hotkeys: { ...DEFAULT_HOTKEYS },
   recordingHotkey: false,
 };
+
+// ---------- 桌面版数据 ----------
+
+/**
+ * 桌面版第一次打开：不带示例数据，自己是唯一成员，没有亲友团。
+ * 读到 data.json 后再用文件里的内容覆盖。
+ */
+function desktopInitial(): Partial<ProtoState> {
+  const self = SEED_MEMBERS.find(m => m.id === ME_ID) ?? SEED_MEMBERS[0];
+  return {
+    team: null,
+    members: [{ ...self, role: "admin", joinedAt: new Date().toISOString() }],
+    characters: [],
+    schemes: [],
+    drafts: {},
+    pendingConflict: null,
+    raidLogs: [],
+    blacklist: [],
+    links: [],
+    loadouts: {},
+    activeLoadoutId: null,
+    note: null,
+    platform: DESKTOP_PLATFORM,
+    scene: "desktop",
+    dataState: "normal",
+    panelOffset: { x: 0, y: 0 },
+    coachSeen: true,
+    launchAtLogin: false,
+    managerOpen: true,
+    managerSection: "characters",
+    activeCharId: "",
+    selectedSchemeId: "",
+    followedXinfa: null,
+    navOrder: null,
+  };
+}
+
+/** 存进 data.json 的字段：业务数据和本机设置。面板开关、草稿、提示这类界面状态不存 */
+const PERSIST_KEYS = [
+  "members",
+  "characters",
+  "schemes",
+  "raidLogs",
+  "blacklist",
+  "links",
+  "loadouts",
+  "activeLoadoutId",
+  "note",
+  "hotkeys",
+  "launchAtLogin",
+  "trayMotion",
+  "followedXinfa",
+  "navOrder",
+  "activeCharId",
+  "activeMode",
+  "activeXinfa",
+  "selectedSchemeId",
+] as const satisfies readonly (keyof ProtoState)[];
+
+/** 这些字段必须是数组，否则整份文件不认 */
+const ARRAY_KEYS = new Set<string>([
+  "members",
+  "characters",
+  "schemes",
+  "raidLogs",
+  "blacklist",
+  "links",
+]);
+
+const DATA_APP = "tongdiao";
+const DATA_VERSION = 1;
+
+/** 生成 data.json 的内容；导出数据也用它 */
+export function serializeData(s: ProtoState) {
+  const data = Object.fromEntries(PERSIST_KEYS.map(k => [k, s[k]]));
+  return JSON.stringify({ app: DATA_APP, version: DATA_VERSION, data });
+}
+
+/** 解析 data.json 或导入的文件；不是同调的数据时返回 null */
+export function parseData(raw: string): Partial<ProtoState> | null {
+  let v: unknown;
+  try {
+    v = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  const file = v as { app?: unknown; data?: unknown } | null;
+  if (!file || file.app !== DATA_APP) return null;
+  const data = file.data as Record<string, unknown> | null;
+  if (!data || typeof data !== "object") return null;
+  for (const k of ARRAY_KEYS)
+    if (k in data && !Array.isArray(data[k])) return null;
+  const out: Record<string, unknown> = {};
+  for (const k of PERSIST_KEYS) if (k in data) out[k] = data[k];
+  const result = out as Partial<ProtoState>;
+  if ("navOrder" in out) result.navOrder = normalizeNav(out.navOrder);
+  if ("hotkeys" in out)
+    result.hotkeys = {
+      ...DEFAULT_HOTKEYS,
+      ...(out.hotkeys as Partial<Record<Platform, Hotkey>>),
+    };
+  return result;
+}
 
 // ---------- 派生数据 ----------
 
@@ -714,6 +827,15 @@ function useActions(
         patch({ dataState: "loading" });
         window.setTimeout(() => patch({ dataState: "normal" }), 900);
       },
+      /** 桌面版导入数据：覆盖本机数据，丢掉没保存的草稿 */
+      importData: (data: Partial<ProtoState>) =>
+        patch({
+          ...data,
+          drafts: {},
+          pendingConflict: null,
+          managerIntent: null,
+          schemesPage: "list",
+        }),
 
       // 面板
       dismissCoach: () => patch({ coachSeen: true }),
@@ -1431,11 +1553,13 @@ export function ProtoProvider({
 }) {
   const [state, dispatch] = useReducer(reducer, {
     ...initialState,
+    ...(IS_DESKTOP ? desktopInitial() : {}),
     ...initial,
   });
   const stateRef = useRef(state);
   stateRef.current = state;
   const actions = useActions(dispatch, stateRef);
+  const ready = useDesktopData(state, stateRef, dispatch, actions);
   // 便签存到本地，刷新后还在
   useEffect(() => {
     try {
@@ -1489,7 +1613,88 @@ export function ProtoProvider({
     }
   }, [state.coachSeen]);
   const value = useMemo(() => ({ state, actions }), [state, actions]);
+  // 桌面版读到 data.json 之前不显示，避免先闪一下空界面
+  if (!ready) return null;
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+/**
+ * 桌面版：启动时读 data.json；要保存的字段变了就在 300ms 后写回；
+ * 另一个窗口保存后重新读取。网页原型里什么都不做，直接返回 true。
+ */
+function useDesktopData(
+  state: ProtoState,
+  stateRef: React.MutableRefObject<ProtoState>,
+  dispatch: React.Dispatch<Action>,
+  actions: ProtoActions
+) {
+  const [ready, setReady] = useState(!IS_DESKTOP);
+  /** 文件里现在的内容。读到的和要写的一样时不写，避免两个窗口来回通知 */
+  const lastJson = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!IS_DESKTOP) return;
+    let alive = true;
+    let first = true;
+    const pull = async () => {
+      try {
+        const raw = await loadData();
+        const data = raw ? parseData(raw) : null;
+        if (!alive) return;
+        if (raw && data) {
+          lastJson.current = raw;
+          dispatch({ type: "patch", patch: data });
+        } else if (first) {
+          // 没有文件（第一次打开）或文件读不出来：从空数据开始，没改动就不写
+          lastJson.current = serializeData(stateRef.current);
+          if (raw) {
+            const name = await backupData().catch(() => null);
+            if (WINDOW_LABEL === "manager")
+              actions.toast(
+                "manager",
+                "error",
+                name
+                  ? `数据文件读不出来，已另存为 ${name}，现在从空白开始`
+                  : "数据文件读不出来，现在从空白开始"
+              );
+          }
+        }
+      } catch (err) {
+        console.error("读取数据失败", err);
+      }
+      first = false;
+      if (alive) setReady(true);
+    };
+    void pull();
+    const off = onDataChanged(() => void pull());
+    return () => {
+      alive = false;
+      void off.then(f => f());
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]);
+
+  const persisted = PERSIST_KEYS.map(k => state[k]);
+  useEffect(() => {
+    if (!IS_DESKTOP || !ready) return;
+    const t = window.setTimeout(() => {
+      const json = serializeData(stateRef.current);
+      if (json === lastJson.current) return;
+      lastJson.current = json;
+      saveData(json).catch(err => {
+        console.error("保存数据失败", err);
+        actions.toast(
+          WINDOW_LABEL === "panel" ? "panel" : "manager",
+          "error",
+          "保存失败，这次的改动没有写进文件"
+        );
+      });
+    }, 300);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, ...persisted]);
+
+  return ready;
 }
 
 export function useProto() {

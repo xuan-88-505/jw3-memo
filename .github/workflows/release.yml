@@ -1,0 +1,73 @@
+# 推送 v 开头的标签（如 v1.0.0）时，在 GitHub 的 Windows 和 Mac 机器上打包，
+# 并把安装包发布到 Releases。也可以在 Actions 页面手动运行。
+name: 打包发布
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ""
+          # 通用版：M 芯片和 Intel 芯片的 Mac 都能用
+          - platform: macos-latest
+            args: "--target universal-apple-darwin"
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: 安装前端依赖
+        run: pnpm install --frozen-lockfile
+
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: 同调 v__VERSION__
+          releaseBody: |
+            ## 下载
+
+            | 系统 | 下载这个文件 |
+            | --- | --- |
+            | Windows 10 / 11 | `Tongdiao_*_windows_x64-setup.exe` |
+            | Mac（M 芯片和 Intel 芯片都可以） | `Tongdiao_*_macos_universal.dmg` |
+
+            其他文件是给自动更新用的，不用下载。
+
+            ## 第一次打开
+
+            这个软件没有购买签名证书，系统第一次会拦一下，放行一次以后就不会再拦。
+
+            - **Windows**：出现「Windows 已保护你的电脑」时，点「更多信息」→「仍要运行」。
+            - **Mac**：打开 dmg，把「同调」拖进「应用程序」。第一次打开被拦住时，到「系统设置 → 隐私与安全性」，在页面下方点「仍要打开」。
+
+            打开后，同调会待在 Windows 任务栏右下角的托盘里，或者 Mac 屏幕顶部的菜单栏里。点图标或按 `Ctrl+Alt+Q`（Mac 是 `⌃⌥Q`）打开面板。
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+          releaseAssetNamePattern: Tongdiao_[version]_[platform]_[arch][setup][ext]
