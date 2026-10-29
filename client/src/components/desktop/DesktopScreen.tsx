@@ -184,7 +184,7 @@ export function DesktopScreen() {
       {state.managerOpen && (
         <WindowFrame
           platform={state.platform}
-          title="同调 · 管理"
+          title="同调"
           onClose={actions.closeManager}
           className="z-20"
           style={{

@@ -10,7 +10,6 @@ import {
   Users,
 } from "lucide-react";
 import { useState } from "react";
-import { Wordmark } from "@/components/brand/Marks";
 import { OfflineBar, ToastStack } from "@/components/common/overlay";
 import { Avatar, Btn, SealBadge } from "@/components/common/ui";
 import type { ManagerSection } from "@/data/types";
@@ -63,10 +62,7 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
   return (
     <div className="relative flex h-full w-full overflow-hidden bg-ink-2 text-paper">
       <aside className="flex w-[200px] shrink-0 flex-col border-r border-paper/[0.07] bg-ink">
-        <div className="px-4 pb-5 pt-5">
-          <Wordmark size="md" />
-        </div>
-        <nav aria-label="管理窗口导航" className="flex-1 px-2">
+        <nav aria-label="管理窗口导航" className="flex-1 px-2 pt-3">
           <SortableNav
             items={navOrder(state).map(k => NAV_BY_KEY[k])}
             activeKey={state.managerSection}
