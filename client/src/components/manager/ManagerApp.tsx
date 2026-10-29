@@ -15,7 +15,14 @@ import { OfflineBar, ToastStack } from "@/components/common/overlay";
 import { Avatar, Btn, SealBadge } from "@/components/common/ui";
 import type { ManagerSection } from "@/data/types";
 import { ROLE_LABEL } from "@/lib/format";
-import { me, myCharacters, pendingCount, useProto } from "@/state/store";
+import {
+  me,
+  myCharacters,
+  navOrder,
+  pendingCount,
+  useProto,
+  type NavSection,
+} from "@/state/store";
 import { cn } from "@/lib/utils";
 import { ChangelogView } from "./ChangelogView";
 import { GearView } from "./gear/GearView";
@@ -24,16 +31,18 @@ import { RecordsView } from "./records/RecordsView";
 import { CharactersView } from "./CharactersView";
 import { SchemesView } from "./SchemesView";
 import { SettingsView } from "./SettingsView";
+import { SortableNav, type NavItem } from "./SortableNav";
 import { TeamView } from "./TeamView";
 
-const NAV: { key: ManagerSection; label: string; icon: typeof BookOpen }[] = [
-  { key: "schemes", label: "方案库", icon: BookOpen },
-  { key: "characters", label: "我的角色", icon: UserRound },
-  { key: "gear", label: "配装", icon: Shirt },
-  { key: "changelog", label: "技改记录", icon: History },
-  { key: "records", label: "记录", icon: NotebookPen },
-  { key: "team", label: "亲友团", icon: Users },
-];
+/** 侧栏各项；显示顺序由用户排，见 navOrder */
+const NAV_BY_KEY: Record<NavSection, NavItem> = {
+  schemes: { key: "schemes", label: "方案库", icon: BookOpen },
+  characters: { key: "characters", label: "我的角色", icon: UserRound },
+  gear: { key: "gear", label: "配装", icon: Shirt },
+  changelog: { key: "changelog", label: "技改记录", icon: History },
+  records: { key: "records", label: "记录", icon: NotebookPen },
+  team: { key: "team", label: "亲友团", icon: Users },
+};
 
 export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
   const { state, actions } = useProto();
@@ -58,48 +67,22 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
           <Wordmark size="md" />
         </div>
         <nav aria-label="管理窗口导航" className="flex-1 px-2">
-          <ul className="space-y-0.5">
-            {NAV.map(n => {
-              const active = state.managerSection === n.key;
-              const Icon = n.icon;
-              const disabled = !state.team || loading;
-              return (
-                <li key={n.key}>
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => actions.setSection(n.key)}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "relative flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-[13.5px] transition-colors",
-                      active
-                        ? "bg-paper/[0.08] font-medium text-paper"
-                        : "text-paper-2 hover:bg-paper/[0.04] hover:text-paper"
-                    )}
-                  >
-                    {active && (
-                      <span
-                        className="absolute left-0 top-2 h-5 w-[2px] rounded-full bg-cinnabar"
-                        aria-hidden="true"
-                      />
-                    )}
-                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    <span className="flex-1 text-left">{n.label}</span>
-                    {n.key === "characters" && state.team && (
-                      <SealBadge count={pendingCount(state)} />
-                    )}
-                    {n.key !== "characters" &&
-                      counts[n.key] !== null &&
-                      state.team && (
-                        <span className="text-[11.5px] text-paper-3">
-                          {counts[n.key]}
-                        </span>
-                      )}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <SortableNav
+            items={navOrder(state).map(k => NAV_BY_KEY[k])}
+            activeKey={state.managerSection}
+            disabled={!state.team || loading}
+            onSelect={actions.setSection}
+            onReorder={actions.setNavOrder}
+            trailing={key =>
+              !state.team ? null : key === "characters" ? (
+                <SealBadge count={pendingCount(state)} />
+              ) : counts[key] !== null ? (
+                <span className="text-[11.5px] text-paper-3">
+                  {counts[key]}
+                </span>
+              ) : null
+            }
+          />
         </nav>
         <div className="px-2 pb-2">
           <button

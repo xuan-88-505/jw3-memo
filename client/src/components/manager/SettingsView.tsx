@@ -12,7 +12,7 @@ import {
   sameHotkey,
   type Hotkey,
 } from "@/lib/hotkey";
-import { useProto, type TrayMotion } from "@/state/store";
+import { isDefaultNav, useProto, type TrayMotion } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { SectionHeader } from "./shared";
 
@@ -73,6 +73,19 @@ export function SettingsView() {
               onChange={actions.setLaunchAtLogin}
               labelledBy="set-launch"
             />
+          </SettingRow>
+          <SettingRow title="侧栏顺序" desc="长按侧栏里的项目，拖动排序">
+            <Btn
+              size="sm"
+              onClick={() => {
+                actions.resetNavOrder();
+                actions.toast("manager", "success", "侧栏已恢复默认顺序");
+              }}
+              disabled={isDefaultNav(state)}
+              title={isDefaultNav(state) ? "现在就是默认顺序" : undefined}
+            >
+              恢复默认
+            </Btn>
           </SettingRow>
           <SettingRow title="版本" desc={`${APP_VERSION} · 交互原型`}>
             <Btn

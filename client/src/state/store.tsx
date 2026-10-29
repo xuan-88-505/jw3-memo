@@ -114,6 +114,11 @@ export interface ProtoState {
    * 只属于本人，存在本机，不同步给亲友。
    */
   followedXinfa: string[] | null;
+  /**
+   * 管理窗口侧栏的顺序（不含底部的「设置」）。null 表示用户没排过，用 DEFAULT_NAV。
+   * 只属于本人，存在本机，不同步给亲友。
+   */
+  navOrder: NavSection[] | null;
   toasts: UiToast[];
   /**
    * 便签：按角色 id 存。只属于本人，不进亲友团共享的数据，管理窗口也不显示。
@@ -168,6 +173,36 @@ function readNotes(): Record<string, CharNote> {
   }
 }
 
+/** 侧栏默认顺序；「设置」固定在底部，不参与排序 */
+export type NavSection = Exclude<ManagerSection, "settings">;
+export const DEFAULT_NAV: NavSection[] = [
+  "schemes",
+  "characters",
+  "gear",
+  "changelog",
+  "records",
+  "team",
+];
+/** 去掉未知项和重复项，补上新增的项，保证每一项都在且只出现一次 */
+function normalizeNav(list: unknown): NavSection[] | null {
+  if (!Array.isArray(list)) return null;
+  const known = list.filter(
+    (k, i): k is NavSection =>
+      DEFAULT_NAV.includes(k as NavSection) && list.indexOf(k) === i
+  );
+  return [...known, ...DEFAULT_NAV.filter(k => !known.includes(k))];
+}
+/** 侧栏顺序的本地记录；必须在 initialState 之前定义 */
+const NAV_KEY = "tongdiao.navOrder.v1";
+function readNavOrder(): NavSection[] | null {
+  try {
+    const raw =
+      typeof window !== "undefined" ? localStorage.getItem(NAV_KEY) : null;
+    return raw ? normalizeNav(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+}
 /** 关注心法的本地记录；必须在 initialState 之前定义 */
 const FOLLOW_KEY = "tongdiao.followedXinfa.v1";
 function readFollowed(): string[] | null {
@@ -215,6 +250,7 @@ const initialState: ProtoState = {
   selectedSchemeId: "紫霞功-PVE",
   changelogFilter: "全部",
   followedXinfa: readFollowed(),
+  navOrder: readNavOrder(),
   toasts: [],
   hotkeys: { ...DEFAULT_HOTKEYS },
   recordingHotkey: false,
@@ -255,6 +291,12 @@ export function isPending(s: SyncStatus) {
 }
 
 /** 关注的心法；用户没改过时，默认是有方案的心法 + 自己角色的心法 */
+export function navOrder(state: ProtoState): NavSection[] {
+  return state.navOrder ?? DEFAULT_NAV;
+}
+export function isDefaultNav(state: ProtoState): boolean {
+  return navOrder(state).every((k, i) => k === DEFAULT_NAV[i]);
+}
 export function followedXinfa(state: ProtoState): string[] {
   if (state.followedXinfa) return state.followedXinfa;
   const mine = myCharacters(state).map(c => c.xinfa);
@@ -563,6 +605,15 @@ function useActions(
         const next = XINFA_LIST.filter(x => x === xinfa || list.includes(x));
         patch({ followedXinfa: next });
       },
+      setNavOrder: (order: ManagerSection[]) => {
+        const next = normalizeNav(order);
+        if (!next) return;
+        // 排回默认顺序时清掉记录，以后默认顺序变了也能跟着变
+        patch({
+          navOrder: next.every((k, i) => k === DEFAULT_NAV[i]) ? null : next,
+        });
+      },
+      resetNavOrder: () => patch({ navOrder: null }),
       unfollowXinfa: (xinfa: string) => {
         const s = stateRef.current;
         patch({
@@ -1030,6 +1081,16 @@ export function ProtoProvider({
       /* 浏览器禁用本地存储时，只在本次打开期间记住 */
     }
   }, [state.followedXinfa]);
+  // 侧栏顺序存到本地；默认顺序不写
+  useEffect(() => {
+    try {
+      if (state.navOrder)
+        localStorage.setItem(NAV_KEY, JSON.stringify(state.navOrder));
+      else localStorage.removeItem(NAV_KEY);
+    } catch {
+      /* 浏览器禁用本地存储时，只在本次打开期间记住 */
+    }
+  }, [state.navOrder]);
   // 托盘提示看过一次就记下来，刷新后也不再出现
   useEffect(() => {
     try {
