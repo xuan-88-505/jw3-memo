@@ -104,8 +104,18 @@ function isArmor(key: string): key is ArmorKey {
   return key in YOUXU;
 }
 
+/** 示例数据里的门派全称 → 魔盒物品库 BelongSchool 用的简称 */
+const SCHOOL_ALIAS: Record<string, string> = {
+  万灵山庄: "万灵",
+  凌雪阁: "凌雪",
+  北天药宗: "药宗",
+  无相楼: "无相",
+  衍天宗: "衍天",
+};
+
 function schoolOf(xinfa: string) {
-  return XINFA_META[xinfa]?.school ?? "";
+  const school = XINFA_META[xinfa]?.school ?? "";
+  return SCHOOL_ALIAS[school] ?? school;
 }
 
 /**
