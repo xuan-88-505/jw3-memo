@@ -77,7 +77,7 @@ export function DesktopScreen() {
   const mac = state.platform === "mac";
   const full = !mac && state.scene === "game-full";
   const gameWindow = !mac && state.scene === "game-window";
-  const pending = state.team ? pendingCount(state) : 0;
+  const pending = pendingCount(state);
   const [macAnchor, setMacAnchor] = useState(260);
   const [coachRight, setCoachRight] = useState(120);
 
@@ -194,7 +194,7 @@ export function DesktopScreen() {
             height: 720,
           }}
         >
-          <ManagerApp onOpenPanel={() => actions.setPanelOpen(true)} />
+          <ManagerApp />
         </WindowFrame>
       )}
 

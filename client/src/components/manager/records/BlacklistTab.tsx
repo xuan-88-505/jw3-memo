@@ -10,7 +10,7 @@ import {
   type GameRole,
 } from "@/data/records";
 import { cn } from "@/lib/utils";
-import { canEdit, isOnline, memberName, useProto } from "@/state/store";
+import { canEdit, isOnline, memberName, useProto, isSolo } from "@/state/store";
 import { EmptyState, Field } from "../shared";
 import { fmtDay, RoleLookup, RoleName } from "./RoleLookup";
 
@@ -84,7 +84,8 @@ export function BlacklistTab({
                   <TagChips tags={h.tags} />
                   {h.reason && <p className="mt-1.5 text-paper">{h.reason}</p>}
                   <p className="mt-1 text-paper-3">
-                    {memberName(state, h.by)} · {fmtDay(h.at)}
+                    {!isSolo(state) && `${memberName(state, h.by)} · `}
+                    {fmtDay(h.at)}
                     {h.nameAtRecord !== check.name &&
                       ` · 记录时叫「${h.nameAtRecord}」`}
                   </p>
@@ -181,11 +182,15 @@ export function BlacklistTab({
                     </td>
                     <td className="px-4 py-2.5">
                       <span className="flex min-w-0 items-center gap-2">
-                        {by && <Avatar member={by} size={20} />}
+                        {by && !isSolo(state) && (
+                          <Avatar member={by} size={20} />
+                        )}
                         <span className="min-w-0">
-                          <span className="block truncate text-paper-2">
-                            {memberName(state, b.by)}
-                          </span>
+                          {!isSolo(state) && (
+                            <span className="block truncate text-paper-2">
+                              {memberName(state, b.by)}
+                            </span>
+                          )}
                           <span className="block text-[11.5px] text-paper-3">
                             {fmtDay(b.at)}
                           </span>

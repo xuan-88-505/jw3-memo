@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { OfflineBar, ToastStack } from "@/components/common/overlay";
-import { Avatar, Btn, SealBadge } from "@/components/common/ui";
+import { Avatar, SealBadge } from "@/components/common/ui";
 import type { ManagerSection } from "@/data/types";
 import { ROLE_LABEL } from "@/lib/format";
 import {
@@ -43,7 +43,7 @@ const NAV_BY_KEY: Record<NavSection, NavItem> = {
   team: { key: "team", label: "亲友团", icon: Users },
 };
 
-export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
+export function ManagerApp() {
   const { state, actions } = useProto();
   const loading = state.dataState === "loading";
   const self = me(state);
@@ -55,7 +55,7 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
     gear: null,
     changelog: null,
     records: null,
-    team: state.members.length,
+    team: state.team ? state.members.length : null,
     settings: null,
   };
 
@@ -69,13 +69,13 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
           <SortableNav
             items={navOrder(state).map(k => NAV_BY_KEY[k])}
             activeKey={state.managerSection}
-            disabled={!state.team || loading}
+            disabled={loading}
             onSelect={actions.setSection}
             onReorder={actions.setNavOrder}
             trailing={key =>
-              !state.team ? null : key === "characters" ? (
+              key === "characters" ? (
                 <SealBadge count={pendingCount(state)} />
-              ) : counts[key] !== null ? (
+              ) : counts[key] ? (
                 <span className="text-[11.5px] text-paper-3">
                   {counts[key]}
                 </span>
@@ -135,7 +135,7 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
                   )}
                 </p>
                 <p className="truncate text-[11.5px] text-paper-3">
-                  {self ? ROLE_LABEL[self.role] : "未加入"}
+                  {self && state.team ? ROLE_LABEL[self.role] : "未加入亲友团"}
                 </p>
               </div>
             </button>
@@ -179,8 +179,6 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
             <div className="scroll-thin h-full overflow-y-auto px-8 pb-10 pt-7">
               <SettingsView />
             </div>
-          ) : !state.team ? (
-            <NoTeam onOpenPanel={onOpenPanel} />
           ) : state.managerSection === "schemes" ? (
             <SchemesView />
           ) : state.managerSection === "gear" ? (
@@ -198,24 +196,6 @@ export function ManagerApp({ onOpenPanel }: { onOpenPanel?: () => void }) {
 
       <ProfileDialog open={profileOpen} onClose={() => setProfileOpen(false)} />
       <ToastStack surface="manager" className="bottom-5" />
-    </div>
-  );
-}
-
-function NoTeam({ onOpenPanel }: { onOpenPanel?: () => void }) {
-  return (
-    <div className="flex h-full flex-col items-center justify-center px-10 text-center">
-      <span className="grid h-12 w-12 place-items-center rounded-xl bg-ink-4 text-paper-2 ring-1 ring-inset ring-paper/10">
-        <Users className="h-5 w-5" aria-hidden="true" />
-      </span>
-      <p className="mt-4 font-serif text-[17px] font-semibold">
-        还没加入亲友团
-      </p>
-      {onOpenPanel && (
-        <Btn variant="primary" size="md" className="mt-5" onClick={onOpenPanel}>
-          打开面板
-        </Btn>
-      )}
     </div>
   );
 }

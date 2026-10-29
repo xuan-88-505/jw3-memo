@@ -8,6 +8,7 @@ import { ROLE_LABEL, absoluteTime, copyText } from "@/lib/format";
 import { isOnline, me, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { SectionHeader, SelectBox } from "./shared";
+import { TeamSetup } from "./TeamSetup";
 
 const PERMS: { label: string; roles: Role[] }[] = [
   { label: "查看方案、复制宏", roles: ["admin", "editor", "viewer"] },
@@ -17,6 +18,12 @@ const PERMS: { label: string; roles: Role[] }[] = [
 ];
 
 export function TeamView() {
+  const { state } = useProto();
+  if (!state.team) return <TeamSetup />;
+  return <TeamDetail />;
+}
+
+function TeamDetail() {
   const { state, actions } = useProto();
   const team = state.team!;
   const self = me(state);

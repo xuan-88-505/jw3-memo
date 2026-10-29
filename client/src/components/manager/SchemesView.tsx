@@ -32,6 +32,7 @@ import {
   myCharacters,
   useProto,
   type Draft,
+  isSolo,
 } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { DiffDetails, Field, diffSummary, inputCls } from "./shared";
@@ -139,7 +140,9 @@ function SchemeList() {
                   const draft = state.drafts[id];
                   const active = activeId === id;
                   const meta = last
-                    ? `v${last.version} · ${memberName(state, last.authorId)} · ${relativeTime(last.at)}`
+                    ? isSolo(state)
+                      ? `v${last.version} · ${relativeTime(last.at)}`
+                      : `v${last.version} · ${memberName(state, last.authorId)} · ${relativeTime(last.at)}`
                     : "新建中，未保存";
                   return (
                     <li key={m}>
@@ -353,7 +356,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
   const [saving, setSaving] = useState(false);
 
   /** 只有自己一个人时，不显示创建人 */
-  const solo = !state.team || state.members.length <= 1;
+  const solo = isSolo(state);
   const creatorId = scheme?.versions[0]?.authorId;
   const creator = state.members.find(m => m.id === creatorId);
   const other: Mode = mode === "PVE" ? "PVP" : "PVE";

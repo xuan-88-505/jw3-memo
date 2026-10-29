@@ -24,6 +24,7 @@ import {
   myCharacters,
   statusOf,
   useProto,
+  isSolo,
 } from "@/state/store";
 import { diffVersions, type SchemeDiff } from "@/lib/diff";
 import { relativeTime } from "@/lib/format";
@@ -497,7 +498,8 @@ function ModeCell({
                   : `第一次用 v${last.version}`}
               </span>
               <span className="whitespace-nowrap">
-                {memberName(state, last.authorId)} {relativeTime(last.at)}更新
+                {!isSolo(state) && `${memberName(state, last.authorId)} `}
+                {relativeTime(last.at)}更新
               </span>
             </span>
           </span>

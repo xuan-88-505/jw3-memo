@@ -1,9 +1,8 @@
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { ManagerApp } from "@/components/manager/ManagerApp";
 
 export default function ManagerPage() {
-  const [, navigate] = useLocation();
   return (
     <div className="flex h-screen flex-col bg-ink">
       <div className="flex h-9 shrink-0 items-center gap-3 border-b border-paper/[0.07] px-4 text-[12.5px]">
@@ -19,7 +18,7 @@ export default function ManagerPage() {
         </span>
       </div>
       <div className="min-h-0 flex-1">
-        <ManagerApp onOpenPanel={() => navigate("/panel")} />
+        <ManagerApp />
       </div>
     </div>
   );

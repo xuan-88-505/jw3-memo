@@ -23,7 +23,7 @@ import {
 } from "@/data/records";
 import { ME_ID, schoolLabel } from "@/data/seed";
 import { cn } from "@/lib/utils";
-import { canEdit, isOnline, memberName, useProto } from "@/state/store";
+import { canEdit, isOnline, memberName, useProto, isSolo } from "@/state/store";
 import { EmptyState, Field, inputCls, SelectBox } from "../shared";
 import { RoleLookup, RoleName } from "./RoleLookup";
 
@@ -234,9 +234,13 @@ export function RaidLogTab({
                       writable && "cursor-pointer hover:bg-paper/[0.03]"
                     )}
                     title={
-                      writable
-                        ? `${memberName(state, r.by)} 记录，点击修改`
-                        : `${memberName(state, r.by)} 记录`
+                      isSolo(state)
+                        ? writable
+                          ? "点击修改"
+                          : undefined
+                        : writable
+                          ? `${memberName(state, r.by)} 记录，点击修改`
+                          : `${memberName(state, r.by)} 记录`
                     }
                   >
                     <td className="px-4 py-2.5">

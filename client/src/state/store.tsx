@@ -440,7 +440,13 @@ export function canEdit(state: ProtoState) {
 }
 
 export function isOnline(state: ProtoState) {
-  return state.dataState === "normal";
+  // 首次使用（还没加入亲友团）也是在线状态，能正常保存
+  return state.dataState === "normal" || state.dataState === "onboarding";
+}
+
+/** 只有自己在用：没加入亲友团，或亲友团里只有自己。此时不显示作者名，只显示时间 */
+export function isSolo(state: ProtoState) {
+  return !state.team || state.members.length <= 1;
 }
 
 // ---------- 操作 ----------
@@ -603,19 +609,31 @@ function useActions(
       setDataState: (dataState: DataState) =>
         update(s => {
           if (dataState === "onboarding") {
+            // 模拟新用户：还没加入亲友团，但自己能正常用全部功能
+            const self = s.members.find(m => m.id === ME_ID) ?? SEED_MEMBERS[0];
             return {
               dataState,
-              // 模拟新用户：托盘提示重新出现
+              // 托盘提示重新出现
               coachSeen: false,
               team: null,
-              members: [],
+              members: [
+                { ...self, role: "admin", joinedAt: new Date().toISOString() },
+              ],
               characters: [],
+              schemes: [],
               drafts: {},
               pendingConflict: null,
+              raidLogs: [],
+              blacklist: [],
+              loadouts: {},
+              activeLoadoutId: null,
+              selectedSchemeId: "",
               managerSection: "characters",
             };
           }
-          if (!s.team) return { dataState, ...seedData(), activeCharId: "c1" };
+          // 从首次使用切回「正常」：恢复示例数据
+          if (s.dataState === "onboarding" && dataState === "normal" && !s.team)
+            return { dataState, ...seedData(), activeCharId: "c1" };
           return { dataState };
         }),
       retry: () => {
@@ -1105,38 +1123,57 @@ function useActions(
         }),
 
       // 亲友团
+      // 创建亲友团：自己已有的角色、方案、配装、记录都保留，成为亲友团的数据
       createTeam: (name: string) =>
-        update(() => ({
-          team: { name, inviteCode: newInviteCode() },
-          members: [
-            {
-              ...SEED_MEMBERS[0],
-              role: "admin",
-              joinedAt: new Date().toISOString(),
-            },
-          ],
-          schemes: [],
-          characters: [],
-          raidLogs: [],
-          blacklist: [],
-          dataState: "normal",
-        })),
+        update(s => {
+          const self = s.members.find(m => m.id === ME_ID) ?? SEED_MEMBERS[0];
+          return {
+            team: { name, inviteCode: newInviteCode() },
+            members: [
+              { ...self, role: "admin", joinedAt: new Date().toISOString() },
+            ],
+            dataState: "normal",
+          };
+        }),
       joinTeam: (code: string): boolean => {
         if (code.trim().toUpperCase() !== SEED_TEAM.inviteCode) return false;
-        update(() => {
+        // 加入亲友团：自己的角色、配装、记录都带进去；
+        // 自己建的方案，亲友团里没有同心法同模式的才带进去，有的话用亲友团的
+        update(s => {
           const data = seedData();
+          const self = s.members.find(m => m.id === ME_ID);
+          const mine = s.schemes.filter(
+            x =>
+              !data.schemes.some(t => t.xinfa === x.xinfa && t.mode === x.mode)
+          );
+          const myChars = s.characters.filter(c => c.ownerId === ME_ID);
           return {
             ...data,
             members: data.members.map(m =>
               m.id === ME_ID
                 ? {
                     ...m,
+                    ...(self ? { name: self.name, avatar: self.avatar } : {}),
                     role: "viewer" as Role,
                     joinedAt: new Date().toISOString(),
                   }
                 : m
             ),
-            characters: data.characters.filter(c => c.ownerId !== ME_ID),
+            characters: [
+              ...data.characters.filter(c => c.ownerId !== ME_ID),
+              ...myChars,
+            ],
+            schemes: [...data.schemes, ...mine],
+            drafts: Object.fromEntries(
+              Object.entries(s.drafts).filter(([id]) =>
+                mine.some(x => x.id === id)
+              )
+            ),
+            raidLogs: [...s.raidLogs, ...data.raidLogs],
+            blacklist: [...s.blacklist, ...data.blacklist],
+            activeCharId: myChars.some(c => c.id === s.activeCharId)
+              ? s.activeCharId
+              : (myChars[0]?.id ?? s.activeCharId),
             dataState: "normal",
           };
         });

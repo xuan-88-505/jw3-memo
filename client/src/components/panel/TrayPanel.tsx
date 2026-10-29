@@ -18,7 +18,7 @@ import { CharAvatar } from "@/components/brand/CharAvatar";
 import { Wordmark, XinfaMark } from "@/components/brand/Marks";
 import { OfflineBar, ToastStack } from "@/components/common/overlay";
 import { Btn, IconBtn, Segmented } from "@/components/common/ui";
-import { SEED_TEAM, schoolLabel, xinfasOf } from "@/data/seed";
+import { schoolLabel, xinfasOf } from "@/data/seed";
 import {
   MODES,
   type Character,
@@ -67,7 +67,6 @@ export function TrayPanel({
 
   let body: React.ReactNode;
   if (state.dataState === "loading") body = <PanelSkeleton />;
-  else if (!state.team) body = <Onboarding />;
   else if (!myCharacters(state).length)
     body = (
       <NoCharacters
@@ -605,10 +604,12 @@ function NoCharacters({ onAdd }: { onAdd: () => void }) {
     <div className="flex flex-1 flex-col">
       <header className="flex h-12 shrink-0 items-center border-b border-paper/[0.07] px-4">
         <Wordmark size="sm" />
-        <span className="ml-auto inline-flex items-center gap-1.5 text-[12px] text-paper-3">
-          <Users className="h-3.5 w-3.5" aria-hidden="true" />
-          {state.team?.name}
-        </span>
+        {state.team && (
+          <span className="ml-auto inline-flex items-center gap-1.5 text-[12px] text-paper-3">
+            <Users className="h-3.5 w-3.5" aria-hidden="true" />
+            {state.team.name}
+          </span>
+        )}
       </header>
       <OfflineBar compact />
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 pb-6 text-center">
@@ -624,138 +625,6 @@ function NoCharacters({ onAdd }: { onAdd: () => void }) {
         >
           添加角色
         </Btn>
-      </div>
-    </div>
-  );
-}
-
-function Onboarding() {
-  const { actions } = useProto();
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [error, setError] = useState("");
-  const [nameError, setNameError] = useState("");
-
-  const join = () => {
-    if (!code.trim()) {
-      setError("先输入邀请码");
-      return;
-    }
-    if (!actions.joinTeam(code)) {
-      setError("邀请码无效或已过期");
-      return;
-    }
-    actions.toast("panel", "success", `已加入「${SEED_TEAM.name}」`);
-  };
-  const create = () => {
-    const n = name.trim();
-    if (!n) {
-      setNameError("先填名字");
-      return;
-    }
-    if (n.length > 12) {
-      setNameError("最多 12 个字");
-      return;
-    }
-    actions.createTeam(n);
-    actions.toast("panel", "success", `已创建「${n}」`);
-  };
-
-  const inputCls = (err: string) =>
-    cn(
-      "h-9 min-w-0 flex-1 rounded-md bg-ink px-3 text-[13px] text-paper placeholder:text-paper-3/70 ring-1 ring-inset focus:outline-none focus:ring-2",
-      err
-        ? "ring-cinnabar/70 focus:ring-cinnabar"
-        : "ring-paper/12 focus:ring-cinnabar-text/60"
-    );
-
-  return (
-    <div className="flex flex-1 flex-col">
-      <header className="flex h-12 shrink-0 items-center border-b border-paper/[0.07] px-4">
-        <Wordmark size="sm" />
-        <span className="ml-auto text-[12px] text-paper-3">八八</span>
-      </header>
-      <div className="flex flex-1 flex-col justify-center px-5 pb-8">
-        <label
-          htmlFor="invite"
-          className="text-[12.5px] font-medium text-paper"
-        >
-          加入亲友团
-        </label>
-        <div className="mt-1.5 flex gap-2">
-          <input
-            id="invite"
-            value={code}
-            onChange={e => {
-              setCode(e.target.value);
-              setError("");
-            }}
-            onKeyDown={e => e.key === "Enter" && join()}
-            placeholder="邀请码 TD-XXXX-XXXX"
-            aria-invalid={!!error}
-            aria-describedby="invite-msg"
-            className={cn(
-              inputCls(error),
-              "font-mono uppercase tracking-wider placeholder:font-sans placeholder:normal-case placeholder:tracking-normal"
-            )}
-          />
-          <Btn variant="primary" size="md" onClick={join}>
-            加入
-          </Btn>
-        </div>
-        <p
-          id="invite-msg"
-          className={cn(
-            "mt-1.5 min-h-[18px] text-[12px]",
-            error ? "text-cinnabar-text" : "text-paper-3"
-          )}
-        >
-          {error || (
-            <>
-              演示码{" "}
-              <button
-                type="button"
-                className="font-mono text-paper-2 underline decoration-paper/30 underline-offset-2 hover:text-paper"
-                onClick={() => setCode(SEED_TEAM.inviteCode)}
-              >
-                {SEED_TEAM.inviteCode}
-              </button>
-            </>
-          )}
-        </p>
-
-        <div className="my-5 flex items-center gap-3 text-[11.5px] text-paper-3">
-          <span className="h-px flex-1 bg-paper/10" />或
-          <span className="h-px flex-1 bg-paper/10" />
-        </div>
-
-        <label
-          htmlFor="team-name"
-          className="text-[12.5px] font-medium text-paper"
-        >
-          创建亲友团
-        </label>
-        <div className="mt-1.5 flex gap-2">
-          <input
-            id="team-name"
-            value={name}
-            onChange={e => {
-              setName(e.target.value);
-              setNameError("");
-            }}
-            onKeyDown={e => e.key === "Enter" && create()}
-            placeholder="名字"
-            maxLength={20}
-            aria-invalid={!!nameError}
-            className={inputCls(nameError)}
-          />
-          <Btn variant="secondary" size="md" onClick={create}>
-            创建
-          </Btn>
-        </div>
-        <p className="mt-1.5 min-h-[18px] text-[12px] text-cinnabar-text">
-          {nameError}
-        </p>
       </div>
     </div>
   );

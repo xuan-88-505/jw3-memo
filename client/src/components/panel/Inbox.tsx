@@ -23,6 +23,7 @@ import {
   memberName,
   useProto,
   type InboxItem,
+  isSolo,
 } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { ChangeList } from "./PanelContent";
@@ -155,7 +156,8 @@ function InboxRow({
               ? `v${base.version} → v${last.version}`
               : `首次使用 v${last.version}`}
             {" · "}
-            {memberName(state, last.authorId)} · {relativeTime(last.at)}
+            {!isSolo(state) && `${memberName(state, last.authorId)} · `}
+            {relativeTime(last.at)}
           </p>
         </div>
         <Btn
