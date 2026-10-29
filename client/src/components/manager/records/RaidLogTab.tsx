@@ -25,6 +25,7 @@ import { ME_ID, schoolLabel } from "@/data/seed";
 import { cn } from "@/lib/utils";
 import { canEdit, isOnline, memberName, useProto, isSolo } from "@/state/store";
 import { EmptyState, Field, inputCls, SelectBox } from "../shared";
+import { NoteComposer, NoteThumbs, useNoteImages } from "./NoteImages";
 import { RoleLookup, RoleName } from "./RoleLookup";
 
 // 一周没几条记录，只按月或全部看
@@ -292,11 +293,24 @@ export function RaidLogTab({
                     >
                       {nf.format(r.wage)}
                     </td>
-                    <td
-                      className="truncate px-3 py-2.5 text-paper-2"
-                      title={r.note || undefined}
-                    >
-                      {r.note || <span className="text-paper-3">—</span>}
+                    <td className="px-3 py-2.5">
+                      <span className="flex min-w-0 items-center gap-2.5">
+                        <span
+                          className="min-w-0 flex-1 truncate text-paper-2"
+                          title={r.note || undefined}
+                        >
+                          {r.note ||
+                            (r.images.length === 0 && (
+                              <span className="text-paper-3">—</span>
+                            ))}
+                        </span>
+                        <NoteThumbs
+                          images={r.images}
+                          caption={[`${w.day} ${r.dungeon}`, r.note]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        />
+                      </span>
                     </td>
                   </tr>
                 );
@@ -357,6 +371,7 @@ function RaidLogDialog({
   );
   const [wage, setWage] = useState(log ? String(log.wage) : "");
   const [note, setNote] = useState(log?.note ?? "");
+  const notes = useNoteImages(log?.images ?? []);
   const [tried, setTried] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -385,7 +400,7 @@ function RaidLogDialog({
 
   const save = () => {
     setTried(true);
-    if (hasError) return;
+    if (hasError || notes.pending > 0) return;
     actions.saveRaidLog(
       {
         at: new Date(at).toISOString(),
@@ -396,6 +411,7 @@ function RaidLogDialog({
         leaderUid: leader?.uid ?? null,
         wage: wageNum,
         note: note.trim(),
+        images: notes.images,
       },
       log?.id
     );
@@ -437,7 +453,13 @@ function RaidLogDialog({
           <Btn variant="ghost" size="md" onClick={onClose}>
             取消
           </Btn>
-          <Btn variant="primary" size="md" onClick={save}>
+          <Btn
+            variant="primary"
+            size="md"
+            disabled={notes.pending > 0}
+            title={notes.pending > 0 ? "图片还在处理" : undefined}
+            onClick={save}
+          >
             保存
           </Btn>
         </div>
@@ -445,6 +467,7 @@ function RaidLogDialog({
     >
       <form
         className="grid grid-cols-2 gap-x-3 gap-y-3.5"
+        {...notes.bind}
         onSubmit={e => {
           e.preventDefault();
           save();
@@ -586,12 +609,12 @@ function RaidLogDialog({
         </div>
         <div className="col-span-2">
           <Field label="备注" htmlFor="rl-note">
-            <input
+            <NoteComposer
               id="rl-note"
               value={note}
+              onChange={setNote}
+              notes={notes}
               maxLength={60}
-              onChange={e => setNote(e.target.value)}
-              className={inputCls()}
             />
           </Field>
         </div>

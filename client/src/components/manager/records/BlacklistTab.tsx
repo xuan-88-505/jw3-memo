@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { canEdit, isOnline, memberName, useProto, isSolo } from "@/state/store";
 import { EmptyState, Field } from "../shared";
+import { NoteComposer, NoteThumbs, useNoteImages } from "./NoteImages";
 import { fmtDay, RoleLookup, RoleName } from "./RoleLookup";
 
 export type BlackEditing = { id: string | "new"; preset?: GameRole } | null;
@@ -80,6 +81,15 @@ export function BlacklistTab({
                 <div className="min-w-0 flex-1 text-[12.5px]">
                   <TagChips tags={h.tags} />
                   {h.reason && <p className="mt-1.5 text-paper">{h.reason}</p>}
+                  {h.images.length > 0 && (
+                    <div className="mt-2">
+                      <NoteThumbs
+                        images={h.images}
+                        caption={h.reason || undefined}
+                        max={6}
+                      />
+                    </div>
+                  )}
                   <p className="mt-1 text-paper-3">
                     {!isSolo(state) && `${memberName(state, h.by)} · `}
                     {fmtDay(h.at)}
@@ -171,11 +181,24 @@ export function BlacklistTab({
                     <td className="px-3 py-2.5">
                       <TagChips tags={b.tags} />
                     </td>
-                    <td
-                      className="truncate px-3 py-2.5 text-paper-2"
-                      title={b.reason || undefined}
-                    >
-                      {b.reason || <span className="text-paper-3">—</span>}
+                    <td className="px-3 py-2.5">
+                      <span className="flex min-w-0 items-center gap-2.5">
+                        <span
+                          className="min-w-0 flex-1 truncate text-paper-2"
+                          title={b.reason || undefined}
+                        >
+                          {b.reason ||
+                            (b.images.length === 0 && (
+                              <span className="text-paper-3">—</span>
+                            ))}
+                        </span>
+                        <NoteThumbs
+                          images={b.images}
+                          caption={[role?.name ?? b.nameAtRecord, b.reason]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        />
+                      </span>
                     </td>
                     <td className="px-3 py-2.5">
                       <span className="flex min-w-0 items-center gap-2">
@@ -245,6 +268,7 @@ function BlackDialog({
   } | null>(null);
   const [tags, setTags] = useState<string[]>(entry?.tags ?? []);
   const [reason, setReason] = useState(entry?.reason ?? "");
+  const notes = useNoteImages(entry?.images ?? []);
   const [tried, setTried] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -267,7 +291,7 @@ function BlackDialog({
 
   const save = () => {
     setTried(true);
-    if (errors.target || errors.tags || blocked) return;
+    if (errors.target || errors.tags || blocked || notes.pending > 0) return;
     const target = role
       ? {
           uid: role.uid,
@@ -276,7 +300,10 @@ function BlackDialog({
           server: role.server,
         }
       : { uid: null, nameAtRecord: nameOnly!.name, server: nameOnly!.server };
-    actions.saveBlack({ ...target, tags, reason: reason.trim() }, entry?.id);
+    actions.saveBlack(
+      { ...target, tags, reason: reason.trim(), images: notes.images },
+      entry?.id
+    );
     onClose();
   };
 
@@ -315,13 +342,19 @@ function BlackDialog({
           <Btn variant="ghost" size="md" onClick={onClose}>
             取消
           </Btn>
-          <Btn variant="primary" size="md" disabled={blocked} onClick={save}>
+          <Btn
+            variant="primary"
+            size="md"
+            disabled={blocked || notes.pending > 0}
+            title={notes.pending > 0 ? "图片还在处理" : undefined}
+            onClick={save}
+          >
             保存
           </Btn>
         </div>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-4" {...notes.bind}>
         <Field
           label="角色"
           htmlFor="bl-role"
@@ -441,17 +474,16 @@ function BlackDialog({
         </div>
 
         <Field label="说明" htmlFor="bl-reason">
-          <textarea
+          <NoteComposer
             id="bl-reason"
             value={reason}
+            onChange={setReason}
+            notes={notes}
             maxLength={200}
+            multiline
             rows={3}
-            onChange={e => setReason(e.target.value)}
-            className="w-full resize-none rounded-md bg-paper/[0.04] px-3 py-2 text-[13px] leading-relaxed text-paper ring-1 ring-inset ring-paper/10 hover:ring-paper/[0.18] placeholder:text-paper-3/70 focus:outline-none focus:ring-2 focus:ring-cinnabar-text/60"
+            placeholder="可直接粘贴聊天截图"
           />
-          <p className="mt-1 text-right text-[11.5px] tabular-nums text-paper-3">
-            {reason.length}/200
-          </p>
         </Field>
       </div>
     </InlineModal>

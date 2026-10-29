@@ -1,3 +1,4 @@
+import type { NoteImage } from "@/lib/image";
 import { ME_ID, XINFA_META } from "./seed";
 
 /**
@@ -40,6 +41,8 @@ export interface RaidLog {
   /** 工资，单位：金 */
   wage: number;
   note: string;
+  /** 备注里的截图，最多 NOTE_IMAGE_LIMIT 张 */
+  images: NoteImage[];
   /** 记录人 */
   by: string;
   updatedAt: string;
@@ -54,6 +57,8 @@ export interface BlackEntry {
   server: string;
   tags: string[];
   reason: string;
+  /** 说明里的截图，最多 NOTE_IMAGE_LIMIT 张 */
+  images: NoteImage[];
   by: string;
   at: string;
 }
@@ -312,6 +317,7 @@ export function seedRaidLogs(): RaidLog[] {
     tuanpai: "月下金团",
     leaderUid: "3388012",
     note: "",
+    images: [],
     updatedAt: at,
     ...o,
   });
@@ -379,6 +385,7 @@ export function seedBlacklist(): BlackEntry[] {
       server: "梦江南",
       tags: ["跑路", "黑工资"],
       reason: "开到老二跑路，工资一分没发。10 月 27 日改名了",
+      images: [],
       by: "xiaotao",
       at: "2026-10-25T23:40:00+08:00",
     },
@@ -389,6 +396,7 @@ export function seedBlacklist(): BlackEntry[] {
       server: "梦江南",
       tags: ["黑工资"],
       reason: "说好 8000，结算只给 3200",
+      images: [],
       by: ME_ID,
       at: "2026-10-27T00:10:00+08:00",
     },
@@ -399,6 +407,7 @@ export function seedBlacklist(): BlackEntry[] {
       server: "唯我独尊",
       tags: ["划水", "骂人"],
       reason: "",
+      images: [],
       by: "ajiu",
       at: "2026-10-12T22:05:00+08:00",
     },

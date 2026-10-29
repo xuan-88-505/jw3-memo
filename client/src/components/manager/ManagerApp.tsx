@@ -59,6 +59,15 @@ export function ManagerApp() {
     <div
       data-layer-root
       className="relative flex h-full w-full overflow-hidden bg-ink text-paper"
+      // 文件拖到窗口里不接收的地方时，不让浏览器直接打开这个文件
+      onDragOver={e => {
+        if (Array.from(e.dataTransfer.types).includes("Files"))
+          e.preventDefault();
+      }}
+      onDrop={e => {
+        if (Array.from(e.dataTransfer.types).includes("Files"))
+          e.preventDefault();
+      }}
     >
       <aside className="flex w-[200px] shrink-0 flex-col">
         <nav aria-label="管理窗口导航" className="flex-1 px-2 pt-3">
