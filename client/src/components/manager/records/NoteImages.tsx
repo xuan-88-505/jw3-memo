@@ -16,11 +16,11 @@ import {
 } from "@/lib/image";
 import { cn } from "@/lib/utils";
 
-const hasFiles = (e: DragEvent) =>
+export const hasFiles = (e: DragEvent) =>
   Array.from(e.dataTransfer?.types ?? []).includes("Files");
 
 /** 剪贴板里的图片文件（截图工具复制的是 image/png） */
-function clipboardImages(e: ClipboardEvent): File[] {
+export function clipboardImages(e: ClipboardEvent): File[] {
   const files = Array.from(e.clipboardData?.files ?? []);
   if (files.length) return files.filter(f => f.type.startsWith("image/"));
   return Array.from(e.clipboardData?.items ?? [])

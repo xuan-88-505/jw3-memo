@@ -1,17 +1,23 @@
 /**
  * 链接：粘贴网址，点一下用浏览器打开。
+ * 也可以直接放图片（上传、粘贴截图或拖进来），点一下看大图。
  * 在亲友团里默认全团可见，可改成仅自己；没加入亲友团时只有自己看到。
  */
+import type { NoteImage } from "@/lib/image";
+
 export type LinkVisibility = "team" | "private";
 
 export interface SharedLink {
   id: string;
+  /** 图片条目没有网址，是空字符串 */
   url: string;
   /** 显示的名字：用户填的，或按网址自动起的 */
   title: string;
   by: string;
   at: string;
   visibility: LinkVisibility;
+  /** 有图片就是图片条目：点开看大图，不跳转 */
+  image?: NoteImage;
 }
 
 /** 常见站点的中文名，用于自动起名和显示来源 */
@@ -107,6 +113,17 @@ export function autoTitle(url: string): string {
   const tail = last.length > 24 ? `${last.slice(0, 24)}…` : last;
   if (site) return tail ? `${site} · ${tail}` : site;
   return tail ? `${hostOf(url)} · ${tail}` : hostOf(url);
+}
+
+/**
+ * 图片的默认名字：文件名去掉扩展名。
+ * 粘贴截图时浏览器给的文件名是 image.png，这时改用「截图 10月30日 03:08」。
+ */
+export function imageTitle(file: File, at = new Date()): string {
+  const base = file.name.replace(/\.[a-z0-9]+$/i, "").trim();
+  if (base && !/^image$/i.test(base)) return base.slice(0, 40);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `截图 ${at.getMonth() + 1}月${at.getDate()}日 ${pad(at.getHours())}:${pad(at.getMinutes())}`;
 }
 
 /** 站点图标：直接取该站的 /favicon.ico，不经过第三方服务 */

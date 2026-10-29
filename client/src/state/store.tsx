@@ -51,6 +51,7 @@ import { MODES } from "@/data/types";
 import type { BuffSelection } from "@/lib/buffs";
 import { diffVersions } from "@/lib/diff";
 import { DEFAULT_HOTKEYS, type Hotkey } from "@/lib/hotkey";
+import type { NoteImage } from "@/lib/image";
 import { HUANGJI_MOODS, type HuangjiMood } from "@/components/brand/Huangji";
 import type {
   Character,
@@ -1357,6 +1358,29 @@ function useActions(
         else toast("manager", "info", "这条链接已经在列表里");
         return added;
       },
+      /** 记录：链接页里直接放图片，每张一条 */
+      addLinkImages: (
+        items: { image: NoteImage; title: string }[],
+        visibility: LinkVisibility
+      ) => {
+        if (!items.length) return;
+        const now = Date.now();
+        const fresh: SharedLink[] = items.map((it, i) => ({
+          id: `l${(now + i).toString(36)}i`,
+          url: "",
+          title: it.title,
+          by: ME_ID,
+          at: new Date(now - i).toISOString(),
+          visibility,
+          image: it.image,
+        }));
+        update(st => ({ links: [...fresh, ...st.links] }));
+        toast(
+          "manager",
+          "success",
+          items.length > 1 ? `已添加 ${items.length} 张图片` : "已添加图片"
+        );
+      },
       saveLink: (
         id: string,
         input: Pick<SharedLink, "title" | "url" | "visibility">
@@ -1367,8 +1391,9 @@ function useActions(
         toast("manager", "success", "已保存修改");
       },
       deleteLink: (id: string) => {
+        const isImage = !!stateRef.current.links.find(l => l.id === id)?.image;
         update(s => ({ links: s.links.filter(l => l.id !== id) }));
-        toast("manager", "success", "已删除链接");
+        toast("manager", "success", isImage ? "已删除图片" : "已删除链接");
       },
       deleteBlack: (id: string) => {
         update(s => ({ blacklist: s.blacklist.filter(b => b.id !== id) }));

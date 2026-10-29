@@ -1,5 +1,20 @@
-import { useEffect, useState } from "react";
-import { ExternalLink, Link2, Lock, Pencil } from "lucide-react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+} from "react";
+import {
+  ExternalLink,
+  ImagePlus,
+  Link2,
+  Loader2,
+  Lock,
+  Maximize2,
+  Pencil,
+} from "lucide-react";
+import { useImageViewer } from "@/components/common/ImageViewer";
 import { InlineModal } from "@/components/common/overlay";
 import { DIVIDE } from "@/components/common/surface";
 import { Avatar, Btn, IconBtn, Segmented } from "@/components/common/ui";
@@ -8,6 +23,7 @@ import {
   extractUrls,
   faviconOf,
   hostOf,
+  imageTitle,
   linkSubtitle,
   normalizeUrl,
   siteName,
@@ -16,6 +32,7 @@ import {
   type SharedLink,
 } from "@/data/links";
 import { absoluteTime, relativeTime } from "@/lib/format";
+import { fileToNoteImage, NOTE_IMAGE_TYPES } from "@/lib/image";
 import { cn } from "@/lib/utils";
 import {
   canEdit,
@@ -26,6 +43,7 @@ import {
   useProto,
 } from "@/state/store";
 import { EmptyState, Field, inputCls } from "../shared";
+import { clipboardImages, hasFiles } from "./NoteImages";
 
 const VIS_OPTIONS: { value: LinkVisibility; label: string }[] = [
   { value: "team", label: "亲友团" },
@@ -42,10 +60,16 @@ export function LinksTab() {
   const [vis, setVis] = useState<LinkVisibility>("team");
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<SharedLink | null>(null);
+  const [pending, setPending] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const depth = useRef(0);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const viewer = useImageViewer();
 
   const links = visibleLinks(state.links, ME_ID).sort(
     (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()
   );
+  const visibility = inTeam ? vis : "private";
 
   const add = (raw: string) => {
     const urls = extractUrls(raw);
@@ -53,13 +77,85 @@ export function LinksTab() {
       setError("没找到网址");
       return;
     }
-    actions.addLinks(urls, inTeam ? vis : "private");
+    actions.addLinks(urls, visibility);
     setText("");
     setError(null);
   };
 
+  /** 上传、粘贴、拖进来的图片：每张一条 */
+  const addFiles = async (files: File[]) => {
+    if (!files.length) return;
+    const imgs = files.filter(f => f.type.startsWith("image/"));
+    if (!imgs.length) {
+      setError("只能添加图片");
+      return;
+    }
+    setError(null);
+    setPending(n => n + imgs.length);
+    const now = new Date();
+    const results = await Promise.allSettled(imgs.map(fileToNoteImage));
+    setPending(n => n - imgs.length);
+    const ok = results.flatMap((r, i) =>
+      r.status === "fulfilled"
+        ? [{ image: r.value, title: imageTitle(imgs[i], now) }]
+        : []
+    );
+    const failed = results.flatMap(r =>
+      r.status === "rejected" ? [(r.reason as Error).message] : []
+    );
+    actions.addLinkImages(ok, visibility);
+    if (failed.length)
+      setError(
+        imgs.length === 1
+          ? failed[0]
+          : `${failed.length} 张没加上：${failed[0]}`
+      );
+  };
+
+  const onPaste = (e: ClipboardEvent<HTMLInputElement>) => {
+    const files = clipboardImages(e);
+    // 截图工具复制的只有图片；从网页复制的带文字，按文字处理
+    if (files.length && !e.clipboardData.getData("text/plain").trim()) {
+      e.preventDefault();
+      void addFiles(files);
+      return;
+    }
+    // 一次粘贴多条网址：直接全部加上
+    const pasted = e.clipboardData.getData("text");
+    if (extractUrls(pasted).length > 1) {
+      e.preventDefault();
+      add(pasted);
+    }
+  };
+
+  const drag = {
+    onDragEnter: (e: DragEvent) => {
+      if (!writable || !hasFiles(e)) return;
+      e.preventDefault();
+      depth.current += 1;
+      setDragging(true);
+    },
+    onDragOver: (e: DragEvent) => {
+      if (!writable || !hasFiles(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    },
+    onDragLeave: (e: DragEvent) => {
+      if (!writable || !hasFiles(e)) return;
+      depth.current = Math.max(0, depth.current - 1);
+      if (depth.current === 0) setDragging(false);
+    },
+    onDrop: (e: DragEvent) => {
+      if (!writable || !hasFiles(e)) return;
+      e.preventDefault();
+      depth.current = 0;
+      setDragging(false);
+      void addFiles(Array.from(e.dataTransfer.files));
+    },
+  };
+
   return (
-    <div>
+    <div className="relative" {...drag}>
       <form
         className="flex items-center gap-2"
         onSubmit={e => {
@@ -79,26 +175,33 @@ export function LinksTab() {
               setText(e.target.value);
               if (error) setError(null);
             }}
-            // 一次粘贴多条：直接全部加上
-            onPaste={e => {
-              const pasted = e.clipboardData.getData("text");
-              if (extractUrls(pasted).length > 1) {
-                e.preventDefault();
-                add(pasted);
-              }
-            }}
+            onPaste={onPaste}
             placeholder={
               writable
-                ? "粘贴链接，回车添加"
+                ? "粘贴链接或截图，回车添加"
                 : canEdit(state)
                   ? "离线时不能添加"
                   : "只读成员不能添加"
             }
-            aria-label="粘贴链接"
+            aria-label="粘贴链接或截图"
             aria-invalid={!!error}
             aria-describedby={error ? "link-error" : undefined}
-            className={cn(inputCls(!!error), "pl-9")}
+            className={cn(inputCls(!!error), "pl-9 pr-10")}
           />
+          <button
+            type="button"
+            disabled={!writable || pending > 0}
+            onClick={() => fileRef.current?.click()}
+            aria-label={pending > 0 ? "正在处理图片" : "上传图片"}
+            title={pending > 0 ? "正在处理图片" : "上传图片"}
+            className="absolute right-1.5 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded text-paper-3 transition-colors hover:bg-paper/[0.08] hover:text-paper disabled:pointer-events-none disabled:opacity-40"
+          >
+            {pending > 0 ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <ImagePlus className="h-4 w-4" aria-hidden="true" />
+            )}
+          </button>
         </div>
         {inTeam && (
           <Segmented
@@ -118,39 +221,90 @@ export function LinksTab() {
           添加
         </Btn>
       </form>
+      <input
+        ref={fileRef}
+        type="file"
+        multiple
+        accept={NOTE_IMAGE_TYPES.join(",")}
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={e => {
+          void addFiles(Array.from(e.target.files ?? []));
+          e.target.value = "";
+        }}
+      />
       {error && (
-        <p id="link-error" className="mt-1.5 text-[12px] text-cinnabar-text">
+        <p
+          id="link-error"
+          role="alert"
+          className="mt-1.5 text-[12px] text-cinnabar-text"
+        >
           {error}
         </p>
       )}
 
       {links.length === 0 ? (
-        <EmptyState icon={<Link2 className="h-4 w-4" />} title="还没有链接" />
+        <EmptyState
+          icon={<Link2 className="h-4 w-4" />}
+          title="还没有链接或图片"
+        />
       ) : (
-        <ul className={cn("-mx-3 mt-4", DIVIDE)} aria-label="链接">
+        <ul className={cn("-mx-3 mt-4", DIVIDE)} aria-label="链接和图片">
           {links.map(l => {
             const mine = l.by === ME_ID;
             const canChange = writable && (mine || isAdmin);
+            const img = l.image;
+            // 整行可点：链接用浏览器打开，图片看大图
+            const hit =
+              "min-w-0 flex-1 text-left outline-none after:absolute after:inset-0 focus-visible:after:ring-1 focus-visible:after:ring-inset focus-visible:after:ring-cinnabar-text/50";
+            const label = (
+              <>
+                <span className="block truncate text-[13.5px] text-paper">
+                  {l.title}
+                </span>
+                <span className="block truncate text-[12px] text-paper-3">
+                  {img ? `图片 · ${img.w}×${img.h}` : linkSubtitle(l.url)}
+                </span>
+              </>
+            );
             return (
               <li
                 key={l.id}
                 className="group/row relative flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-paper/[0.025]"
               >
-                <Favicon key={l.url} url={l.url} />
-                <a
-                  href={l.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={l.url}
-                  className="min-w-0 flex-1 outline-none after:absolute after:inset-0 focus-visible:after:ring-1 focus-visible:after:ring-inset focus-visible:after:ring-cinnabar-text/50"
-                >
-                  <span className="block truncate text-[13.5px] text-paper">
-                    {l.title}
-                  </span>
-                  <span className="block truncate text-[12px] text-paper-3">
-                    {linkSubtitle(l.url)}
-                  </span>
-                </a>
+                {img ? (
+                  <img
+                    src={img.src}
+                    alt=""
+                    draggable={false}
+                    className="h-8 w-8 shrink-0 rounded-md bg-ink object-cover ring-1 ring-inset ring-paper/12"
+                  />
+                ) : (
+                  <Favicon key={l.url} url={l.url} />
+                )}
+                {img ? (
+                  <button
+                    type="button"
+                    onClick={e =>
+                      viewer.open([img], 0, e.currentTarget, l.title)
+                    }
+                    aria-label={`查看图片「${l.title}」`}
+                    className={hit}
+                  >
+                    {label}
+                  </button>
+                ) : (
+                  <a
+                    href={l.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={l.url}
+                    className={hit}
+                  >
+                    {label}
+                  </a>
+                )}
                 {l.visibility === "private" && inTeam && (
                   <Lock
                     className="h-3.5 w-3.5 shrink-0 text-paper-3"
@@ -181,6 +335,11 @@ export function LinksTab() {
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </IconBtn>
+                  ) : img ? (
+                    <Maximize2
+                      className="h-3.5 w-3.5 text-paper-3 opacity-0 transition-opacity group-hover/row:opacity-100"
+                      aria-hidden="true"
+                    />
                   ) : (
                     <ExternalLink
                       className="h-3.5 w-3.5 text-paper-3 opacity-0 transition-opacity group-hover/row:opacity-100"
@@ -194,11 +353,18 @@ export function LinksTab() {
         </ul>
       )}
 
+      {dragging && (
+        <div className="pointer-events-none absolute -inset-2 z-20 grid place-items-center rounded-lg border-2 border-dashed border-cinnabar-text/60 bg-ink-2/90 text-[13px] text-paper">
+          松开添加图片
+        </div>
+      )}
+
       <EditLinkDialog
         link={editing}
         inTeam={inTeam}
         onClose={() => setEditing(null)}
       />
+      {viewer.node}
     </div>
   );
 }
@@ -253,14 +419,16 @@ function EditLinkDialog({
     setVis(link.visibility);
     setTried(false);
   }, [link]);
+  const img = link?.image;
   const normalized = normalizeUrl(url);
-  const urlError = tried && !normalized ? "不是有效的网址" : undefined;
+  const urlError = tried && !img && !normalized ? "不是有效的网址" : undefined;
   const save = () => {
     setTried(true);
-    if (!link || !normalized) return;
+    if (!link) return;
+    if (!img && !normalized) return;
     actions.saveLink(link.id, {
       title: title.trim() || link.title,
-      url: normalized,
+      url: img ? link.url : normalized!,
       visibility: inTeam ? vis : "private",
     });
     onClose();
@@ -269,7 +437,7 @@ function EditLinkDialog({
     <InlineModal
       open={!!link}
       onClose={onClose}
-      title="编辑链接"
+      title={img ? "编辑图片" : "编辑链接"}
       footer={
         <div className="flex w-full items-center">
           <Btn
@@ -300,6 +468,13 @@ function EditLinkDialog({
           save();
         }}
       >
+        {img && (
+          <img
+            src={img.src}
+            alt={link?.title ?? ""}
+            className="max-h-40 rounded-md bg-ink object-contain ring-1 ring-inset ring-paper/12"
+          />
+        )}
         <Field label="名称" htmlFor="link-title">
           <input
             id="link-title"
@@ -309,14 +484,16 @@ function EditLinkDialog({
             className={inputCls()}
           />
         </Field>
-        <Field label="网址" htmlFor="link-url" error={urlError}>
-          <input
-            id="link-url"
-            value={url}
-            onChange={e => setUrl(e.target.value)}
-            className={inputCls(!!urlError)}
-          />
-        </Field>
+        {!img && (
+          <Field label="网址" htmlFor="link-url" error={urlError}>
+            <input
+              id="link-url"
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              className={inputCls(!!urlError)}
+            />
+          </Field>
+        )}
         {inTeam && (
           <div>
             <p className="mb-1.5 text-[12.5px] text-paper-2">谁能看到</p>
