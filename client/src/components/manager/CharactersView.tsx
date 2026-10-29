@@ -11,6 +11,7 @@ import {
   isOnline,
   isPending,
   latest,
+  modesOf,
   myCharacters,
   statusOf,
   useProto,
@@ -94,8 +95,7 @@ export function CharactersView() {
               <tr>
                 <th className="px-4 py-2.5 font-normal">角色</th>
                 <th className="px-4 py-2.5 font-normal">服务器</th>
-                <th className="px-4 py-2.5 font-normal">PVE</th>
-                <th className="px-4 py-2.5 font-normal">PVP</th>
+                <th className="px-4 py-2.5 font-normal">同步状态</th>
                 <th className="px-4 py-2.5 text-right font-normal">
                   <span className="sr-only">操作</span>
                 </th>
@@ -132,11 +132,9 @@ export function CharactersView() {
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-paper-2">{c.server}</td>
-                  {(["PVE", "PVP"] as Mode[]).map(m => (
-                    <td key={m} className="px-4 py-2.5">
-                      <ModeCell char={c} mode={m} online={online} />
-                    </td>
-                  ))}
+                  <td className="px-4 py-2.5">
+                    <SyncCell char={c} online={online} />
+                  </td>
                   <td className="px-4 py-2.5 text-right">
                     <IconBtn
                       label={`删除角色 ${c.name}`}
@@ -194,6 +192,20 @@ export function CharactersView() {
   );
 }
 
+/** 只列出这个心法已有的模式；一个方案都没有时显示"无方案" */
+function SyncCell({ char, online }: { char: Character; online: boolean }) {
+  const { state } = useProto();
+  const modes = modesOf(state, char.xinfa);
+  if (modes.length === 0) return <StatusPill status="none" />;
+  return (
+    <div className="flex flex-col gap-1.5">
+      {modes.map(m => (
+        <ModeCell key={m} char={char} mode={m} online={online} />
+      ))}
+    </div>
+  );
+}
+
 function ModeCell({
   char,
   mode,
@@ -209,6 +221,9 @@ function ModeCell({
   const synced = char.synced[mode];
   return (
     <div className="flex items-center gap-2">
+      <span className="w-8 shrink-0 text-[12px] font-medium text-paper-3">
+        {mode}
+      </span>
       <StatusPill status={st} version={st === "synced" ? synced : undefined} />
       {isPending(st) && last && (
         <>

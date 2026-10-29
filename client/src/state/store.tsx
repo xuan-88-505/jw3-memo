@@ -151,6 +151,11 @@ export function latest(scheme: Scheme | undefined): SchemeVersion | undefined {
   return scheme?.versions[scheme.versions.length - 1];
 }
 
+/** 这个心法已经创建了哪些模式（有已保存的版本才算） */
+export function modesOf(state: ProtoState, xinfa: string): Mode[] {
+  return MODES.filter(m => latest(findScheme(state, xinfa, m)));
+}
+
 export function findScheme(state: ProtoState, xinfa: string, mode: Mode) {
   return state.schemes.find(s => s.xinfa === xinfa && s.mode === mode);
 }

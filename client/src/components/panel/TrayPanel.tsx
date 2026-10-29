@@ -25,6 +25,7 @@ import {
   inboxItems,
   isPending,
   latest,
+  modesOf,
   me,
   myCharacters,
   statusOf,
@@ -104,7 +105,11 @@ function PanelMain({
   const [tab, setTab] = useState<"macro" | "talent">("macro");
   const mine = myCharacters(state);
   const char = mine.find(c => c.id === state.activeCharId) ?? mine[0];
-  const mode: Mode = state.activeMode[char.id] ?? "PVE";
+  // 只玩一种模式的心法不显示 PVE/PVP 切换
+  const modes = modesOf(state, char.xinfa);
+  const picked: Mode = state.activeMode[char.id] ?? "PVE";
+  const mode: Mode =
+    modes.length > 0 && !modes.includes(picked) ? modes[0] : picked;
   const scheme = findScheme(state, char.xinfa, mode);
   const last = latest(scheme);
   const status = statusOf(state, char, mode);
@@ -225,23 +230,25 @@ function PanelMain({
             </button>
           ))}
         </div>
-        <div className="ml-auto">
-          <Segmented<Mode>
-            label="方案类型"
-            size="xs"
-            value={mode}
-            onChange={m => actions.setMode(char.id, m)}
-            options={(["PVE", "PVP"] as Mode[]).map(m => ({
-              value: m,
-              label: (
-                <span className="inline-flex items-center gap-1">
-                  {m}
-                  {isPending(statusOf(state, char, m)) && <ChangeDot />}
-                </span>
-              ),
-            }))}
-          />
-        </div>
+        {modes.length > 1 && (
+          <div className="ml-auto">
+            <Segmented<Mode>
+              label="方案类型"
+              size="xs"
+              value={mode}
+              onChange={m => actions.setMode(char.id, m)}
+              options={modes.map(m => ({
+                value: m,
+                label: (
+                  <span className="inline-flex items-center gap-1">
+                    {m}
+                    {isPending(statusOf(state, char, m)) && <ChangeDot />}
+                  </span>
+                ),
+              }))}
+            />
+          </div>
+        )}
       </div>
 
       {!scheme || !last ? (

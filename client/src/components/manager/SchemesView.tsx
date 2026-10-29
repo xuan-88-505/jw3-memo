@@ -12,7 +12,7 @@ import { Jx3Icon, XinfaMark } from "@/components/brand/Marks";
 import { InlineModal } from "@/components/common/overlay";
 import { Btn, IconBtn, SectionLabel } from "@/components/common/ui";
 import { ME_ID, XINFA_LIST, layersOf } from "@/data/seed";
-import type { Macro, Mode, SchemeVersion } from "@/data/types";
+import { MODES, type Macro, type Mode, type SchemeVersion } from "@/data/types";
 import { diffVersions } from "@/lib/diff";
 import { absoluteTime, relativeTime } from "@/lib/format";
 import { MACRO_LIMIT, cleanMacro, lintMacro } from "@/lib/macro";
@@ -50,6 +50,7 @@ export function SchemesView() {
 
 function SchemeList() {
   const { state, actions } = useProto();
+  const editable = canEdit(state);
   return (
     <nav
       aria-label="方案列表"
@@ -59,53 +60,90 @@ function SchemeList() {
         方案库 · 旗舰 暗影千机
       </p>
       <ul className="space-y-3">
-        {XINFA_LIST.map(x => (
-          <li key={x}>
-            <p className="flex items-center gap-2 px-2 py-1">
-              <XinfaMark xinfa={x} size={20} />
-              <span className="font-serif text-[13.5px] font-semibold text-paper">
-                {x}
-              </span>
-            </p>
-            <ul className="mt-0.5">
-              {(["PVE", "PVP"] as Mode[]).map(m => {
-                const id = `${x}-${m}`;
-                const last = latest(findScheme(state, x, m));
-                const draft = state.drafts[id];
-                const active = state.selectedSchemeId === id;
-                return (
-                  <li key={m}>
+        {XINFA_LIST.map(x => {
+          // 只列出已保存或正在新建的模式；没玩的模式不显示
+          const modes = MODES.filter(
+            m => latest(findScheme(state, x, m)) || state.drafts[`${x}-${m}`]
+          );
+          const missing = MODES.filter(m => !modes.includes(m));
+          return (
+            <li key={x} className="group/x">
+              <div className="flex h-8 items-center gap-2 px-2">
+                <XinfaMark xinfa={x} size={20} />
+                <span className="font-serif text-[13.5px] font-semibold text-paper">
+                  {x}
+                </span>
+                {editable && modes.length > 0 && missing.length === 1 && (
+                  <IconBtn
+                    label={`给${x}添加 ${missing[0]} 方案`}
+                    onClick={() => actions.startDraft(x, missing[0])}
+                    className="ml-auto h-6 w-6 text-paper-3 opacity-0 focus-visible:opacity-100 group-hover/x:opacity-100"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </IconBtn>
+                )}
+              </div>
+              <ul className="mt-0.5">
+                {modes.length === 0 && (
+                  <li>
                     <button
                       type="button"
-                      onClick={() => actions.selectScheme(id)}
-                      aria-current={active ? "page" : undefined}
+                      onClick={() => actions.selectScheme(`${x}-PVE`)}
+                      aria-current={
+                        state.selectedSchemeId.startsWith(`${x}-`)
+                          ? "page"
+                          : undefined
+                      }
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-md py-1.5 pl-[36px] pr-2 text-left text-[12.5px] transition-colors",
-                        active
-                          ? "bg-paper/[0.08] text-paper"
-                          : "text-paper-2 hover:bg-paper/[0.04] hover:text-paper"
+                        "flex w-full items-center rounded-md py-1.5 pl-[36px] pr-2 text-left text-[12px] transition-colors",
+                        state.selectedSchemeId.startsWith(`${x}-`)
+                          ? "bg-paper/[0.08] text-paper-2"
+                          : "text-paper-3 hover:bg-paper/[0.04] hover:text-paper-2"
                       )}
                     >
-                      <span className="w-8 font-medium">{m}</span>
-                      <span className="min-w-0 flex-1 truncate text-[11.5px] text-paper-3">
-                        {last
-                          ? `v${last.version} · ${memberName(state, last.authorId)} · ${relativeTime(last.at)}`
-                          : "未创建"}
-                      </span>
-                      {draft && (
-                        <span
-                          className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold"
-                          aria-label="有未保存的修改"
-                          title="有未保存的修改"
-                        />
-                      )}
+                      还没有方案
                     </button>
                   </li>
-                );
-              })}
-            </ul>
-          </li>
-        ))}
+                )}
+                {modes.map(m => {
+                  const id = `${x}-${m}`;
+                  const last = latest(findScheme(state, x, m));
+                  const draft = state.drafts[id];
+                  const active = state.selectedSchemeId === id;
+                  return (
+                    <li key={m}>
+                      <button
+                        type="button"
+                        onClick={() => actions.selectScheme(id)}
+                        aria-current={active ? "page" : undefined}
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-md py-1.5 pl-[36px] pr-2 text-left text-[12.5px] transition-colors",
+                          active
+                            ? "bg-paper/[0.08] text-paper"
+                            : "text-paper-2 hover:bg-paper/[0.04] hover:text-paper"
+                        )}
+                      >
+                        <span className="w-8 font-medium">{m}</span>
+                        <span className="min-w-0 flex-1 truncate text-[11.5px] text-paper-3">
+                          {last
+                            ? `v${last.version} · ${memberName(state, last.authorId)} · ${relativeTime(last.at)}`
+                            : "新建中，未保存"}
+                        </span>
+                        {draft && (
+                          <span
+                            className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold"
+                            aria-label="有未保存的修改"
+                            title="有未保存的修改"
+                          />
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );
@@ -141,27 +179,37 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
   const [saving, setSaving] = useState(false);
 
   const users = state.characters.filter(c => c.xinfa === xinfa);
+  const other: Mode = mode === "PVE" ? "PVP" : "PVE";
+  const otherExists =
+    !!latest(findScheme(state, xinfa, other)) ||
+    !!state.drafts[`${xinfa}-${other}`];
 
   if (!last && !draft) {
+    // 这个心法一个方案都没有时，两个模式都可以新建；否则只建当前这个
+    const choices: Mode[] = otherExists ? [mode] : MODES;
     return (
       <div className="flex h-full flex-col items-center justify-center px-10 text-center">
         <XinfaMark xinfa={xinfa} size={48} className="opacity-60" />
         <p className="mt-4 font-serif text-[17px] font-semibold">
-          {xinfa}还没有 {mode} 方案
+          {otherExists ? `${xinfa}还没有 ${mode} 方案` : `${xinfa}还没有方案`}
         </p>
         {!editable && (
           <p className="mt-1.5 text-[13px] text-paper-3">只读成员不能新建</p>
         )}
         {editable && (
-          <Btn
-            variant="primary"
-            size="md"
-            className="mt-5"
-            icon={<Plus className="h-4 w-4" />}
-            onClick={() => actions.startDraft(xinfa, mode)}
-          >
-            新建 {mode} 方案
-          </Btn>
+          <div className="mt-5 flex gap-2">
+            {choices.map((m, i) => (
+              <Btn
+                key={m}
+                variant={i === 0 ? "primary" : "secondary"}
+                size="md"
+                icon={<Plus className="h-4 w-4" />}
+                onClick={() => actions.startDraft(xinfa, m)}
+              >
+                新建 {m} 方案
+              </Btn>
+            ))}
+          </div>
         )}
       </div>
     );
@@ -244,6 +292,16 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
               )}
             </p>
           </div>
+          {last && editable && !otherExists && (
+            <Btn
+              variant="ghost"
+              size="sm"
+              icon={<Plus className="h-3.5 w-3.5" />}
+              onClick={() => actions.startDraft(xinfa, other)}
+            >
+              添加 {other} 方案
+            </Btn>
+          )}
           {last && (
             <Btn
               variant="ghost"
@@ -336,9 +394,14 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
           <Btn
             variant="ghost"
             size="md"
-            onClick={() => actions.discardDraft(schemeId)}
+            onClick={() => {
+              actions.discardDraft(schemeId);
+              // 放弃的是新建方案：回到这个心法已有的另一个模式
+              if (!last && latest(findScheme(state, xinfa, other)))
+                actions.selectScheme(`${xinfa}-${other}`);
+            }}
           >
-            放弃修改
+            {last ? "放弃修改" : "放弃新建"}
           </Btn>
           <Btn
             variant="primary"
