@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ChevronDown,
@@ -360,6 +360,96 @@ function sameContent(
   });
 }
 
+/**
+ * 方案标题：点一下直接改，回车或点别处保存，Esc 取消。
+ * 清空后恢复默认的「心法 · 模式」。改标题不产生新版本。
+ */
+function SchemeTitle({
+  schemeId,
+  title,
+  fallback,
+  editable,
+}: {
+  schemeId: string;
+  title: string | undefined;
+  fallback: string;
+  editable: boolean;
+}) {
+  const { actions } = useProto();
+  const shown = title || fallback;
+  const [value, setValue] = useState(shown);
+  const cancelRef = useRef(false);
+
+  useEffect(() => setValue(title || fallback), [title, fallback]);
+
+  if (!editable) {
+    return (
+      <h1 className="truncate text-[20px] font-semibold leading-tight">
+        {shown}
+      </h1>
+    );
+  }
+
+  const commit = () => {
+    if (cancelRef.current) {
+      cancelRef.current = false;
+      setValue(shown);
+      return;
+    }
+    const t = value.trim();
+    // 清空或改回默认，都算恢复默认标题
+    const next = t === fallback ? "" : t;
+    if (next === (title ?? "")) {
+      setValue(shown);
+      return;
+    }
+    actions.renameScheme(schemeId, next);
+    setValue(next || fallback);
+    actions.toast(
+      "manager",
+      "success",
+      next ? `标题已改为「${next}」` : "已恢复默认标题"
+    );
+  };
+
+  return (
+    <h1 className="text-[20px] font-semibold leading-tight">
+      {/* 隐藏的文字和输入框叠在同一格，输入框宽度跟着文字走 */}
+      <span className="-ml-1.5 inline-grid max-w-full align-middle">
+        <span
+          aria-hidden="true"
+          className="invisible col-start-1 row-start-1 overflow-hidden whitespace-pre px-1.5"
+        >
+          {(value || fallback) + " "}
+        </span>
+        <input
+          value={value}
+          size={1}
+          maxLength={24}
+          spellCheck={false}
+          aria-label="方案标题"
+          title="点击修改标题，清空后恢复默认"
+          placeholder={fallback}
+          onChange={e => setValue(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter") e.currentTarget.blur();
+            else if (e.key === "Escape") {
+              e.stopPropagation();
+              cancelRef.current = true;
+              e.currentTarget.blur();
+            }
+          }}
+          onBlur={commit}
+          className={cn(
+            "col-start-1 row-start-1 h-9 w-full min-w-0 rounded-md bg-transparent px-1.5 text-paper outline-none transition-colors placeholder:text-paper-3",
+            "hover:bg-paper/[0.05] focus:bg-paper/[0.04] focus:ring-1 focus:ring-inset focus:ring-cinnabar-text/50"
+          )}
+        />
+      </span>
+    </h1>
+  );
+}
+
 function SchemeEditor({ schemeId }: { schemeId: string }) {
   const { state, actions } = useProto();
   const [xinfa, mode] = schemeId.split("-") as [string, Mode];
@@ -455,34 +545,37 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
   return (
     <div className="flex min-h-full flex-col">
       <div className="flex-1 px-7 pb-6 pt-6">
-        <div className="flex items-start gap-3.5">
+        <div className="flex items-center gap-3.5">
           <XinfaMark xinfa={xinfa} size={40} />
           <div className="min-w-0 flex-1">
-            <h1 className="text-[20px] font-semibold leading-tight">
-              {xinfa} · {mode}
-            </h1>
-            <p className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-paper-3">
-              {last ? (
-                <>
-                  {!solo && (
-                    <>
-                      {creator && <Avatar member={creator} size={16} />}
-                      <span className="text-paper-2">
-                        {creator?.name ?? memberName(state, creatorId ?? "")}
-                      </span>
-                      <span>创建</span>
-                      <span aria-hidden="true">·</span>
-                    </>
-                  )}
-                  <span title={absoluteTime(last.at)}>
-                    {relativeTime(last.at)}更新
-                  </span>
-                </>
-              ) : (
-                "新方案，还没保存"
-              )}
-            </p>
+            <SchemeTitle
+              schemeId={schemeId}
+              title={scheme?.title ?? draft?.title}
+              fallback={`${xinfa} · ${mode}`}
+              editable={editable && online}
+            />
           </div>
+          <p className="flex shrink-0 items-center gap-1.5 text-[12.5px] text-paper-3">
+            {last ? (
+              <>
+                {!solo && (
+                  <>
+                    {creator && <Avatar member={creator} size={16} />}
+                    <span className="text-paper-2">
+                      {creator?.name ?? memberName(state, creatorId ?? "")}
+                    </span>
+                    <span>创建</span>
+                    <span aria-hidden="true">·</span>
+                  </>
+                )}
+                <span title={absoluteTime(last.at)}>
+                  {relativeTime(last.at)}更新
+                </span>
+              </>
+            ) : (
+              "新方案，还没保存"
+            )}
+          </p>
           {last && editable && !otherExists && (
             <Btn
               variant="ghost"

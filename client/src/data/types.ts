@@ -71,6 +71,8 @@ export interface Scheme {
   id: string;
   xinfa: string;
   mode: Mode;
+  /** 自定义标题；没有时显示「心法 · 模式」。改标题不产生新版本 */
+  title?: string;
   /** 按版本号升序 */
   versions: SchemeVersion[];
 }

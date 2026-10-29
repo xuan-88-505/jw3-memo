@@ -87,6 +87,8 @@ export interface Draft {
   baseVersion: number;
   macros: Macro[];
   talents: number[];
+  /** 新建还没保存的方案，自定义标题先放在草稿里 */
+  title?: string;
 }
 
 export interface PendingConflict {
@@ -600,7 +602,13 @@ function appendVersion(
   if (!exists && base) {
     return [
       ...schemes,
-      { id: schemeId, xinfa: base.xinfa, mode: base.mode, versions: [version] },
+      {
+        id: schemeId,
+        xinfa: base.xinfa,
+        mode: base.mode,
+        ...(base.title ? { title: base.title } : {}),
+        versions: [version],
+      },
     ];
   }
   return schemes.map(s =>
@@ -856,6 +864,26 @@ function useActions(
           const drafts = { ...s.drafts };
           delete drafts[schemeId];
           return { drafts };
+        }),
+      /**
+       * 改方案标题：直接生效，不产生新版本，也不影响角色的同步状态。
+       * 空字符串表示恢复默认标题。方案还没保存时，标题先存在草稿里。
+       */
+      renameScheme: (schemeId: string, title: string) =>
+        update(s => {
+          const t = title.trim() || undefined;
+          if (s.schemes.some(x => x.id === schemeId)) {
+            return {
+              schemes: s.schemes.map(x =>
+                x.id === schemeId ? { ...x, title: t } : x
+              ),
+            };
+          }
+          const draft = s.drafts[schemeId];
+          if (!draft) return {};
+          return {
+            drafts: { ...s.drafts, [schemeId]: { ...draft, title: t } },
+          };
         }),
       /** 返回 "saved" 或 "conflict" */
       saveDraft: (schemeId: string, note: string): "saved" | "conflict" => {
