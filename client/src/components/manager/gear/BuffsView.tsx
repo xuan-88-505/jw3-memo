@@ -1,6 +1,7 @@
 import { Check, Info, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { Jx3Icon } from "@/components/brand/Marks";
+import { FilterChip } from "@/components/common/FilterChip";
 import { Btn, Segmented } from "@/components/common/ui";
 import type { Loadout } from "@/data/gear";
 import {
@@ -31,9 +32,19 @@ const selectCls =
   "h-8 rounded-md bg-ink pl-2.5 text-[13px] text-paper ring-1 ring-inset ring-paper/10 focus:outline-none focus-visible:ring-cinnabar/60";
 
 /** +1.23%：开着的用青色，没开的（潜在收益）用灰色 */
-function Gain({ pct, on = true }: { pct: number; on?: boolean }) {
+function Gain({
+  pct,
+  on = true,
+  hideZero = false,
+}: {
+  pct: number;
+  on?: boolean;
+  /** 区块标题的合计：没有收益时什么都不显示 */
+  hideZero?: boolean;
+}) {
   const v = pct * 100;
   if (Math.abs(v) < 0.005) {
+    if (hideZero) return null;
     return <span className="tabular-nums text-paper-3">—</span>;
   }
   return (
@@ -227,6 +238,9 @@ export function BuffsView({
     set({ team: { ...sel.team, [def.n]: { ...cur, ...patch } } });
   };
   const typeCount = (key: string) => group.team.filter(t => t.t === key).length;
+  /** 某一类里已开的个数，显示在分类胶囊上 */
+  const onInType = (key: string) =>
+    group.team.filter(t => t.t === key && sel.team[t.n]?.on).length;
 
   const presetValue = sel.preset ?? "";
 
@@ -323,7 +337,7 @@ export function BuffsView({
             {zhen ? zhen.d : "团队里开阵的人决定，选和副本里一样的"}
           </p>
           <span className="w-16 shrink-0 text-right text-[13px]">
-            <Gain pct={est.zhen} />
+            <Gain pct={est.zhen} hideZero />
           </span>
         </div>
       </section>
@@ -345,7 +359,7 @@ export function BuffsView({
             每类选收益最高
           </Btn>
           <span className="w-16 text-right text-[13px]">
-            <Gain pct={est.foods} />
+            <Gain pct={est.foods} hideZero />
           </span>
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
@@ -400,30 +414,42 @@ export function BuffsView({
 
       {/* 团队增益 */}
       <section className={card} aria-label="团队增益">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="mb-3 flex items-center gap-2">
           <h3 className="text-[13px] font-medium text-paper">团队增益</h3>
-          <span className="text-[12px] tabular-nums text-paper-3">
-            已开 {onCount}
+          <span className="ml-auto text-[13px]">
+            <Gain pct={est.team} hideZero />
           </span>
-          <div className="ml-auto flex items-center gap-2">
-            <Segmented
-              size="xs"
-              label="团队增益分类"
-              value={filter}
-              onChange={setFilter}
-              options={[
-                { value: "on", label: `已开 ${onCount}` },
-                ...TEAM_TYPES.filter(t => typeCount(t.key)).map(t => ({
-                  value: t.key,
-                  label: t.label,
-                })),
-                { value: "all", label: "全部" },
-              ]}
+        </div>
+        <div
+          role="group"
+          aria-label="团队增益分类"
+          className="mb-3 flex flex-wrap items-center gap-1.5"
+        >
+          {(onCount > 0 || filter === "on") && (
+            <>
+              <FilterChip
+                label="已开"
+                count={onCount}
+                selected={filter === "on"}
+                onSelect={() => setFilter("on")}
+              />
+              <span aria-hidden="true" className="mx-1 h-4 w-px bg-paper/10" />
+            </>
+          )}
+          {TEAM_TYPES.filter(t => typeCount(t.key)).map(t => (
+            <FilterChip
+              key={t.key}
+              label={t.label}
+              count={onInType(t.key)}
+              selected={filter === t.key}
+              onSelect={() => setFilter(t.key)}
             />
-            <span className="w-16 text-right text-[13px]">
-              <Gain pct={est.team} />
-            </span>
-          </div>
+          ))}
+          <FilterChip
+            label="全部"
+            selected={filter === "all"}
+            onSelect={() => setFilter("all")}
+          />
         </div>
 
         {teamRows.length === 0 ? (

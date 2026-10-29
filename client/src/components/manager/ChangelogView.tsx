@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { Check, ChevronDown, History, Plus, X } from "lucide-react";
+import { Check, ChevronDown, History, Plus } from "lucide-react";
 import { XinfaMark } from "@/components/brand/Marks";
+import { FilterChip } from "@/components/common/FilterChip";
 import { InlineModal } from "@/components/common/overlay";
 import { Avatar, Btn } from "@/components/common/ui";
 import { XINFA_GROUPS, layersOf } from "@/data/seed";
@@ -99,6 +100,7 @@ export function ChangelogView() {
             xinfa={x}
             selected={filter === x}
             onSelect={() => actions.setChangelogFilter(x)}
+            removeLabel={`不再关注${x}`}
             onRemove={() =>
               followed.includes(x)
                 ? actions.unfollowXinfa(x)
@@ -255,60 +257,6 @@ export function ChangelogView() {
         }
       />
     </div>
-  );
-}
-
-/** 筛选标签：点名字筛选，点 × 不再关注 */
-function FilterChip({
-  label,
-  xinfa,
-  selected,
-  onSelect,
-  onRemove,
-}: {
-  label: string;
-  xinfa?: string;
-  selected: boolean;
-  onSelect: () => void;
-  onRemove?: () => void;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex h-7 items-center rounded-full ring-1 ring-inset transition-colors",
-        selected
-          ? "bg-paper/[0.09] text-paper ring-paper/20"
-          : "text-paper-3 ring-paper/10 hover:text-paper hover:ring-paper/20"
-      )}
-    >
-      <button
-        type="button"
-        aria-pressed={selected}
-        onClick={onSelect}
-        className={cn(
-          "inline-flex h-full items-center gap-1.5 rounded-full text-[12.5px]",
-          onRemove ? "pl-3 pr-1" : "px-3"
-        )}
-      >
-        {xinfa && (
-          <span aria-hidden="true" className="inline-flex">
-            <XinfaMark xinfa={xinfa} size={16} />
-          </span>
-        )}
-        {label}
-      </button>
-      {onRemove && (
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label={`不再关注${label}`}
-          title="不再关注"
-          className="mr-1 inline-grid h-5 w-5 place-items-center rounded-full text-paper-3 transition-colors hover:bg-paper/10 hover:text-paper"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      )}
-    </span>
   );
 }
 
