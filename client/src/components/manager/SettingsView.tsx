@@ -74,6 +74,26 @@ export function SettingsView() {
               labelledBy="set-launch"
             />
           </SettingRow>
+          <SettingRow
+            title="面板位置"
+            desc="按住面板顶部拖动，双击顶部回到原位"
+          >
+            <Btn
+              size="sm"
+              onClick={() => {
+                actions.resetPanelOffset();
+                actions.toast("manager", "success", "面板已回到默认位置");
+              }}
+              disabled={!state.panelOffset.x && !state.panelOffset.y}
+              title={
+                !state.panelOffset.x && !state.panelOffset.y
+                  ? "现在就在默认位置"
+                  : undefined
+              }
+            >
+              恢复默认
+            </Btn>
+          </SettingRow>
           <SettingRow title="侧栏顺序" desc="按住侧栏里的项目拖动排序">
             <Btn
               size="sm"

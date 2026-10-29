@@ -259,6 +259,27 @@ function readFollowed(): string[] | null {
   }
 }
 /** 托盘提示"看过"的本地记录；必须在 initialState 之前定义 */
+/** 面板拖到的位置（相对托盘旁默认位置的偏移）；记下系统，换系统时不沿用 */
+const PANEL_POS_KEY = "tongdiao.panelOffset.v1";
+function readPanelOffset(platform: Platform): { x: number; y: number } {
+  try {
+    const raw =
+      typeof window !== "undefined"
+        ? localStorage.getItem(PANEL_POS_KEY)
+        : null;
+    const v = raw ? JSON.parse(raw) : null;
+    if (
+      v &&
+      v.platform === platform &&
+      Number.isFinite(v.x) &&
+      Number.isFinite(v.y)
+    )
+      return { x: v.x, y: v.y };
+  } catch {
+    /* 读不到就用默认位置 */
+  }
+  return { x: 0, y: 0 };
+}
 const COACH_KEY = "tongdiao.coachSeen";
 
 function readCoachSeen() {
@@ -282,7 +303,7 @@ const initialState: ProtoState = {
   simulateConflict: false,
   panelOpen: false,
   pinned: false,
-  panelOffset: { x: 0, y: 0 },
+  panelOffset: readPanelOffset("win"),
   coachSeen: readCoachSeen(),
   launchAtLogin: true,
   trayMotion: "hover",
@@ -603,6 +624,8 @@ function useActions(
         update(s => ({
           platform,
           scene: platform === "mac" ? "desktop" : s.scene,
+          // Windows 从右下角算、Mac 从右上角算，换系统时回到托盘旁
+          panelOffset: platform === s.platform ? s.panelOffset : { x: 0, y: 0 },
         })),
       setScene: (scene: Scene) => patch({ scene }),
       setSimulateConflict: (on: boolean) => patch({ simulateConflict: on }),
@@ -663,12 +686,11 @@ function useActions(
       setPanelOpen: (open: boolean) =>
         update(s => ({ panelOpen: open, coachSeen: s.coachSeen || open })),
       togglePin: () =>
-        update(s => ({
-          pinned: !s.pinned,
-          panelOffset: s.pinned ? { x: 0, y: 0 } : s.panelOffset,
-        })),
+        // 置顶只管"点外面不收起"，不动面板位置
+        update(s => ({ pinned: !s.pinned })),
       setPanelOffset: (panelOffset: { x: number; y: number }) =>
         patch({ panelOffset }),
+      resetPanelOffset: () => patch({ panelOffset: { x: 0, y: 0 } }),
       selectCharacter: (activeCharId: string) => patch({ activeCharId }),
       setMode: (charId: string, mode: Mode) =>
         update(s => ({ activeMode: { ...s.activeMode, [charId]: mode } })),
@@ -1351,6 +1373,20 @@ export function ProtoProvider({
       /* 浏览器禁用本地存储时，只在本次打开期间记住 */
     }
   }, [state.followedXinfa]);
+  // 面板位置存到本地；默认位置不写
+  useEffect(() => {
+    try {
+      const { x, y } = state.panelOffset;
+      if (x || y)
+        localStorage.setItem(
+          PANEL_POS_KEY,
+          JSON.stringify({ platform: state.platform, x, y })
+        );
+      else localStorage.removeItem(PANEL_POS_KEY);
+    } catch {
+      /* 浏览器禁用本地存储时，只在本次打开期间记住 */
+    }
+  }, [state.panelOffset, state.platform]);
   // 侧栏顺序存到本地；默认顺序不写
   useEffect(() => {
     try {

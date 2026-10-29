@@ -147,7 +147,8 @@ function PanelMain({
   const focusScheme = (ready.find(x => isPending(x.status)) ?? ready[0])
     ?.scheme;
   const inboxCount = inboxItems(state).length;
-  const draggable = state.pinned && !!onHeaderPointerDown;
+  // 面板任何时候都能拖，不需要先置顶
+  const draggable = !!onHeaderPointerDown;
 
   useEffect(() => {
     if (view !== "main" || !focusXinfa) return;
@@ -187,7 +188,7 @@ function PanelMain({
       <header
         onPointerDown={onHeaderPointerDown}
         className={cn(
-          "flex h-12 shrink-0 items-center gap-1 border-b border-paper/[0.07] pl-1.5 pr-2",
+          "flex h-12 shrink-0 select-none items-center gap-1 border-b border-paper/[0.07] pl-1.5 pr-2",
           draggable && "cursor-grab active:cursor-grabbing"
         )}
       >

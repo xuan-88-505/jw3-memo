@@ -54,7 +54,7 @@ export function Inbox({
       <header
         onPointerDown={onHeaderPointerDown}
         className={cn(
-          "flex h-12 shrink-0 items-center gap-1 border-b border-paper/[0.07] pl-2 pr-3",
+          "flex h-12 shrink-0 select-none items-center gap-1 border-b border-paper/[0.07] pl-2 pr-3",
           dragging && "cursor-grab active:cursor-grabbing"
         )}
       >

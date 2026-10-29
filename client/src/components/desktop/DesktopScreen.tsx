@@ -69,6 +69,24 @@ const WIN_WALL =
 const MAC_WALL =
   "radial-gradient(1000px 650px at 20% 20%, #6d4a8c 0%, transparent 60%), radial-gradient(900px 700px at 85% 85%, #b0603a 0%, transparent 60%), linear-gradient(135deg, #2a2140 0%, #3a2a3a 50%, #4a2e26 100%)";
 
+/** 面板尺寸（与 PanelShell 一致），读不到元素时用 */
+const PANEL_W = 360;
+const PANEL_H = 500;
+/** 默认位置：Windows 距右 12、距底 60（任务栏 48 + 12）；Mac 距顶 34（菜单栏 28 + 6） */
+const WIN_RIGHT = 12;
+const WIN_BOTTOM = 60;
+const TASKBAR_H = 48;
+const MAC_TOP = 34;
+/** 拖动时面板离屏幕边缘至少留 8px */
+const EDGE = 8;
+const DRAG_SLOP = 3;
+const clamp = (v: number, lo: number, hi: number) =>
+  Math.min(hi, Math.max(lo, v));
+/** 从这些控件上按下时不拖动面板 */
+const CONTROLS =
+  'button, a, input, textarea, select, label, [role="button"], [role="combobox"], [role="tab"], [role="switch"], [contenteditable="true"]';
+const fromControl = (t: EventTarget | null) =>
+  t instanceof Element && !!t.closest(CONTROLS);
 export function DesktopScreen() {
   const { state, actions } = useProto();
   const scale = useStageScale();
@@ -125,29 +143,64 @@ export function DesktopScreen() {
     [state.panelOpen, state.pinned, actions]
   );
 
-  // 钉住后拖动
+  // 拖动面板：按住标题栏空白处移动，任何时候都能拖（不需要先置顶）
+  const panelSize = () => ({
+    w: panelRef.current?.offsetWidth || PANEL_W,
+    h: panelRef.current?.offsetHeight || PANEL_H,
+  });
+  /** 面板整块留在屏幕内，不压到任务栏 / 菜单栏 */
+  const clampOffset = (o: { x: number; y: number }) => {
+    const { w, h } = panelSize();
+    if (mac) {
+      // right = macAnchor - x，top = MAC_TOP + y
+      return {
+        x: clamp(o.x, macAnchor - (SCREEN_W - w - EDGE), macAnchor - EDGE),
+        y: clamp(o.y, 0, SCREEN_H - h - EDGE - MAC_TOP),
+      };
+    }
+    // right = WIN_RIGHT - x，bottom = base - y
+    const base = full ? WIN_RIGHT : WIN_BOTTOM;
+    const minBottom = full ? EDGE : TASKBAR_H + EDGE;
+    return {
+      x: clamp(o.x, WIN_RIGHT - (SCREEN_W - w - EDGE), WIN_RIGHT - EDGE),
+      y: clamp(o.y, base - (SCREEN_H - h - EDGE), base - minBottom),
+    };
+  };
   const onHeaderPointerDown = (e: ReactPointerEvent) => {
-    if (!state.pinned || e.button !== 0) return;
+    if (e.button !== 0 || fromControl(e.target)) return;
+    e.preventDefault(); // 拖动时不选中文字
     const start = { x: e.clientX, y: e.clientY };
-    const base = { ...state.panelOffset };
+    const base = clampOffset(state.panelOffset);
+    let moving = false;
     const move = (ev: PointerEvent) => {
-      const dx = (ev.clientX - start.x) / scale;
-      const dy = (ev.clientY - start.y) / scale;
-      actions.setPanelOffset({
-        x: Math.max(-(SCREEN_W - 400), Math.min(0, base.x + dx)),
-        y: mac
-          ? Math.max(0, Math.min(SCREEN_H - 640, base.y + dy))
-          : Math.max(-(SCREEN_H - 680), Math.min(0, base.y + dy)),
-      });
+      const rx = ev.clientX - start.x;
+      const ry = ev.clientY - start.y;
+      if (!moving) {
+        // 移动超过 3px 才算拖动，单击不会挪位置
+        if (Math.hypot(rx, ry) < DRAG_SLOP) return;
+        moving = true;
+        document.body.style.cursor = "grabbing";
+      }
+      actions.setPanelOffset(
+        clampOffset({ x: base.x + rx / scale, y: base.y + ry / scale })
+      );
     };
     const up = () => {
+      document.body.style.cursor = "";
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   };
-
+  // 双击标题栏空白处：回到托盘旁的默认位置
+  const onPanelDoubleClick = (e: React.MouseEvent) => {
+    const t = e.target as Element;
+    if (!t.closest("header") || fromControl(t)) return;
+    actions.resetPanelOffset();
+  };
   // Mac：面板对齐到菜单栏图标下方；"点这里"提示对齐到托盘图标
   useLayoutEffect(() => {
     const el = trayRef.current;
@@ -160,11 +213,12 @@ export function DesktopScreen() {
     setCoachRight(Math.max(8, SCREEN_W - center - COACH_CARET));
   }, [mac, state.platform, state.scene]);
 
+  const off = clampOffset(state.panelOffset);
   const panelStyle: React.CSSProperties = mac
-    ? { top: 34 + state.panelOffset.y, right: macAnchor - state.panelOffset.x }
+    ? { top: MAC_TOP + off.y, right: macAnchor - off.x }
     : {
-        right: 12 - state.panelOffset.x,
-        bottom: (full ? 12 : 60) - state.panelOffset.y,
+        right: WIN_RIGHT - off.x,
+        bottom: (full ? WIN_RIGHT : WIN_BOTTOM) - off.y,
       };
 
   return (
@@ -227,6 +281,7 @@ export function DesktopScreen() {
             mac ? "animate-panel-down" : "animate-panel-up"
           )}
           style={panelStyle}
+          onDoubleClick={onPanelDoubleClick}
         >
           <TrayPanel onHeaderPointerDown={onHeaderPointerDown} />
         </div>
