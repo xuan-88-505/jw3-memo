@@ -57,7 +57,6 @@ export function LinksTab() {
   const writable = canEdit(state) && isOnline(state);
   const isAdmin = me(state)?.role === "admin";
   const [text, setText] = useState("");
-  const [vis, setVis] = useState<LinkVisibility>("team");
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<SharedLink | null>(null);
   const [pending, setPending] = useState(0);
@@ -69,7 +68,8 @@ export function LinksTab() {
   const links = visibleLinks(state.links, ME_ID).sort(
     (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()
   );
-  const visibility = inTeam ? vis : "private";
+  // 添加时不选范围：在亲友团里默认大家都能看，不在就只有自己；改成仅自己在编辑里
+  const visibility: LinkVisibility = inTeam ? "team" : "private";
 
   const add = (raw: string) => {
     const urls = extractUrls(raw);
@@ -203,15 +203,6 @@ export function LinksTab() {
             )}
           </button>
         </div>
-        {inTeam && (
-          <Segmented
-            label="谁能看到"
-            size="md"
-            value={vis}
-            onChange={setVis}
-            options={VIS_OPTIONS}
-          />
-        )}
         <Btn
           type="submit"
           variant="secondary"
