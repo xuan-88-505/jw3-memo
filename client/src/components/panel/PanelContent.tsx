@@ -73,7 +73,7 @@ export function MacroList({
 }: {
   macros: Macro[];
   base?: SchemeVersion;
-  /** 多心法分段时：没有宏只占一行 */
+  /** 多心法分段时：紧贴心法小标题；没有宏只占一行 */
   compact?: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
@@ -94,7 +94,7 @@ export function MacroList({
     );
   }
   return (
-    <ul className="space-y-1 px-2 py-2">
+    <ul className={cn("space-y-1 px-2", compact ? "pb-2" : "py-2")}>
       {macros.map(m => (
         <MacroCard
           key={m.id}
@@ -260,15 +260,18 @@ export function MacroCode({
 export function TalentList({
   xinfa,
   talents,
+  compact,
 }: {
   xinfa: string;
   talents: number[];
+  /** 多心法分段时：紧贴心法小标题 */
+  compact?: boolean;
 }) {
   const layers = layersOf(xinfa);
   const [openLayer, setOpenLayer] = useState<number | null>(null);
 
   return (
-    <ul className="px-2 py-2">
+    <ul className={cn("px-2", compact ? "pb-2" : "py-2")}>
       {talents.map((pos, i) => {
         const o = layers[i]?.options.find(x => x.pos === pos);
         if (!o) return null;

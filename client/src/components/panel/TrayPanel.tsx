@@ -35,6 +35,30 @@ import { NotePad } from "./NotePad";
 import { PanelAddCharacter } from "./PanelAddCharacter";
 import { MacroList, TalentList } from "./PanelContent";
 
+// 多心法分段的折叠状态：按「角色:心法」记，宏和奇穴共用；关面板、重启后保持
+const COLLAPSE_KEY = "tongdiao.panelCollapsed.v1";
+
+function readCollapsed(): Set<string> {
+  try {
+    const v: unknown = JSON.parse(localStorage.getItem(COLLAPSE_KEY) ?? "[]");
+    return new Set(
+      Array.isArray(v)
+        ? v.filter((x): x is string => typeof x === "string")
+        : []
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+function writeCollapsed(s: Set<string>) {
+  try {
+    localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...s]));
+  } catch {
+    // 存不了就只在本次有效
+  }
+}
+
 export interface TrayPanelProps {
   /** 钉住后拖动面板用 */
   onHeaderPointerDown?: (e: ReactPointerEvent) => void;
@@ -100,6 +124,7 @@ function PanelMain({
   const [view, setView] = useState<"main" | "inbox">("main");
   const [tab, setTab] = useState<"macro" | "talent" | "note">("macro");
   const [focusXinfa, setFocusXinfa] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(readCollapsed);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
   const mine = myCharacters(state);
   const char = mine.find(c => c.id === state.activeCharId) ?? mine[0];
@@ -139,8 +164,20 @@ function PanelMain({
   // 面板任何时候都能拖，不需要先置顶
   const draggable = !!onHeaderPointerDown;
 
+  const setSectionCollapsed = (key: string, value: boolean) =>
+    setCollapsed(prev => {
+      if (prev.has(key) === value) return prev;
+      const next = new Set(prev);
+      if (value) next.add(key);
+      else next.delete(key);
+      writeCollapsed(next);
+      return next;
+    });
+
   useEffect(() => {
     if (view !== "main" || !focusXinfa) return;
+    // 从通知点进来：这个心法折叠着就先展开
+    setSectionCollapsed(`${char.id}:${focusXinfa}`, false);
     sectionRefs.current.get(focusXinfa)?.scrollIntoView({ block: "start" });
     setFocusXinfa(null);
   }, [view, focusXinfa]);
@@ -290,10 +327,16 @@ function PanelMain({
                   compact={multi}
                 />
               ) : (
-                <TalentList xinfa={sec.xinfa} talents={sec.last!.talents} />
+                <TalentList
+                  xinfa={sec.xinfa}
+                  talents={sec.last!.talents}
+                  compact={multi}
+                />
               );
             // 只玩一个心法时不加小标题
             if (!multi) return <div key={sec.xinfa}>{list}</div>;
+            const key = `${char.id}:${sec.xinfa}`;
+            const isCollapsed = collapsed.has(key);
             return (
               <section
                 key={sec.xinfa}
@@ -306,9 +349,13 @@ function PanelMain({
                 <SectionHeading
                   id={id}
                   xinfa={sec.xinfa}
-                  version={sec.last!.version}
+                  collapsed={isCollapsed}
+                  onToggle={() => setSectionCollapsed(key, !isCollapsed)}
                 />
-                {list}
+                {/* 折叠时只隐藏不卸载：展开的宏、奇穴说明保持原样 */}
+                <div id={`${id}-body`} hidden={isCollapsed}>
+                  {list}
+                </div>
               </section>
             );
           })}
@@ -329,28 +376,39 @@ function PanelMain({
   );
 }
 
-/** 多心法角色列表里的心法小标题：滚动时贴在顶部 */
+/** 多心法角色列表里的心法小标题：滚动时贴在顶部，点整行展开或折叠 */
 function SectionHeading({
   id,
   xinfa,
-  version,
+  collapsed,
+  onToggle,
 }: {
   id: string;
   xinfa: string;
-  version: number;
+  collapsed: boolean;
+  onToggle: () => void;
 }) {
   return (
-    <h3
-      id={id}
-      className="sticky top-0 z-10 flex h-8 items-center gap-2 bg-[#181714] px-4 text-[12px] font-medium text-paper-2"
-    >
-      <span aria-hidden="true" className="inline-flex shrink-0">
-        <XinfaMark xinfa={xinfa} size={16} />
-      </span>
-      <span className="truncate">{xinfa}</span>
-      <span className="ml-auto shrink-0 text-[11px] font-normal tabular-nums text-paper-3">
-        v{version}
-      </span>
+    <h3 id={id} className="sticky top-0 z-10 bg-[#181714]">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+        aria-controls={`${id}-body`}
+        className="group flex h-8 w-full items-center gap-2 px-4 text-left text-[12px] font-medium text-paper-2 transition-colors hover:text-paper"
+      >
+        <span aria-hidden="true" className="inline-flex shrink-0">
+          <XinfaMark xinfa={xinfa} size={16} />
+        </span>
+        <span className="truncate">{xinfa}</span>
+        <ChevronDown
+          aria-hidden="true"
+          className={cn(
+            "ml-auto h-3.5 w-3.5 shrink-0 text-paper-3 transition-transform duration-150 group-hover:text-paper-2",
+            collapsed && "-rotate-90"
+          )}
+        />
+      </button>
     </h3>
   );
 }
