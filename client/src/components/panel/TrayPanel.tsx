@@ -71,6 +71,8 @@ export interface TrayPanelProps {
   ) => void;
   showPin?: boolean;
   className?: string;
+  /** 调过的面板大小；不传时是默认 360 × 500 */
+  style?: React.CSSProperties;
 }
 
 export function TrayPanel({
@@ -78,6 +80,7 @@ export function TrayPanel({
   onOpenManager,
   showPin = true,
   className,
+  style,
 }: TrayPanelProps) {
   const { state, actions } = useProto();
   const openManager = onOpenManager ?? actions.openManager;
@@ -103,6 +106,7 @@ export function TrayPanel({
         "glass-ink relative flex h-[500px] w-[360px] flex-col overflow-hidden rounded-xl text-paper shadow-[0_28px_70px_-16px_rgb(0_0_0/0.8),0_0_0_1px_rgb(236_230_218/0.1)]",
         className
       )}
+      style={style}
     >
       {body}
       <ToastStack surface="panel" className="bottom-3" />

@@ -24,7 +24,7 @@ export default function PanelPage() {
             {tx("回到演示台")}
           </Link>
           <span className="text-[12.5px] text-paper-2">
-            {tx("托盘面板 · 实际尺寸 360 × 500")}
+            {tx("托盘面板 · 默认尺寸 360 × 500")}
           </span>
           <span className="ml-auto">
             <Segmented<Platform>

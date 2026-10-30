@@ -1,12 +1,15 @@
 import { useEffect, useRef, type PointerEvent } from "react";
+import { ResizeEdges } from "@/components/panel/ResizeEdges";
 import { fromControl } from "@/components/desktop/DesktopScreen";
 import { TrayPanel } from "@/components/panel/TrayPanel";
 import {
   DESKTOP_PLATFORM,
+  getPanelRect,
   hidePanel,
   openManager,
   registerHotkey,
   resetPanelPosition,
+  setPanelRect,
   setPinned,
   setTrayBadge,
   setUiTexts,
@@ -15,6 +18,7 @@ import {
   unregisterHotkeys,
 } from "@/lib/desktop";
 import { tx, useLang } from "@/lib/i18n";
+import { trackResize, type Rect, type ResizeDir } from "@/lib/panelSize";
 import { cn } from "@/lib/utils";
 import { myCharacters, pendingCount, useProto } from "@/state/store";
 
@@ -22,8 +26,8 @@ import { myCharacters, pendingCount, useProto } from "@/state/store";
 const DOUBLE_MS = 350;
 
 /**
- * 桌面版的托盘面板窗口。窗口本身就是 360 × 500，页面铺满。
- * 显示、收起、位置由系统窗口负责（见 src-tauri/src/lib.rs）。
+ * 桌面版的托盘面板窗口。页面铺满窗口；窗口默认 360 × 500，可以拖边缘调大小。
+ * 显示、收起、位置、大小由系统窗口负责（见 src-tauri/src/lib.rs）。
  */
 export default function DesktopPanel() {
   const { state, actions } = useProto();
@@ -106,10 +110,25 @@ export default function DesktopPanel() {
     void startDragging();
   };
 
+  // Mac 拖边缘调大小：系统不支持无边框窗口的拖边缘缩放，由页面算新位置和大小。
+  // Windows 由系统处理，不用页面上的热区。
+  const startRect = useRef<Rect | null>(null);
+  const onResizeStart = (dir: ResizeDir, e: PointerEvent) => {
+    startRect.current = null;
+    void getPanelRect().then(r => {
+      startRect.current = r;
+    });
+    const moved = dir.includes("n") || dir.includes("w");
+    trackResize(e, dir, {
+      start: () => startRect.current,
+      onChange: r => void setPanelRect(r, moved),
+    });
+  };
+
   return (
     <div
       className={cn(
-        "h-screen w-screen overflow-hidden",
+        "relative h-screen w-screen overflow-hidden",
         mac ? "bg-transparent" : "bg-ink"
       )}
     >
@@ -117,7 +136,7 @@ export default function DesktopPanel() {
       <TrayPanel
         key={lang}
         className={cn(
-          "desktop-solid shadow-none",
+          "desktop-solid h-full w-full shadow-none",
           // Windows 11 的无边框窗口由系统画圆角和阴影
           !mac && "rounded-none"
         )}
@@ -127,6 +146,7 @@ export default function DesktopPanel() {
           if (!state.pinned) void hidePanel();
         }}
       />
+      {mac && <ResizeEdges onResizeStart={onResizeStart} />}
     </div>
   );
 }

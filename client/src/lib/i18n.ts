@@ -158,6 +158,18 @@ export function tx(zh: string, ...args: unknown[]): string {
   });
 }
 
+/**
+ * 带数量的文案。n 为 1 时，如果词典里有把 {0} 换成 1 的写法（如「1 处变化」），
+ * 就用它，英文、西语能显示单数；没有时和 tx 一样。
+ */
+export function txn(zh: string, n: number, ...rest: unknown[]): string {
+  if (n === 1 && current !== "zh") {
+    const one = zh.replace("{0}", "1");
+    if (DICTS[current][one]) return tx(one, n, ...rest);
+  }
+  return tx(zh, n, ...rest);
+}
+
 /** Intl 用的语言代码：日期、数字格式化 */
 export function intlLocale(): string {
   return LANGS.find(l => l.value === current)?.html ?? "zh-CN";

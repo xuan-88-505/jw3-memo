@@ -41,6 +41,8 @@ const MOTION_DESC: Record<TrayMotion, string> = {
 
 export function SettingsView() {
   const { state, actions } = useProto();
+  const atDefault =
+    !state.panelOffset.x && !state.panelOffset.y && !state.panelSize;
   const mac = state.platform === "mac";
   const lang = useLang();
   const offline = state.dataState === "offline";
@@ -114,23 +116,25 @@ export function SettingsView() {
             />
           </SettingRow>
           <SettingRow
-            title={tx("面板位置")}
-            desc={tx("按住面板顶部拖动，双击顶部回到原位")}
+            title={tx("面板位置和大小")}
+            desc={tx("按住顶部拖动，拖边缘调整大小，双击顶部回到原位")}
           >
             <Btn
               size="sm"
               onClick={() => {
-                // 桌面版的位置由系统记录，这里不知道是否已在默认位置，按钮一直可用
-                if (IS_DESKTOP) void resetPanelPosition();
-                else actions.resetPanelOffset();
-                actions.toast("manager", "success", tx("面板已回到默认位置"));
+                // 桌面版的位置和大小由系统记录，这里不知道是否已是默认，按钮一直可用
+                if (IS_DESKTOP) void resetPanelPosition({ size: true });
+                else actions.resetPanelLayout();
+                actions.toast(
+                  "manager",
+                  "success",
+                  tx("面板已恢复默认位置和大小")
+                );
               }}
-              disabled={
-                !IS_DESKTOP && !state.panelOffset.x && !state.panelOffset.y
-              }
+              disabled={!IS_DESKTOP && atDefault}
               title={
-                !IS_DESKTOP && !state.panelOffset.x && !state.panelOffset.y
-                  ? tx("现在就在默认位置")
+                !IS_DESKTOP && atDefault
+                  ? tx("现在就是默认位置和大小")
                   : undefined
               }
             >

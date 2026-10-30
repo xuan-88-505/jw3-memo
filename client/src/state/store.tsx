@@ -1,3 +1,4 @@
+import { clampSize, type PanelSize } from "@/lib/panelSize";
 import {
   createContext,
   useCallback,
@@ -126,6 +127,8 @@ export interface ProtoState {
   panelOpen: boolean;
   pinned: boolean;
   panelOffset: { x: number; y: number };
+  /** 用户调过的面板大小；null 表示默认 360 × 500 */
+  panelSize: PanelSize | null;
   coachSeen: boolean;
   /** 设置：开机自动启动（原型只记状态） */
   launchAtLogin: boolean;
@@ -291,6 +294,21 @@ function readFollowed(): string[] | null {
   }
 }
 /** 托盘提示"看过"的本地记录；必须在 initialState 之前定义 */
+/** 面板调过的大小；不分系统 */
+const PANEL_SIZE_KEY = "tongdiao.panelSize.v1";
+function readPanelSize(): PanelSize | null {
+  try {
+    const raw =
+      typeof window !== "undefined"
+        ? localStorage.getItem(PANEL_SIZE_KEY)
+        : null;
+    const v = raw ? JSON.parse(raw) : null;
+    if (v && Number.isFinite(v.w) && Number.isFinite(v.h)) return clampSize(v);
+  } catch {
+    /* 读不到就用默认大小 */
+  }
+  return null;
+}
 /** 面板拖到的位置（相对托盘旁默认位置的偏移）；记下系统，换系统时不沿用 */
 const PANEL_POS_KEY = "tongdiao.panelOffset.v1";
 function readPanelOffset(platform: Platform): { x: number; y: number } {
@@ -336,6 +354,7 @@ const initialState: ProtoState = {
   panelOpen: false,
   pinned: false,
   panelOffset: readPanelOffset("win"),
+  panelSize: readPanelSize(),
   coachSeen: readCoachSeen(),
   launchAtLogin: true,
   trayMotion: "hover",
@@ -380,6 +399,7 @@ function desktopInitial(): Partial<ProtoState> {
     scene: "desktop",
     dataState: "normal",
     panelOffset: { x: 0, y: 0 },
+    panelSize: null,
     coachSeen: true,
     launchAtLogin: false,
     managerOpen: true,
@@ -882,6 +902,10 @@ function useActions(
       setPanelOffset: (panelOffset: { x: number; y: number }) =>
         patch({ panelOffset }),
       resetPanelOffset: () => patch({ panelOffset: { x: 0, y: 0 } }),
+      setPanelSize: (panelSize: PanelSize | null) => patch({ panelSize }),
+      /** 设置里的「恢复默认」：位置和大小都回到默认 */
+      resetPanelLayout: () =>
+        patch({ panelOffset: { x: 0, y: 0 }, panelSize: null }),
       selectCharacter: (activeCharId: string) => patch({ activeCharId }),
       setMode: (charId: string, mode: Mode) =>
         update(s => ({ activeMode: { ...s.activeMode, [charId]: mode } })),
@@ -1647,6 +1671,16 @@ export function ProtoProvider({
       /* 浏览器禁用本地存储时，只在本次打开期间记住 */
     }
   }, [state.panelOffset, state.platform]);
+  // 面板大小存到本地；默认大小不写
+  useEffect(() => {
+    try {
+      const sz = state.panelSize;
+      if (sz) localStorage.setItem(PANEL_SIZE_KEY, JSON.stringify(sz));
+      else localStorage.removeItem(PANEL_SIZE_KEY);
+    } catch {
+      /* 浏览器禁用本地存储时，只在本次打开期间记住 */
+    }
+  }, [state.panelSize]);
   // 侧栏顺序存到本地；默认顺序不写
   useEffect(() => {
     try {

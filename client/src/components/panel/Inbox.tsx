@@ -22,7 +22,7 @@ import {
 } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { ChangeList } from "./PanelContent";
-import { tx } from "@/lib/i18n";
+import { tx, txn } from "@/lib/i18n";
 
 /** 面板的二级页：列出所有"有更新"的方案 */
 export function Inbox({
@@ -59,9 +59,14 @@ export function Inbox({
             <ArrowLeft className="h-4 w-4" />
           </IconBtn>
         </span>
-        <h2 className="text-[14px] font-medium text-paper">{tx("通知")}</h2>
+        <h2 className="min-w-0 truncate text-[14px] font-medium text-paper">
+          {tx("通知")}
+        </h2>
         {items.length > 1 && (
-          <span className="ml-auto" onPointerDown={e => e.stopPropagation()}>
+          <span
+            className="ml-auto shrink-0"
+            onPointerDown={e => e.stopPropagation()}
+          >
             <Btn
               variant="ghost"
               size="xs"
@@ -200,7 +205,7 @@ function InboxRow({
               aria-expanded={open}
               className="mt-1.5 inline-flex items-center gap-1 text-[12px] text-paper-3 hover:text-paper"
             >
-              {open ? tx("收起") : tx("{0} 处变化", diff.total)}
+              {open ? tx("收起") : txn("{0} 处变化", diff.total)}
               <ChevronDown
                 className={cn(
                   "h-3.5 w-3.5 transition-transform",

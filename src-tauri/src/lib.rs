@@ -19,16 +19,28 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, EventTarget, Manager, PhysicalPosition, Theme, WebviewUrl,
-    WebviewWindow, WebviewWindowBuilder, Window, WindowEvent,
+    AppHandle, Emitter, EventTarget, LogicalPosition, LogicalSize, Manager, PhysicalPosition,
+    Theme, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Window, WindowEvent,
 };
 
 const PANEL: &str = "panel";
 const MANAGER: &str = "manager";
 const TRAY_ID: &str = "main";
-/// 面板尺寸（逻辑像素），和前端的 360 × 500 一致
+/// 面板默认尺寸（逻辑像素），和前端 client/src/lib/panelSize.ts 一致
 const PANEL_W: f64 = 360.0;
 const PANEL_H: f64 = 500.0;
+/// 面板能缩到的最小尺寸、能拉到的最大尺寸（逻辑像素），和前端一致
+const PANEL_MIN_W: f64 = 300.0;
+const PANEL_MIN_H: f64 = 380.0;
+const PANEL_MAX_W: f64 = 600.0;
+const PANEL_MAX_H: f64 = 1000.0;
+
+fn clamp_size((w, h): (f64, f64)) -> (f64, f64) {
+    (
+        w.clamp(PANEL_MIN_W, PANEL_MAX_W).round(),
+        h.clamp(PANEL_MIN_H, PANEL_MAX_H).round(),
+    )
+}
 
 #[derive(Default)]
 struct Panel {
@@ -37,6 +49,8 @@ struct Panel {
     tray: Option<(f64, f64, f64, f64)>,
     /// 用户拖到的位置；None 表示跟着托盘
     custom: Option<(i32, i32)>,
+    /// 用户调过的大小（逻辑像素）；None 表示默认大小
+    size: Option<(f64, f64)>,
     /// 程序最近一次摆放的位置，用来区分"用户拖动"和"程序摆放"
     placed: Option<(i32, i32)>,
     /// 因为失去焦点而收起的时间。点托盘图标时面板会先失去焦点，
@@ -46,10 +60,18 @@ struct Panel {
 
 struct AppState(Mutex<Panel>);
 
-#[derive(Serialize, Deserialize)]
-struct SavedPos {
-    x: i32,
-    y: i32,
+/// 记在 panel-position.json 里的面板位置和大小。
+/// 旧版本只有 x、y；没调过大小时不写 w、h。
+#[derive(Serialize, Deserialize, Default)]
+struct SavedPanel {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    x: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    y: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    w: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    h: Option<f64>,
 }
 
 // ---------- 文件 ----------
@@ -71,24 +93,42 @@ fn pos_file(app: &AppHandle) -> Option<PathBuf> {
     data_dir(app).ok().map(|d| d.join("panel-position.json"))
 }
 
-fn read_saved_pos(app: &AppHandle) -> Option<(i32, i32)> {
-    let raw = fs::read_to_string(pos_file(app)?).ok()?;
-    let p: SavedPos = serde_json::from_str(&raw).ok()?;
-    Some((p.x, p.y))
+/// 读记下的位置和大小；文件不存在或格式不对时都当作没有
+fn read_saved(app: &AppHandle) -> (Option<(i32, i32)>, Option<(f64, f64)>) {
+    let saved = pos_file(app)
+        .and_then(|p| fs::read_to_string(p).ok())
+        .and_then(|raw| serde_json::from_str::<SavedPanel>(&raw).ok())
+        .unwrap_or_default();
+    let pos = saved.x.zip(saved.y);
+    let size = saved.w.zip(saved.h).map(clamp_size);
+    (pos, size)
 }
 
-fn write_saved_pos(app: &AppHandle, pos: Option<(i32, i32)>) {
+/// 位置和大小都是默认时删掉文件
+fn write_saved(app: &AppHandle, pos: Option<(i32, i32)>, size: Option<(f64, f64)>) {
     let Some(path) = pos_file(app) else { return };
-    match pos {
-        Some((x, y)) => {
-            if let Ok(json) = serde_json::to_string(&SavedPos { x, y }) {
-                let _ = write_atomic(&path, &json);
-            }
-        }
-        None => {
-            let _ = fs::remove_file(path);
-        }
+    if pos.is_none() && size.is_none() {
+        let _ = fs::remove_file(path);
+        return;
     }
+    let saved = SavedPanel {
+        x: pos.map(|p| p.0),
+        y: pos.map(|p| p.1),
+        w: size.map(|s| s.0),
+        h: size.map(|s| s.1),
+    };
+    if let Ok(json) = serde_json::to_string(&saved) {
+        let _ = write_atomic(&path, &json);
+    }
+}
+
+/// 把内存里的位置和大小写到文件
+fn save_panel_layout(app: &AppHandle) {
+    let (custom, size) = {
+        let p = panel_state(app);
+        (p.custom, p.size)
+    };
+    write_saved(app, custom, size);
 }
 
 // ---------- 面板 ----------
@@ -102,14 +142,19 @@ fn panel_state(app: &AppHandle) -> std::sync::MutexGuard<'_, Panel> {
 }
 
 /// 托盘旁的默认位置：Windows 在任务栏上方，Mac 在菜单栏下方。
-fn default_pos(app: &AppHandle, tray: Option<(f64, f64, f64, f64)>) -> (i32, i32) {
+/// `size` 是面板的逻辑尺寸，按目标屏幕的缩放换成物理像素。
+fn default_pos(
+    app: &AppHandle,
+    tray: Option<(f64, f64, f64, f64)>,
+    size: (f64, f64),
+) -> (i32, i32) {
     let monitor = tray
         .and_then(|(x, y, _, _)| app.monitor_from_point(x, y).ok().flatten())
         .or_else(|| app.primary_monitor().ok().flatten());
     let Some(m) = monitor else { return (100, 100) };
     let scale = m.scale_factor();
     let px = |v: f64| (v * scale).round() as i32;
-    let (pw, ph) = (px(PANEL_W), px(PANEL_H));
+    let (pw, ph) = (px(size.0), px(size.1));
     let area = m.work_area();
     let (ax, ay) = (area.position.x, area.position.y);
     let (aw, ah) = (area.size.width as i32, area.size.height as i32);
@@ -136,31 +181,46 @@ fn on_screen(app: &AppHandle, (x, y): (i32, i32)) -> bool {
                 let p = m.position();
                 let s = m.size();
                 let (cx, cy) = (x + 40, y + 20);
-                cx >= p.x
-                    && cy >= p.y
-                    && cx < p.x + s.width as i32
-                    && cy < p.y + s.height as i32
+                cx >= p.x && cy >= p.y && cx < p.x + s.width as i32 && cy < p.y + s.height as i32
             })
         })
         .unwrap_or(false)
 }
 
-fn place_panel(app: &AppHandle, w: &WebviewWindow) {
+/// 面板当前的逻辑尺寸；读不到时用记下的或默认的
+fn panel_size(app: &AppHandle, w: &WebviewWindow) -> (f64, f64) {
+    let actual = w
+        .inner_size()
+        .ok()
+        .zip(w.scale_factor().ok())
+        .map(|(s, f)| {
+            let l = s.to_logical::<f64>(f);
+            (l.width, l.height)
+        });
+    actual
+        .or(panel_state(app).size)
+        .unwrap_or((PANEL_W, PANEL_H))
+}
+
+/// `size`：刚改了大小、窗口可能还没变过来时，按这个尺寸算默认位置
+fn place_panel(app: &AppHandle, w: &WebviewWindow, size: Option<(f64, f64)>) {
     let (custom, tray) = {
         let p = panel_state(app);
         (p.custom, p.tray)
     };
     let pos = match custom {
         Some(c) if on_screen(app, c) => c,
-        _ => default_pos(app, tray),
+        _ => default_pos(app, tray, size.unwrap_or_else(|| panel_size(app, w))),
     };
     panel_state(app).placed = Some(pos);
     let _ = w.set_position(PhysicalPosition::new(pos.0, pos.1));
 }
 
 fn show_panel(app: &AppHandle) {
-    let Some(w) = app.get_webview_window(PANEL) else { return };
-    place_panel(app, &w);
+    let Some(w) = app.get_webview_window(PANEL) else {
+        return;
+    };
+    place_panel(app, &w, None);
     let _ = w.show();
     let _ = w.set_focus();
     let _ = w.emit("tongdiao://panel-shown", ());
@@ -170,12 +230,13 @@ fn hide_panel_window(app: &AppHandle) {
     if let Some(w) = app.get_webview_window(PANEL) {
         let _ = w.hide();
     }
-    let custom = panel_state(app).custom;
-    write_saved_pos(app, custom);
+    save_panel_layout(app);
 }
 
 fn toggle(app: &AppHandle, from_tray: bool) {
-    let Some(w) = app.get_webview_window(PANEL) else { return };
+    let Some(w) = app.get_webview_window(PANEL) else {
+        return;
+    };
     if w.is_visible().unwrap_or(false) {
         hide_panel_window(app);
         return;
@@ -258,13 +319,52 @@ fn set_pinned(app: AppHandle, pinned: bool) {
     panel_state(&app).pinned = pinned;
 }
 
+/// 回到托盘旁。`size` 为 true 时大小也回到默认（设置里的「恢复默认」）；
+/// 双击面板顶部只回位置，不改大小。
 #[tauri::command]
-fn reset_panel_position(app: AppHandle) {
-    panel_state(&app).custom = None;
-    write_saved_pos(&app, None);
-    if let Some(w) = app.get_webview_window(PANEL) {
-        place_panel(&app, &w);
+fn reset_panel_position(app: AppHandle, size: Option<bool>) {
+    let reset_size = size.unwrap_or(false);
+    {
+        let mut p = panel_state(&app);
+        p.custom = None;
+        if reset_size {
+            p.size = None;
+        }
     }
+    save_panel_layout(&app);
+    if let Some(w) = app.get_webview_window(PANEL) {
+        if reset_size {
+            let _ = w.set_size(LogicalSize::new(PANEL_W, PANEL_H));
+            place_panel(&app, &w, Some((PANEL_W, PANEL_H)));
+        } else {
+            place_panel(&app, &w, None);
+        }
+    }
+}
+
+/// 面板窗口的位置和大小（逻辑像素）：[x, y, 宽, 高]。Mac 拖边缘调大小时用
+#[tauri::command]
+fn get_panel_rect(app: AppHandle) -> Option<[f64; 4]> {
+    let w = app.get_webview_window(PANEL)?;
+    let f = w.scale_factor().ok()?;
+    let pos = w.outer_position().ok()?.to_logical::<f64>(f);
+    let size = w.inner_size().ok()?.to_logical::<f64>(f);
+    Some([pos.x, pos.y, size.width, size.height])
+}
+
+/// Mac 拖面板边缘调大小。Mac 的无边框窗口不支持系统的拖边缘缩放，
+/// 由页面算出新的位置和大小再交给这里（逻辑像素）。
+/// `moved`：拖的是左边或上边，位置也要跟着变。
+#[tauri::command]
+fn set_panel_rect(app: AppHandle, x: f64, y: f64, w: f64, h: f64, moved: bool) {
+    let Some(win) = app.get_webview_window(PANEL) else {
+        return;
+    };
+    let (w, h) = clamp_size((w, h));
+    if moved {
+        let _ = win.set_position(LogicalPosition::new(x, y));
+    }
+    let _ = win.set_size(LogicalSize::new(w, h));
 }
 
 /// 面板上点了"打开管理窗口"之类的入口：显示管理窗口，并把要打开的页面转过去
@@ -282,7 +382,9 @@ fn open_manager(app: AppHandle, req: serde_json::Value) {
 /// `tip` 由页面按界面语言给出；旧页面没传时用中文。
 #[tauri::command]
 fn set_tray_badge(app: AppHandle, count: u32, tip: Option<String>) {
-    let Some(tray) = app.tray_by_id(TRAY_ID) else { return };
+    let Some(tray) = app.tray_by_id(TRAY_ID) else {
+        return;
+    };
     let tip = tip.unwrap_or_else(|| {
         if count > 0 {
             format!("备忘录 · {count} 条更新")
@@ -337,10 +439,16 @@ fn create_windows(app: &tauri::App) -> tauri::Result<()> {
         .theme(Some(Theme::Dark))
         .build()?;
 
+    // 用户调过大小时按记下的大小打开
+    let (pw, ph) = panel_state(app.handle()).size.unwrap_or((PANEL_W, PANEL_H));
     let panel = WebviewWindowBuilder::new(app, PANEL, WebviewUrl::App("index.html".into()))
         .title("备忘录")
-        .inner_size(PANEL_W, PANEL_H)
-        .resizable(false)
+        .inner_size(pw, ph)
+        // 可以拖边缘调大小。Windows 的无边框窗口由 Tauri 提供拖边缘缩放；
+        // Mac 不支持，由页面处理（见 set_panel_rect）
+        .resizable(true)
+        .min_inner_size(PANEL_MIN_W, PANEL_MIN_H)
+        .max_inner_size(PANEL_MAX_W, PANEL_MAX_H)
         .maximizable(false)
         .minimizable(false)
         .decorations(false)
@@ -366,7 +474,11 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, e| match e.id().as_ref() {
             "open" => show_manager(app),
-            "quit" => app.exit(0),
+            "quit" => {
+                // 面板开着时直接退出，也要记下位置和大小
+                save_panel_layout(app);
+                app.exit(0)
+            }
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
@@ -418,6 +530,18 @@ fn on_window_event(window: &Window, event: &WindowEvent) {
                 p.placed = Some((pos.x, pos.y));
             }
         }
+        // 面板：用户调大小后记住（逻辑像素；换到缩放不同的屏幕时逻辑尺寸不变）
+        (PANEL, WindowEvent::Resized(size)) => {
+            if !window.is_visible().unwrap_or(false) {
+                return;
+            }
+            if let Ok(f) = window.scale_factor() {
+                let l = size.to_logical::<f64>(f);
+                if l.width > 0.0 && l.height > 0.0 {
+                    panel_state(app).size = Some(clamp_size((l.width, l.height)));
+                }
+            }
+        }
         (PANEL, WindowEvent::CloseRequested { api, .. }) => {
             api.prevent_close();
             hide_panel_window(app);
@@ -451,6 +575,8 @@ pub fn run() {
             hide_panel,
             set_pinned,
             reset_panel_position,
+            get_panel_rect,
+            set_panel_rect,
             open_manager,
             set_tray_badge,
             set_ui_texts,
@@ -458,8 +584,12 @@ pub fn run() {
         .on_window_event(on_window_event)
         .setup(|app| {
             let handle = app.handle().clone();
-            let saved = read_saved_pos(&handle);
-            panel_state(&handle).custom = saved;
+            let (pos, size) = read_saved(&handle);
+            {
+                let mut p = panel_state(&handle);
+                p.custom = pos;
+                p.size = size;
+            }
             create_windows(app)?;
             build_tray(app)?;
             // 开机自启时带 --hidden，只留在托盘

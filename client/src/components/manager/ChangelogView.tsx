@@ -11,7 +11,7 @@ import { absoluteTime, relativeTime } from "@/lib/format";
 import { followedXinfa, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { DiffDetails, EmptyState, SectionHeader, diffSummary } from "./shared";
-import { monthDay, tx } from "@/lib/i18n";
+import { monthDay, tx, txn } from "@/lib/i18n";
 
 interface Entry {
   key: string;
@@ -342,7 +342,7 @@ function FollowPicker({
                       <span
                         aria-hidden="true"
                         className="text-[11px] tabular-nums text-paper-3"
-                        title={tx("{0} 条修改记录", n)}
+                        title={txn("{0} 条修改记录", n)}
                       >
                         {n}
                       </span>

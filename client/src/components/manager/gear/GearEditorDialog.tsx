@@ -16,7 +16,7 @@ import { GearEditor, QuickMenu, useQuickActions } from "./GearEditor";
 import { GearFilterButton } from "./GearFilterButton";
 import { useGearFilter } from "./gearFilter";
 import { useEquipDb } from "./useEquipDb";
-import { tx } from "@/lib/i18n";
+import { tx, txn } from "@/lib/i18n";
 
 /**
  * 配装器弹窗，照参考站：盖住整个管理窗口，一张表改全身，底部保存。
@@ -161,7 +161,7 @@ export function GearEditorDialog({
                     ·
                   </span>
                   <span title={changes.join("、")}>
-                    {tx("改了 {0} 处", changes.length)}
+                    {txn("改了 {0} 处", changes.length)}
                   </span>
                 </span>
               </>

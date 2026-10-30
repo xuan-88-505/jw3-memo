@@ -23,6 +23,13 @@ import {
 import { HuangjiLaugh } from "@/components/brand/Marks";
 import { ManagerApp } from "@/components/manager/ManagerApp";
 import { TrayPanel } from "@/components/panel/TrayPanel";
+import { ResizeEdges } from "@/components/panel/ResizeEdges";
+import {
+  trackResize,
+  type Bounds,
+  type Rect,
+  type ResizeDir,
+} from "@/lib/panelSize";
 import { pendingCount, myCharacters, useProto } from "@/state/store";
 import { hotkeyParts, hotkeyText, matchHotkey } from "@/lib/hotkey";
 import { Kbd } from "@/components/common/ui";
@@ -145,9 +152,10 @@ export function DesktopScreen() {
   );
 
   // 拖动面板：按住标题栏空白处移动，任何时候都能拖（不需要先置顶）
+  // 调过大小时用记下的大小：拖边缘的那一帧，页面上的尺寸还是旧的
   const panelSize = () => ({
-    w: panelRef.current?.offsetWidth || PANEL_W,
-    h: panelRef.current?.offsetHeight || PANEL_H,
+    w: state.panelSize?.w || panelRef.current?.offsetWidth || PANEL_W,
+    h: state.panelSize?.h || panelRef.current?.offsetHeight || PANEL_H,
   });
   /** 面板整块留在屏幕内，不压到任务栏 / 菜单栏 */
   const clampOffset = (o: { x: number; y: number }) => {
@@ -195,6 +203,48 @@ export function DesktopScreen() {
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
+  };
+  // 拖面板的边或角调整大小：对边不动，不压到任务栏 / 菜单栏
+  const onResizeStart = (dir: ResizeDir, e: ReactPointerEvent) => {
+    const { w, h } = panelSize();
+    const off = clampOffset(state.panelOffset);
+    const base = full ? WIN_RIGHT : WIN_BOTTOM;
+    // 面板在模拟屏幕里的矩形（左上角 + 宽高）
+    const start: Rect = mac
+      ? { x: SCREEN_W - (macAnchor - off.x) - w, y: MAC_TOP + off.y, w, h }
+      : {
+          x: SCREEN_W - (WIN_RIGHT - off.x) - w,
+          y: SCREEN_H - (base - off.y) - h,
+          w,
+          h,
+        };
+    const bounds: Bounds = mac
+      ? {
+          left: EDGE,
+          top: MAC_TOP,
+          right: SCREEN_W - EDGE,
+          bottom: SCREEN_H - EDGE,
+        }
+      : {
+          left: EDGE,
+          top: EDGE,
+          right: SCREEN_W - EDGE,
+          bottom: SCREEN_H - (full ? EDGE : TASKBAR_H + EDGE),
+        };
+    trackResize(e, dir, {
+      start: () => start,
+      scale,
+      bounds,
+      onChange: r => {
+        const right = SCREEN_W - (r.x + r.w);
+        actions.setPanelSize({ w: r.w, h: r.h });
+        actions.setPanelOffset(
+          mac
+            ? { x: macAnchor - right, y: r.y - MAC_TOP }
+            : { x: WIN_RIGHT - right, y: base - (SCREEN_H - (r.y + r.h)) }
+        );
+      },
+    });
   };
   // 双击标题栏空白处：回到托盘旁的默认位置
   const onPanelDoubleClick = (e: React.MouseEvent) => {
@@ -284,7 +334,15 @@ export function DesktopScreen() {
           style={panelStyle}
           onDoubleClick={onPanelDoubleClick}
         >
-          <TrayPanel onHeaderPointerDown={onHeaderPointerDown} />
+          <TrayPanel
+            onHeaderPointerDown={onHeaderPointerDown}
+            style={
+              state.panelSize
+                ? { width: state.panelSize.w, height: state.panelSize.h }
+                : undefined
+            }
+          />
+          <ResizeEdges onResizeStart={onResizeStart} />
         </div>
       )}
 

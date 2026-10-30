@@ -5,7 +5,7 @@ import { Jx3Icon } from "@/components/brand/Marks";
 import type { SchemeDiff } from "@/lib/diff";
 import { layerLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { tx } from "@/lib/i18n";
+import { tx, txn } from "@/lib/i18n";
 
 /** 按"旧 → 新"展示两个版本的差异 */
 export function DiffDetails({
@@ -147,7 +147,7 @@ export function DiffDetails({
 
 export function diffSummary(diff: SchemeDiff): string {
   const parts: string[] = [];
-  if (diff.talents.length) parts.push(tx("奇穴 {0} 处", diff.talents.length));
+  if (diff.talents.length) parts.push(txn("奇穴 {0} 处", diff.talents.length));
   if (diff.macros.length) parts.push(tx("宏 {0} 个", diff.macros.length));
   return parts.join(" · ") || tx("无变化");
 }

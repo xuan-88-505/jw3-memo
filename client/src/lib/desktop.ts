@@ -5,6 +5,7 @@
  * - panel：托盘 / 菜单栏弹出的面板
  * - manager：管理窗口
  */
+import type { Rect } from "@/lib/panelSize";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -81,7 +82,19 @@ export const togglePanel = () => invoke<void>("toggle_panel");
 export const hidePanel = () => invoke<void>("hide_panel");
 export const setPinned = (pinned: boolean) =>
   invoke<void>("set_pinned", { pinned });
-export const resetPanelPosition = () => invoke<void>("reset_panel_position");
+/** 回到托盘旁；size 为 true 时大小也回到默认 */
+export const resetPanelPosition = (opts?: { size?: boolean }) =>
+  invoke<void>("reset_panel_position", { size: opts?.size ?? false });
+/** 面板窗口的位置和大小（逻辑像素）。Mac 拖边缘调大小时用 */
+export async function getPanelRect(): Promise<Rect | null> {
+  const r = await invoke<[number, number, number, number] | null>(
+    "get_panel_rect"
+  );
+  return r ? { x: r[0], y: r[1], w: r[2], h: r[3] } : null;
+}
+/** moved：拖的是左边或上边，位置也跟着变 */
+export const setPanelRect = (r: Rect, moved: boolean) =>
+  invoke<void>("set_panel_rect", { ...r, moved });
 export const startDragging = () => getCurrentWindow().startDragging();
 export const setTrayBadge = (count: number, tip: string) =>
   invoke<void>("set_tray_badge", { count, tip });
