@@ -5,6 +5,7 @@ import { isServerName } from "@/data/records";
 import { isOnline, modesOf, myCharacters, useProto } from "@/state/store";
 import { Field, inputCls } from "./shared";
 import { SchoolFields, type SchoolValue } from "./SchoolPicker";
+import { tx } from "@/lib/i18n";
 
 /** 自己角色里出现最多的服务器；一个角色都没有时为空 */
 function usualServer(mine: Character[]) {
@@ -22,12 +23,12 @@ export function nameError(
   server: string,
   exceptId?: string
 ) {
-  if (!name) return "填一下角色名";
-  if (name.length > 12) return "角色名最多 12 个字";
+  if (!name) return tx("填一下角色名");
+  if (name.length > 12) return tx("角色名最多 12 个字");
   if (
     mine.some(c => c.id !== exceptId && c.name === name && c.server === server)
   )
-    return `${server} 已经有叫「${name}」的角色了`;
+    return tx("{0} 已经有叫「{1}」的角色了", server, name);
   return "";
 }
 
@@ -61,9 +62,9 @@ export function useAddCharacterForm(surface: "manager" | "panel") {
   const submit = () => {
     const n = name.trim();
     const sErr = !server
-      ? "填一下服务器"
+      ? tx("填一下服务器")
       : !isServerName(server)
-        ? "服务器名是 2–8 个汉字"
+        ? tx("服务器名是 2–8 个汉字")
         : "";
     setServerError(sErr);
     const err = nameError(myCharacters(state), n, server);
@@ -75,10 +76,10 @@ export function useAddCharacterForm(surface: "manager" | "panel") {
       surface,
       "success",
       !hasScheme
-        ? `已添加「${n}」，${schoolLabel(school)}还没有方案`
+        ? tx("已添加「{0}」，{1}还没有方案", n, schoolLabel(school))
         : surface === "panel"
-          ? `已添加「${n}」`
-          : `已添加「${n}」。去面板里看它要用的宏和奇穴。`
+          ? tx("已添加「{0}」", n)
+          : tx("已添加「{0}」。去面板里看它要用的宏和奇穴。", n)
     );
     return true;
   };
@@ -121,7 +122,11 @@ export function AddCharacterFields({
   };
   return (
     <div className="grid grid-cols-2 gap-x-3 gap-y-4">
-      <Field label="角色名" htmlFor={`${idPrefix}-name`} error={form.error}>
+      <Field
+        label={tx("角色名")}
+        htmlFor={`${idPrefix}-name`}
+        error={form.error}
+      >
         <input
           ref={nameRef}
           id={`${idPrefix}-name`}
@@ -133,13 +138,13 @@ export function AddCharacterFields({
             form.setError("");
           }}
           onKeyDown={onEnter}
-          placeholder="游戏里的角色名"
+          placeholder={tx("游戏里的角色名")}
           aria-invalid={!!form.error}
           className={inputCls(!!form.error)}
         />
       </Field>
       <Field
-        label="服务器"
+        label={tx("服务器")}
         htmlFor={`${idPrefix}-server`}
         error={form.serverError}
       >
@@ -152,7 +157,7 @@ export function AddCharacterFields({
             form.setServerError("");
           }}
           onKeyDown={onEnter}
-          placeholder="如 梦江南"
+          placeholder={tx("如 梦江南")}
           aria-invalid={!!form.serverError}
           className={inputCls(!!form.serverError)}
         />

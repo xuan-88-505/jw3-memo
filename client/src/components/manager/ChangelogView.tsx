@@ -11,6 +11,7 @@ import { absoluteTime, relativeTime } from "@/lib/format";
 import { followedXinfa, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { DiffDetails, EmptyState, SectionHeader, diffSummary } from "./shared";
+import { monthDay, tx } from "@/lib/i18n";
 
 interface Entry {
   key: string;
@@ -25,9 +26,9 @@ function dayLabel(iso: string) {
   const start = (x: Date) =>
     new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const days = Math.round((start(today) - start(d)) / 86400000);
-  if (days === 0) return "今天";
-  if (days === 1) return "昨天";
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
+  if (days === 0) return tx("今天");
+  if (days === 1) return tx("昨天");
+  return monthDay(d);
 }
 
 export function ChangelogView() {
@@ -87,18 +88,18 @@ export function ChangelogView() {
   return (
     <div className="flex flex-1 flex-col">
       <SectionHeader
-        title="修改记录"
-        back={{ label: "方案库", onClick: actions.closeChangelog }}
+        title={tx("修改记录")}
+        back={{ label: tx("方案库"), onClick: actions.closeChangelog }}
       />
 
       {showFilter && (
         <div
           className="mb-5 flex flex-wrap items-center gap-1.5"
           role="group"
-          aria-label="按心法筛选"
+          aria-label={tx("按心法筛选")}
         >
           <FilterChip
-            label="全部"
+            label={tx("全部")}
             selected={filter === "全部"}
             onSelect={() => actions.setChangelogFilter("全部")}
           />
@@ -109,7 +110,7 @@ export function ChangelogView() {
               xinfa={x}
               selected={filter === x}
               onSelect={() => actions.setChangelogFilter(x)}
-              removeLabel={`不再关注${x}`}
+              removeLabel={tx("不再关注{0}", x)}
               onRemove={() =>
                 followed.includes(x)
                   ? actions.unfollowXinfa(x)
@@ -120,8 +121,8 @@ export function ChangelogView() {
           <button
             type="button"
             onClick={() => setPicking(true)}
-            aria-label="添加关注的心法"
-            title="添加关注的心法"
+            aria-label={tx("添加关注的心法")}
+            title={tx("添加关注的心法")}
             className="inline-grid h-7 w-7 place-items-center rounded-full border border-dashed border-paper/20 text-paper-3 transition-colors hover:border-paper/35 hover:text-paper"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -130,15 +131,15 @@ export function ChangelogView() {
       )}
 
       {total === 0 ? (
-        <EmptyState icon="scroll" title="还没有修改记录" />
+        <EmptyState icon="scroll" title={tx("还没有修改记录")} />
       ) : filter === "全部" && entries.length === 0 ? (
         // 别的心法有记录，但没关注
         <EmptyState
           icon="scroll"
           title={
             followed.length === 0
-              ? "还没有关注的心法"
-              : "关注的心法还没有修改记录"
+              ? tx("还没有关注的心法")
+              : tx("关注的心法还没有修改记录")
           }
           action={
             <Btn
@@ -146,12 +147,12 @@ export function ChangelogView() {
               icon={<Plus className="h-3.5 w-3.5" />}
               onClick={() => setPicking(true)}
             >
-              添加心法
+              {tx("添加心法")}
             </Btn>
           }
         />
       ) : groups.length === 0 ? (
-        <EmptyState icon="scroll" title="还没有修改记录" />
+        <EmptyState icon="scroll" title={tx("还没有修改记录")} />
       ) : (
         <div className="space-y-6">
           {groups.map(g => (
@@ -194,19 +195,19 @@ export function ChangelogView() {
                           <div className="min-w-0 flex-1">
                             <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-paper-2">
                               <span className="font-medium text-paper">
-                                {author?.name ?? "已离开的成员"}
+                                {author?.name ?? tx("已离开的成员")}
                               </span>
-                              {e.prev ? "把" : "创建了"}
+                              {e.prev ? tx("把") : tx("创建了")}
                               <XinfaMark xinfa={e.scheme.xinfa} size={18} />
                               <span className="font-medium text-paper">
                                 {e.scheme.xinfa} · {e.scheme.mode}
                               </span>
                               {e.prev
-                                ? `更新到 v${e.version.version}`
+                                ? tx("更新到 v{0}", e.version.version)
                                 : "（v1）"}
                               {isLatest && (
                                 <span className="rounded-[4px] bg-cinnabar/14 px-1.5 text-[11px] font-medium text-cinnabar-text ring-1 ring-inset ring-cinnabar/30">
-                                  当前版本
+                                  {tx("当前版本")}
                                 </span>
                               )}
                             </p>
@@ -218,8 +219,11 @@ export function ChangelogView() {
                               {e.prev
                                 ? diffSummary(diff)
                                 : e.version.macros.length
-                                  ? `${e.version.macros.length} 个宏 · 9 层奇穴`
-                                  : "9 层奇穴"}
+                                  ? tx(
+                                      "{0} 个宏 · 9 层奇穴",
+                                      e.version.macros.length
+                                    )
+                                  : tx("9 层奇穴")}
                             </p>
                             {e.version.note && (
                               <p className="mt-1.5 text-[13px] leading-relaxed text-paper">
@@ -234,7 +238,7 @@ export function ChangelogView() {
                               aria-expanded={open}
                               className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[12px] text-paper-2 hover:bg-paper/[0.06] hover:text-paper"
                             >
-                              旧 → 新
+                              {tx("旧 → 新")}
                               <ChevronDown
                                 className={cn(
                                   "h-3.5 w-3.5 transition-transform",
@@ -292,12 +296,12 @@ function FollowPicker({
     <InlineModal
       open={open}
       onClose={onClose}
-      title="关注的心法"
+      title={tx("关注的心法")}
       width={600}
       bodyMaxHeight={440}
       footer={
         <Btn variant="primary" size="md" onClick={onClose}>
-          完成
+          {tx("完成")}
         </Btn>
       }
     >
@@ -338,7 +342,7 @@ function FollowPicker({
                       <span
                         aria-hidden="true"
                         className="text-[11px] tabular-nums text-paper-3"
-                        title={`${n} 条修改记录`}
+                        title={tx("{0} 条修改记录", n)}
                       >
                         {n}
                       </span>

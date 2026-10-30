@@ -6,6 +6,7 @@
  * 正式版把选择原样交给计算器引擎重算；原型里用属性收益估算，界面上标「≈」。
  */
 import { BUFF_DB } from "@/data/buffData";
+import { tx } from "@/lib/i18n";
 import { perPoint } from "@/data/enchants";
 import { HASTE_TIERS, type Attr, type Loadout } from "@/data/gear";
 
@@ -405,9 +406,9 @@ export function buffFactor(lo: Loadout): number {
 
 /** 当前增益的简称：预设名、自定义或不加增益 */
 export function buffLabel(sel: BuffSelection | undefined): string {
-  if (!sel || sel.preset === "清空增益") return "不加增益";
-  if (sel.preset) return PRESET_LABEL[sel.preset] ?? sel.preset;
-  return "自定义增益";
+  if (!sel || sel.preset === "清空增益") return tx("不加增益");
+  if (sel.preset) return tx(PRESET_LABEL[sel.preset] ?? sel.preset);
+  return tx("自定义增益");
 }
 
 /* ---------- 属性说明 ---------- */

@@ -21,6 +21,7 @@ import {
   nameError,
   useAddCharacterForm,
 } from "./AddCharacterForm";
+import { tx } from "@/lib/i18n";
 
 // 表格不裁切内容：门派菜单要浮出来
 const TD = "px-3 py-2.5";
@@ -47,7 +48,7 @@ export function CharactersView() {
   return (
     <div className="flex flex-1 flex-col">
       <SectionHeader
-        title="我的角色"
+        title={tx("我的角色")}
         right={
           mine.length > 0 && (
             <Btn
@@ -56,7 +57,7 @@ export function CharactersView() {
               onClick={() => setAdding(true)}
               icon={<Plus className="h-3.5 w-3.5" />}
             >
-              添加角色
+              {tx("添加角色")}
             </Btn>
           )
         }
@@ -65,7 +66,7 @@ export function CharactersView() {
       {mine.length === 0 ? (
         <EmptyState
           icon="hero"
-          title="还没有角色"
+          title={tx("还没有角色")}
           action={
             <Btn
               variant="primary"
@@ -73,7 +74,7 @@ export function CharactersView() {
               onClick={() => setAdding(true)}
               icon={<Plus className="h-4 w-4" />}
             >
-              添加第一个角色
+              {tx("添加第一个角色")}
             </Btn>
           }
         />
@@ -94,17 +95,17 @@ export function CharactersView() {
             </colgroup>
             <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
               <tr>
-                <th className="px-3 py-2.5 font-normal">角色</th>
+                <th className="px-3 py-2.5 font-normal">{tx("角色")}</th>
                 {showScore && (
                   <th className="whitespace-nowrap px-3 py-2.5 font-normal">
-                    装分
+                    {tx("装分")}
                   </th>
                 )}
                 <th className="whitespace-nowrap px-3 py-2.5 font-normal">
-                  服务器
+                  {tx("服务器")}
                 </th>
                 <th className="px-3 py-2.5 font-normal">
-                  <span className="sr-only">操作</span>
+                  <span className="sr-only">{tx("操作")}</span>
                 </th>
               </tr>
             </thead>
@@ -121,8 +122,8 @@ export function CharactersView() {
                         <button
                           type="button"
                           onClick={() => setAvatarFor(c.id)}
-                          aria-label={`更换「${c.name}」的头像`}
-                          title="更换头像"
+                          aria-label={tx("更换「{0}」的头像", c.name)}
+                          title={tx("更换头像")}
                           className="group relative shrink-0 rounded-[8px]"
                         >
                           <CharAvatar character={c} size={44} />
@@ -149,7 +150,11 @@ export function CharactersView() {
                               actions.setSection("gear");
                             }}
                             title={`${lo.name} · ${lo.xinfa}`}
-                            aria-label={`装分 ${lo.panel.score.toLocaleString("en-US")}，打开配装「${lo.name}」`}
+                            aria-label={tx(
+                              "装分 {0}，打开配装「{1}」",
+                              lo.panel.score.toLocaleString("en-US"),
+                              lo.name
+                            )}
                             className="-mx-1.5 rounded-md px-1.5 py-0.5 tabular-nums text-paper transition-colors hover:bg-paper/[0.06]"
                           >
                             {lo.panel.score.toLocaleString("en-US")}
@@ -164,7 +169,7 @@ export function CharactersView() {
                       {/* 悬停整行或键盘聚焦时出现 */}
                       <span className="inline-flex opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100">
                         <IconBtn
-                          label={`删除角色 ${c.name}`}
+                          label={tx("删除角色 {0}", c.name)}
                           onClick={() => setRemoving(c)}
                           disabled={!online}
                         >
@@ -190,12 +195,12 @@ export function CharactersView() {
       <InlineModal
         open={!!removing}
         onClose={() => setRemoving(null)}
-        title={`删除「${removing?.name}」？`}
-        description="这个角色的便签会一起删掉，方案和配装不受影响。"
+        title={tx("删除「{0}」？", removing?.name)}
+        description={tx("这个角色的便签会一起删掉，方案和配装不受影响。")}
         footer={
           <>
             <Btn variant="ghost" size="md" onClick={() => setRemoving(null)}>
-              取消
+              {tx("取消")}
             </Btn>
             <Btn
               variant="primary"
@@ -206,13 +211,13 @@ export function CharactersView() {
                   actions.toast(
                     "manager",
                     "success",
-                    `已删除「${removing.name}」`
+                    tx("已删除「{0}」", removing.name)
                   );
                 }
                 setRemoving(null);
               }}
             >
-              删除
+              {tx("删除")}
             </Btn>
           </>
         }
@@ -248,12 +253,12 @@ function NameInput({ char, disabled }: { char: Character; disabled: boolean }) {
       actions.toast(
         "manager",
         "error",
-        `${n ? err : "角色名不能为空"}，已恢复原名`
+        tx("{0}，已恢复原名", n ? err : tx("角色名不能为空"))
       );
       return;
     }
     actions.updateCharacter(char.id, { name: n });
-    actions.toast("manager", "success", `已改名为「${n}」`);
+    actions.toast("manager", "success", tx("已改名为「{0}」", n));
   };
 
   return (
@@ -263,10 +268,10 @@ function NameInput({ char, disabled }: { char: Character; disabled: boolean }) {
         disabled={disabled}
         maxLength={20}
         spellCheck={false}
-        aria-label="角色名"
+        aria-label={tx("角色名")}
         aria-invalid={!!error}
         aria-describedby={error ? `name-err-${char.id}` : undefined}
-        title={disabled ? "离线时不能修改" : "点击修改角色名"}
+        title={disabled ? tx("离线时不能修改") : tx("点击修改角色名")}
         onChange={e => {
           setValue(e.target.value);
           setError("");
@@ -332,17 +337,17 @@ function SchoolCell({
     const added = xinfasOf(v).filter(x => !before.includes(x));
     const noScheme = added.filter(x => modesOf(state, x).length === 0);
     const { restored } = actions.updateCharacter(char.id, v);
-    const head = `「${char.name}」改为${schoolLabel(v)}`;
+    const head = tx("「{0}」改为{1}", char.name, schoolLabel(v));
     actions.toast(
       "manager",
       "success",
       restored
-        ? `${head}，之前改好的记录已恢复`
+        ? tx("{0}，之前改好的记录已恢复", head)
         : added.length === 0
           ? head
           : noScheme.length === added.length
-            ? `${head}，${noScheme.join("、")}还没有方案`
-            : `${head}，有新的宏和奇穴要改`
+            ? tx("{0}，{1}还没有方案", head, noScheme.join("、"))
+            : tx("{0}，有新的宏和奇穴要改", head)
     );
   };
   return (
@@ -377,11 +382,11 @@ function AddCharacterDialog({
     <InlineModal
       open={open}
       onClose={onClose}
-      title="添加角色"
+      title={tx("添加角色")}
       footer={
         <>
           <Btn variant="ghost" size="md" onClick={onClose}>
-            取消
+            {tx("取消")}
           </Btn>
           <Btn
             variant="primary"
@@ -389,7 +394,7 @@ function AddCharacterDialog({
             onClick={submit}
             disabled={!form.canSubmit}
           >
-            添加
+            {tx("添加")}
           </Btn>
         </>
       }

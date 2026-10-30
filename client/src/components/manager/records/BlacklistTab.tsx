@@ -14,6 +14,7 @@ import { canEdit, isOnline, memberName, useProto, isSolo } from "@/state/store";
 import { EmptyState, Field } from "../shared";
 import { NoteComposer, NoteThumbs, useNoteImages } from "./NoteImages";
 import { fmtDay, RoleLookup, RoleName } from "./RoleLookup";
+import { tx } from "@/lib/i18n";
 
 export type BlackEditing = { id: string | "new"; preset?: GameRole } | null;
 
@@ -22,7 +23,7 @@ function TagChips({ tags }: { tags: string[] }) {
     <span className="flex flex-wrap gap-1">
       {tags.map(t => (
         <span
-          key={t}
+          key={tx(t)}
           className="rounded px-1.5 py-px text-[11.5px] text-cinnabar-text ring-1 ring-inset ring-cinnabar/30"
         >
           {t}
@@ -43,9 +44,9 @@ export function BlacklistTab({
   const [check, setCheck] = useState<GameRole | null>(null);
   const writable = canEdit(state) && isOnline(state);
   const lockReason = !canEdit(state)
-    ? "只读成员不能修改"
+    ? tx("只读成员不能修改")
     : !isOnline(state)
-      ? "离线时不能修改"
+      ? tx("离线时不能修改")
       : undefined;
   const hits = check ? blackEntriesFor(state.blacklist, check) : [];
   const rows = [...state.blacklist].sort((a, b) => b.at.localeCompare(a.at));
@@ -56,7 +57,7 @@ export function BlacklistTab({
 
   return (
     <div className="flex flex-1 flex-col space-y-4">
-      <section aria-label="查人">
+      <section aria-label={tx("查人")}>
         <div className="max-w-[640px]">
           <RoleLookup
             id="bl-check"
@@ -94,7 +95,7 @@ export function BlacklistTab({
                     {!isSolo(state) && `${memberName(state, h.by)} · `}
                     {fmtDay(h.at)}
                     {h.nameAtRecord !== check.name &&
-                      ` · 记录时叫「${h.nameAtRecord}」`}
+                      tx(" · 记录时叫「{0}」", h.nameAtRecord)}
                   </p>
                 </div>
               </li>
@@ -105,7 +106,7 @@ export function BlacklistTab({
           <div className="mt-3 flex items-center gap-3">
             <p className="flex items-center gap-1.5 text-[12.5px] text-jade">
               <Check className="h-3.5 w-3.5" aria-hidden="true" />
-              名单里没有这个人
+              {tx("名单里没有这个人")}
             </p>
             <Btn
               size="xs"
@@ -114,14 +115,14 @@ export function BlacklistTab({
               title={lockReason}
               onClick={() => onEdit({ id: "new", preset: check })}
             >
-              加入避雷
+              {tx("加入避雷")}
             </Btn>
           </div>
         )}
       </section>
 
       {rows.length === 0 ? (
-        <EmptyState icon="thunder" title="避雷名单是空的" />
+        <EmptyState icon="thunder" title={tx("避雷名单是空的")} />
       ) : (
         <div className="-mx-3">
           <table className="w-full table-fixed text-left text-[13px]">
@@ -134,11 +135,11 @@ export function BlacklistTab({
             </colgroup>
             <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
               <tr>
-                <th className="px-3 py-2.5 font-normal">角色</th>
-                <th className="px-3 py-2.5 font-normal">服务器</th>
-                <th className="px-3 py-2.5 font-normal">原因</th>
-                <th className="px-3 py-2.5 font-normal">说明</th>
-                <th className="px-3 py-2.5 font-normal">记录</th>
+                <th className="px-3 py-2.5 font-normal">{tx("角色")}</th>
+                <th className="px-3 py-2.5 font-normal">{tx("服务器")}</th>
+                <th className="px-3 py-2.5 font-normal">{tx("原因")}</th>
+                <th className="px-3 py-2.5 font-normal">{tx("说明")}</th>
+                <th className="px-3 py-2.5 font-normal">{tx("记录")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-paper/[0.07]">
@@ -162,7 +163,10 @@ export function BlacklistTab({
                           onEdit({ id: b.id });
                         }}
                         className="w-full min-w-0 text-left disabled:cursor-default"
-                        aria-label={`修改「${role?.name ?? b.nameAtRecord}」的避雷记录`}
+                        aria-label={tx(
+                          "修改「{0}」的避雷记录",
+                          role?.name ?? b.nameAtRecord
+                        )}
                       >
                         <RoleName
                           uid={b.uid}
@@ -281,8 +285,8 @@ function BlackDialog({
         )
       : [];
   const errors = {
-    target: !role && !nameOnly ? "先查到这个角色" : "",
-    tags: tags.length === 0 ? "至少选一个原因" : "",
+    target: !role && !nameOnly ? tx("先查到这个角色") : "",
+    tags: tags.length === 0 ? tx("至少选一个原因") : "",
   };
   const blocked = dup.length > 0;
 
@@ -308,7 +312,7 @@ function BlackDialog({
     <InlineModal
       open={open}
       onClose={onClose}
-      title={entry ? "修改避雷" : "加入避雷"}
+      title={entry ? tx("修改避雷") : tx("加入避雷")}
       width={500}
       bodyMaxHeight={520}
       footer={
@@ -323,7 +327,7 @@ function BlackDialog({
                   onClose();
                 }}
               >
-                确定移出
+                {tx("确定移出")}
               </Btn>
             ) : (
               <Btn
@@ -332,28 +336,28 @@ function BlackDialog({
                 icon={<Trash2 className="h-3.5 w-3.5" />}
                 onClick={() => setConfirmDelete(true)}
               >
-                移出名单
+                {tx("移出名单")}
               </Btn>
             ))}
           <span className="flex-1" />
           <Btn variant="ghost" size="md" onClick={onClose}>
-            取消
+            {tx("取消")}
           </Btn>
           <Btn
             variant="primary"
             size="md"
             disabled={blocked || notes.pending > 0}
-            title={notes.pending > 0 ? "图片还在处理" : undefined}
+            title={notes.pending > 0 ? tx("图片还在处理") : undefined}
             onClick={save}
           >
-            保存
+            {tx("保存")}
           </Btn>
         </div>
       }
     >
       <div className="space-y-4" {...notes.bind}>
         <Field
-          label="角色"
+          label={tx("角色")}
           htmlFor="bl-role"
           error={tried && errors.target ? errors.target : undefined}
         >
@@ -373,15 +377,15 @@ function BlackDialog({
                   type="button"
                   onClick={() => setNameOnly(null)}
                   className="grid h-6 w-6 place-items-center rounded text-paper-3 transition-colors hover:bg-paper/[0.06] hover:text-paper"
-                  aria-label="换一个角色"
-                  title="换一个角色"
+                  aria-label={tx("换一个角色")}
+                  title={tx("换一个角色")}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
               </div>
               <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-gold">
                 <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
-                没匹配到游戏角色，对方改名后就对不上了
+                {tx("没匹配到游戏角色，对方改名后就对不上了")}
               </p>
             </div>
           ) : (
@@ -406,7 +410,7 @@ function BlackDialog({
                   className="mt-1.5"
                   onClick={() => setNameOnly(notFound)}
                 >
-                  仍按「{notFound.name}」记下
+                  {tx("仍按「{0}」记下", notFound.name)}
                 </Btn>
               )}
             </div>
@@ -417,13 +421,13 @@ function BlackDialog({
             role="alert"
             className="-mt-1 flex items-center gap-2 text-[12px] text-cinnabar-text"
           >
-            这个角色已经在名单里了
+            {tx("这个角色已经在名单里了")}
             <button
               type="button"
               onClick={() => onSwitchTo(dup[0].id)}
               className="underline underline-offset-2 hover:text-paper"
             >
-              去改那一条
+              {tx("去改那一条")}
             </button>
           </p>
         )}
@@ -433,7 +437,7 @@ function BlackDialog({
             id="bl-tags-label"
             className="text-[12.5px] font-medium text-paper"
           >
-            原因
+            {tx("原因")}
           </p>
           <div
             role="group"
@@ -458,7 +462,7 @@ function BlackDialog({
                   )}
                 >
                   {on && <Check className="h-3 w-3" aria-hidden="true" />}
-                  {t}
+                  {tx(t)}
                 </button>
               );
             })}
@@ -470,7 +474,7 @@ function BlackDialog({
           )}
         </div>
 
-        <Field label="说明" htmlFor="bl-reason">
+        <Field label={tx("说明")} htmlFor="bl-reason">
           <NoteComposer
             id="bl-reason"
             value={reason}
@@ -479,7 +483,7 @@ function BlackDialog({
             maxLength={200}
             multiline
             rows={3}
-            placeholder="可直接粘贴聊天截图"
+            placeholder={tx("可直接粘贴聊天截图")}
           />
         </Field>
       </div>

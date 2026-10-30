@@ -6,6 +6,7 @@ import { Anchored } from "@/components/common/Anchored";
 import type { Loadout } from "@/data/gear";
 import { cn } from "@/lib/utils";
 import { useProto } from "@/state/store";
+import { tx } from "@/lib/i18n";
 
 const itemCls =
   "flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-[13px] text-paper-2 transition-colors hover:bg-paper/[0.07] hover:text-paper focus-visible:bg-paper/[0.07] focus-visible:text-paper focus-visible:outline-none disabled:pointer-events-none disabled:opacity-45";
@@ -58,7 +59,7 @@ export function LoadoutSwitcher({
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`切换配装，当前：${shown.name}`}
+        aria-label={tx("切换配装，当前：{0}", shown.name)}
         disabled={disabled}
         onClick={() => setOpen(v => !v)}
         className={cn(
@@ -79,7 +80,7 @@ export function LoadoutSwitcher({
         {pending ? (
           <Loader2
             className="h-4 w-4 shrink-0 animate-spin text-paper-3"
-            aria-label="正在计算"
+            aria-label={tx("正在计算")}
           />
         ) : (
           <ChevronsUpDown
@@ -94,9 +95,9 @@ export function LoadoutSwitcher({
         onClose={() => setOpen(false)}
         width={232}
         maxHeight={420}
-        label="切换配装"
+        label={tx("切换配装")}
       >
-        <div role="menu" aria-label="切换配装" className="p-1">
+        <div role="menu" aria-label={tx("切换配装")} className="p-1">
           {groups.map((g, gi) => (
             <div
               key={g.xinfa}
@@ -156,7 +157,7 @@ export function LoadoutSwitcher({
             className={itemCls}
           >
             <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            新建配装
+            {tx("新建配装")}
           </button>
         </div>
       </Anchored>

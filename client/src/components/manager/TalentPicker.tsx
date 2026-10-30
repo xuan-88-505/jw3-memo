@@ -2,8 +2,9 @@ import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { Jx3Icon } from "@/components/brand/Marks";
 import { layersOf } from "@/data/seed";
 import type { TalentOption } from "@/data/types";
-import { LAYER_LABEL } from "@/lib/format";
+import { layerLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { tx } from "@/lib/i18n";
 
 /**
  * 奇穴选择器
@@ -81,7 +82,7 @@ export function TalentPicker({
   return (
     <div className="@container">
       {/* 九重一排 */}
-      <div role="tablist" aria-label="奇穴" className="flex gap-1.5">
+      <div role="tablist" aria-label={tx("奇穴")} className="flex gap-1.5">
         {layers.map((L, i) => {
           const o = pickedAt(i);
           const active = slot === i;
@@ -100,7 +101,7 @@ export function TalentPicker({
               tabIndex={active ? 0 : -1}
               onClick={() => go(i)}
               onKeyDown={e => onTabKey(e, i)}
-              title={`第${LAYER_LABEL[i]}重 · ${o?.name ?? "未选"}`}
+              title={tx("第{0}重 · {1}", layerLabel(i), o?.name ?? tx("未选"))}
               className={cn(
                 "relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1 rounded-lg px-1 pb-1.5 pt-1.5 ring-1 ring-inset transition-colors",
                 i === 6 && "ml-2",
@@ -115,7 +116,7 @@ export function TalentPicker({
                   active ? "text-paper-2" : "text-paper-3"
                 )}
               >
-                {LAYER_LABEL[i]}
+                {layerLabel(i)}
               </span>
               {o ? (
                 <Jx3Icon id={o.icon} name={o.name} size={32} />
@@ -131,7 +132,7 @@ export function TalentPicker({
                   active ? "text-paper" : "text-paper-2"
                 )}
               >
-                {o?.name ?? "未选"}
+                {o?.name ?? tx("未选")}
               </span>
               {changed && (
                 <>
@@ -139,7 +140,7 @@ export function TalentPicker({
                     aria-hidden="true"
                     className="absolute right-1 top-1 h-2 w-2 rounded-[2px] bg-cinnabar"
                   />
-                  <span className="sr-only">已修改</span>
+                  <span className="sr-only">{tx("已修改")}</span>
                 </>
               )}
             </button>
@@ -155,16 +156,18 @@ export function TalentPicker({
         className="mt-4"
       >
         <p className="mb-2 text-[11.5px] text-paper-3">
-          <span className="text-paper-2">第{LAYER_LABEL[slot]}重</span>
+          <span className="text-paper-2">
+            {tx("第{0}重", layerLabel(slot))}
+          </span>
           {pool
             ? disabled
-              ? " · 七至九重共用，12 选 3"
-              : " · 七至九重共用，点已占用的会互换"
+              ? tx(" · 七至九重共用，12 选 3")
+              : tx(" · 七至九重共用，点已占用的会互换")
             : null}
         </p>
         <div
           role="radiogroup"
-          aria-label={`第${LAYER_LABEL[slot]}重`}
+          aria-label={tx("第{0}重", layerLabel(slot))}
           className={cn(
             "grid gap-1.5",
             pool ? "grid-cols-4 @[480px]:grid-cols-6" : "grid-cols-4"
@@ -183,7 +186,7 @@ export function TalentPicker({
                 changed={selected && changedAt(slot)}
                 badge={
                   usedBy !== undefined && usedBy !== slot
-                    ? LAYER_LABEL[usedBy]
+                    ? layerLabel(usedBy)
                     : undefined
                 }
                 disabled={disabled}
@@ -215,7 +218,7 @@ export function TalentPicker({
                   {detail.name}
                   {detail.isSkill && (
                     <span className="ml-1.5 text-[11px] font-normal text-paper-3">
-                      招式
+                      {tx("招式")}
                     </span>
                   )}
                 </p>
@@ -225,7 +228,7 @@ export function TalentPicker({
               </div>
             </>
           ) : (
-            <p className="text-[12px] text-paper-3">这一重还没选。</p>
+            <p className="text-[12px] text-paper-3">{tx("这一重还没选。")}</p>
           )}
         </div>
       </div>
@@ -299,7 +302,7 @@ function Tile({
       {changed && (
         <span
           className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-[2px] bg-cinnabar"
-          aria-label="已修改"
+          aria-label={tx("已修改")}
         />
       )}
     </button>

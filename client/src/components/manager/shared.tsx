@@ -3,8 +3,9 @@ import { PixelIcon, type PixelIconName } from "@/components/brand/PixelIcon";
 import { ChevronDown, ChevronLeft } from "lucide-react";
 import { Jx3Icon } from "@/components/brand/Marks";
 import type { SchemeDiff } from "@/lib/diff";
-import { LAYER_LABEL } from "@/lib/format";
+import { layerLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { tx } from "@/lib/i18n";
 
 /** 按"旧 → 新"展示两个版本的差异 */
 export function DiffDetails({
@@ -15,14 +16,14 @@ export function DiffDetails({
   compact?: boolean;
 }) {
   if (diff.total === 0) {
-    return <p className="text-[12.5px] text-paper-3">内容没有变化。</p>;
+    return <p className="text-[12.5px] text-paper-3">{tx("内容没有变化。")}</p>;
   }
   return (
     <div className="space-y-3">
       {diff.talents.length > 0 && (
         <div>
           <p className="mb-1.5 text-[11.5px] tracking-[0.1em] text-paper-3">
-            奇穴
+            {tx("奇穴")}
           </p>
           <ul className="space-y-1">
             {diff.talents.map(t => (
@@ -31,7 +32,7 @@ export function DiffDetails({
                 className="flex items-center gap-2 text-[12.5px]"
               >
                 <span className="w-11 shrink-0 text-paper-3">
-                  第{LAYER_LABEL[t.layer - 1]}重
+                  {tx("第{0}重", layerLabel(t.layer - 1))}
                 </span>
                 {t.from && (
                   <>
@@ -57,7 +58,7 @@ export function DiffDetails({
       {diff.macros.length > 0 && (
         <div>
           <p className="mb-1.5 text-[11.5px] tracking-[0.1em] text-paper-3">
-            宏
+            {tx("宏")}
           </p>
           <div className="space-y-2">
             {diff.macros.map(m => (
@@ -74,13 +75,14 @@ export function DiffDetails({
                     {m.name}
                   </span>
                   <span className="ml-2 text-paper-3">
-                    {m.kind === "added" && "新增"}
-                    {m.kind === "removed" && "删除"}
-                    {m.kind === "renamed" && `改名，原来叫「${m.oldName}」`}
+                    {m.kind === "added" && tx("新增")}
+                    {m.kind === "removed" && tx("删除")}
+                    {m.kind === "renamed" &&
+                      tx("改名，原来叫「{0}」", m.oldName)}
                     {m.kind === "changed" &&
                       (m.oldName !== m.name
-                        ? `内容有改动，原来叫「${m.oldName}」`
-                        : "内容有改动")}
+                        ? tx("内容有改动，原来叫「{0}」", m.oldName)
+                        : tx("内容有改动"))}
                   </span>
                 </p>
                 {m.ops.length > 0 && (m.kind === "changed" || !compact) && (
@@ -107,9 +109,9 @@ export function DiffDetails({
                             )}
                             aria-label={
                               o.type === "add"
-                                ? "新"
+                                ? tx("新")
                                 : o.type === "del"
-                                  ? "旧"
+                                  ? tx("旧")
                                   : undefined
                             }
                           >
@@ -145,9 +147,9 @@ export function DiffDetails({
 
 export function diffSummary(diff: SchemeDiff): string {
   const parts: string[] = [];
-  if (diff.talents.length) parts.push(`奇穴 ${diff.talents.length} 处`);
-  if (diff.macros.length) parts.push(`宏 ${diff.macros.length} 个`);
-  return parts.join(" · ") || "无变化";
+  if (diff.talents.length) parts.push(tx("奇穴 {0} 处", diff.talents.length));
+  if (diff.macros.length) parts.push(tx("宏 {0} 个", diff.macros.length));
+  return parts.join(" · ") || tx("无变化");
 }
 
 export function SectionHeader({
@@ -170,8 +172,8 @@ export function SectionHeader({
             <button
               type="button"
               onClick={back.onClick}
-              aria-label={`返回${back.label}`}
-              title={`返回${back.label}`}
+              aria-label={tx("返回{0}", back.label)}
+              title={tx("返回{0}", back.label)}
               className="-my-1 -ml-2.5 grid h-8 w-8 shrink-0 place-items-center rounded-md text-paper-2 transition-colors hover:bg-paper/[0.06] hover:text-paper"
             >
               <ChevronLeft className="h-5 w-5" aria-hidden="true" />

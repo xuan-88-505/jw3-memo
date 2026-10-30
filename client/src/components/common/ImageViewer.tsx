@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { NoteImage } from "@/lib/image";
 import { cn } from "@/lib/utils";
+import { tx } from "@/lib/i18n";
 
 /**
  * 看大图：挂到最近的 [data-layer-root]（管理窗口根节点），盖住整个窗口。
@@ -76,7 +77,9 @@ function ImageViewer({
       ref={ref}
       role="dialog"
       aria-modal="true"
-      aria-label={n > 1 ? `查看图片，第 ${i + 1} 张，共 ${n} 张` : "查看图片"}
+      aria-label={
+        n > 1 ? tx("查看图片，第 {0} 张，共 {1} 张", i + 1, n) : tx("查看图片")
+      }
       className={cn(
         "inset-0 z-[60] flex animate-fade flex-col bg-black/90",
         fixed ? "fixed" : "absolute"
@@ -98,8 +101,8 @@ function ImageViewer({
           ref={closeRef}
           type="button"
           onClick={onClose}
-          aria-label="关闭"
-          title="关闭（Esc）"
+          aria-label={tx("关闭")}
+          title={tx("关闭（Esc）")}
           className="grid h-8 w-8 place-items-center rounded-md text-paper-2 transition-colors hover:bg-paper/[0.1] hover:text-paper"
         >
           <X className="h-4 w-4" />
@@ -114,7 +117,7 @@ function ImageViewer({
         <img
           key={img.id}
           src={img.src}
-          alt={`第 ${i + 1} 张图片`}
+          alt={tx("第 {0} 张图片", i + 1)}
           width={img.w}
           height={img.h}
           draggable={false}
@@ -126,8 +129,8 @@ function ImageViewer({
               type="button"
               onClick={() => setI(v => Math.max(0, v - 1))}
               disabled={i === 0}
-              aria-label="上一张"
-              title="上一张（←）"
+              aria-label={tx("上一张")}
+              title={tx("上一张（←）")}
               className={cn(nav, "left-4")}
             >
               <ChevronLeft className="h-5 w-5" />
@@ -136,8 +139,8 @@ function ImageViewer({
               type="button"
               onClick={() => setI(v => Math.min(n - 1, v + 1))}
               disabled={i === n - 1}
-              aria-label="下一张"
-              title="下一张（→）"
+              aria-label={tx("下一张")}
+              title={tx("下一张（→）")}
               className={cn(nav, "right-4")}
             >
               <ChevronRight className="h-5 w-5" />

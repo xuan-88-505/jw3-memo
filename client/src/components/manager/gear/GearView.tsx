@@ -27,6 +27,7 @@ import { LoadoutSwitcher } from "./LoadoutSwitcher";
 import { EditLoadoutDialog, NewLoadoutDialog } from "./NewLoadoutDialog";
 import { PanelList } from "./PanelList";
 import type { GearConfig } from "@/data/enchants";
+import { monthDay, tx } from "@/lib/i18n";
 
 type Tab = "history" | "gains" | "compare";
 
@@ -47,7 +48,7 @@ type NewLoadoutInput = {
 
 function dateLabel(iso: string) {
   const d = new Date(iso);
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
+  return monthDay(d);
 }
 
 const blockTitle = "text-[12.5px] font-medium text-paper-2";
@@ -61,8 +62,13 @@ function ConfigRow({
 }) {
   return (
     <div className="flex min-h-8 items-center gap-3 py-1">
-      <dt className="w-8 shrink-0 text-[12.5px] text-paper-3">{label}</dt>
-      <dd className="min-w-0 flex-1 truncate text-right text-[12.5px] text-paper-2">
+      <dt className="min-w-8 shrink-0 whitespace-nowrap text-[12.5px] text-paper-3">
+        {label}
+      </dt>
+      <dd
+        className="min-w-0 flex-1 truncate text-right text-[12.5px] text-paper-2"
+        title={typeof children === "string" ? children : undefined}
+      >
         {children}
       </dd>
     </div>
@@ -154,7 +160,7 @@ export function GearView() {
       // 切到新配装时 effect 读这个 id，打开配装器
       openEditorFor.current = actions.createLoadout(p);
       if (stay && prevId) setCompareB(prevId);
-      actions.toast("manager", "success", `已新建「${p.name}」`);
+      actions.toast("manager", "success", tx("已新建「{0}」", p.name));
       return;
     }
     setPending(p);
@@ -164,7 +170,7 @@ export function GearView() {
       // 从对比页新建：新配装是 A，原来那套是 B
       if (stay && prevId) setCompareB(prevId);
       setPending(null);
-      actions.toast("manager", "success", `已新建「${p.name}」`);
+      actions.toast("manager", "success", tx("已新建「{0}」", p.name));
     }, 1200);
   };
 
@@ -177,7 +183,7 @@ export function GearView() {
       setReimporting(false);
       setReimport(false);
       setTab("history");
-      actions.toast("manager", "success", "已重新导入，配装没有变化");
+      actions.toast("manager", "success", tx("已重新导入，配装没有变化"));
     }, 1200);
   };
 
@@ -194,20 +200,20 @@ export function GearView() {
   if (!lo && !pending) {
     return (
       <div className="scroll-thin flex h-full flex-col overflow-y-auto px-8 pb-10 pt-7">
-        <SectionHeader title="配装" />
+        <SectionHeader title={tx("配装")} />
         <EmptyState
           icon="sword"
-          title="还没有配装"
-          description="导入茗伊装备码、魔盒链接，或者手动配"
+          title={tx("还没有配装")}
+          description={tx("导入茗伊装备码、魔盒链接，或者手动配")}
           action={
             <Btn
               variant="primary"
               icon={<Plus className="h-4 w-4" />}
               disabled={offline}
-              title={offline ? "离线时不能导入" : undefined}
+              title={offline ? tx("离线时不能导入") : undefined}
               onClick={openNew}
             >
-              新建配装
+              {tx("新建配装")}
             </Btn>
           }
         />
@@ -245,7 +251,7 @@ export function GearView() {
     <div className="flex h-full">
       {/* 左栏：配装卡、面板、配装器、战斗配置 */}
       <aside
-        aria-label="配装"
+        aria-label={tx("配装")}
         className="scroll-thin w-[264px] shrink-0 overflow-y-auto border-r border-paper/[0.07] px-4 pb-6 pt-5"
       >
         <LoadoutSwitcher
@@ -254,7 +260,7 @@ export function GearView() {
           pending={pending}
           disabled={computing}
           newDisabled={offline}
-          newTitle={offline ? "离线时不能导入" : undefined}
+          newTitle={offline ? tx("离线时不能导入") : undefined}
           onSelect={id => actions.selectLoadout(id)}
           onNew={openNew}
         />
@@ -265,7 +271,7 @@ export function GearView() {
               xinfa={lo.xinfa}
               panel={lo.panel}
               hasteValue={lo.haste.value}
-              note={buffed ? "不含增益" : undefined}
+              note={buffed ? tx("不含增益") : undefined}
             />
             <Btn
               variant="primary"
@@ -274,7 +280,7 @@ export function GearView() {
               disabled={showImport}
               onClick={() => setEditorOpen(true)}
             >
-              配装器
+              {tx("配装器")}
             </Btn>
             {dirty && (
               <p className="mt-1.5 flex items-center justify-center gap-1.5 text-[11.5px] text-paper-3">
@@ -282,18 +288,18 @@ export function GearView() {
                   className="h-1.5 w-1.5 rounded-full bg-cinnabar"
                   aria-hidden="true"
                 />
-                有没保存的改动
+                {tx("有没保存的改动")}
               </p>
             )}
 
-            <section aria-label="战斗配置" className="mt-6">
-              <h3 className={blockTitle}>战斗配置</h3>
+            <section aria-label={tx("战斗配置")} className="mt-6">
+              <h3 className={blockTitle}>{tx("战斗配置")}</h3>
               <dl className="mt-1">
-                <ConfigRow label="目标">{lo.target}</ConfigRow>
-                <ConfigRow label="奇穴">
-                  {talentSource ?? "配装里自带的"}
+                <ConfigRow label={tx("目标")}>{tx(lo.target)}</ConfigRow>
+                <ConfigRow label={tx("奇穴")}>
+                  {talentSource ?? tx("配装里自带的")}
                 </ConfigRow>
-                <ConfigRow label="增益">
+                <ConfigRow label={tx("增益")}>
                   <span className={cn(buffed && "text-jade")}>
                     {buffLabel(lo.buffs)}
                   </span>
@@ -305,7 +311,7 @@ export function GearView() {
                 disabled={showImport}
                 onClick={() => setBuffsOpen(true)}
               >
-                增益详情
+                {tx("增益详情")}
               </Btn>
             </section>
           </>
@@ -317,7 +323,7 @@ export function GearView() {
         {showImport ? (
           <ImportCard
             key={lo?.id ?? "new"}
-            title={`重新导入「${lo?.name ?? pending?.name}」`}
+            title={tx("重新导入「{0}」", lo?.name ?? pending?.name)}
             charName={linked?.name}
             xinfa={xinfa}
             talentSource={talentSource}
@@ -341,25 +347,25 @@ export function GearView() {
                         actions.toast(
                           "manager",
                           "info",
-                          "正式版会在这里打开魔盒配装器"
+                          tx("正式版会在这里打开魔盒配装器")
                         )
                       }
                     >
-                      在魔盒里改
+                      {tx("在魔盒里改")}
                     </Btn>
                   )}
                   {lo!.source !== "manual" && (
                     <Btn
                       icon={<RefreshCw className="h-3.5 w-3.5" />}
                       disabled={offline}
-                      title={offline ? "离线时不能导入" : undefined}
+                      title={offline ? tx("离线时不能导入") : undefined}
                       onClick={() => setReimport(true)}
                     >
-                      重新导入
+                      {tx("重新导入")}
                     </Btn>
                   )}
                   <IconBtn
-                    label="编辑配装"
+                    label={tx("编辑配装")}
                     onClick={() => setEditOpen(true)}
                     className="h-8 w-8"
                   >
@@ -371,15 +377,15 @@ export function GearView() {
                 <>
                   {dateLabel(lo!.importedAt)}{" "}
                   {lo!.source === "manual"
-                    ? "手动新建"
-                    : `从${SOURCE_LABEL[lo!.source]}导入`}
+                    ? tx("手动新建")
+                    : tx("从{0}导入", SOURCE_LABEL[lo!.source])}
                   <span className="mx-1.5" aria-hidden="true">
                     ·
                   </span>
-                  估算值，以游戏内为准
+                  {tx("估算值，以游戏内为准")}
                   {lo!.sample && (
                     <span className="ml-2 rounded bg-paper/[0.07] px-1.5 py-px text-[11px] text-paper-2">
-                      示例数据
+                      {tx("示例数据")}
                     </span>
                   )}
                 </>
@@ -388,7 +394,7 @@ export function GearView() {
 
             <div
               role="tablist"
-              aria-label="配装视图"
+              aria-label={tx("配装视图")}
               className="mt-6 flex gap-5 border-b border-paper/[0.07]"
             >
               {TABS.map(([k, label]) => (
@@ -405,7 +411,7 @@ export function GearView() {
                       : "text-paper-3 hover:text-paper-2"
                   )}
                 >
-                  {label}
+                  {tx(label)}
                   {tab === k && (
                     <span
                       className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-cinnabar"
@@ -459,7 +465,7 @@ export function GearView() {
             actions.toast(
               "manager",
               "success",
-              `已保存，秒伤 ${fmt(Math.round(dps * buffFactor(lo)))}`
+              tx("已保存，秒伤 {0}", fmt(Math.round(dps * buffFactor(lo))))
             );
           }}
           onSaveAs={() => setSaveAsOpen(true)}
@@ -468,7 +474,7 @@ export function GearView() {
       {lo && draft && (
         <SaveAsDialog
           open={saveAsOpen}
-          defaultName={`${lo.name} 改`}
+          defaultName={tx("{0} 改", lo.name)}
           onClose={() => setSaveAsOpen(false)}
           onSave={name => {
             const from = lo.id;
@@ -479,7 +485,7 @@ export function GearView() {
             actions.toast(
               "manager",
               "success",
-              `已另存为「${name}」，「${lo.name}」没有改`
+              tx("已另存为「{0}」，「{1}」没有改", name, lo.name)
             );
           }}
         />
@@ -488,7 +494,7 @@ export function GearView() {
         <InlineModal
           open={buffsOpen}
           onClose={() => setBuffsOpen(false)}
-          title="增益详情"
+          title={tx("增益详情")}
           width={880}
           bodyMaxHeight={640}
           footer={
@@ -497,7 +503,7 @@ export function GearView() {
               size="md"
               onClick={() => setBuffsOpen(false)}
             >
-              完成
+              {tx("完成")}
             </Btn>
           }
         >
@@ -540,15 +546,15 @@ function SaveAsDialog({
     <InlineModal
       open={open}
       onClose={onClose}
-      title="另存为新配装"
+      title={tx("另存为新配装")}
       width={380}
       footer={
         <>
           <Btn variant="ghost" onClick={onClose}>
-            取消
+            {tx("取消")}
           </Btn>
           <Btn variant="primary" disabled={!v} onClick={() => onSave(v)}>
-            另存
+            {tx("另存")}
           </Btn>
         </>
       }
@@ -557,7 +563,7 @@ function SaveAsDialog({
         className="block text-[12.5px] text-paper-3"
         htmlFor="save-as-name"
       >
-        名称
+        {tx("名称")}
       </label>
       <input
         id="save-as-name"

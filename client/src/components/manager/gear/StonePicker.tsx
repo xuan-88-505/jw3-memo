@@ -18,6 +18,7 @@ import {
 import type { Attr } from "@/data/gear";
 import { cn } from "@/lib/utils";
 import { inputCls } from "../shared";
+import { tx, paren } from "@/lib/i18n";
 
 /** 换成这颗石头（null 是不镶），秒伤相对当前选择变化多少（0.01 = 1%） */
 export type StoneGain = (name: string | null) => number;
@@ -291,7 +292,7 @@ export function StonePicker({
         : "text-paper-2 hover:bg-paper/[0.04] hover:text-paper"
     );
 
-  const COLS = ["属性 1", "属性 2", "属性 3"];
+  const COLS = [tx("属性 1"), tx("属性 2"), tx("属性 3")];
 
   return (
     <div>
@@ -317,7 +318,7 @@ export function StonePicker({
             </span>
           </>
         ) : (
-          <span className="text-paper-3">不镶</span>
+          <span className="text-paper-3">{tx("不镶")}</span>
         )}
         <ChevronDown
           className={cn(
@@ -345,8 +346,8 @@ export function StonePicker({
               value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={onSearchKey}
-              placeholder="搜属性或名称，如 会效 灭气"
-              aria-label="搜索五彩石"
+              placeholder={tx("搜属性或名称，如 会效 灭气")}
+              aria-label={tx("搜索五彩石")}
               className="h-full min-w-0 flex-1 bg-transparent text-[12.5px] text-paper placeholder:text-paper-3/70 focus:outline-none"
             />
             {searching && (
@@ -356,8 +357,8 @@ export function StonePicker({
                   setQuery("");
                   searchRef.current?.focus();
                 }}
-                aria-label="清空搜索"
-                title="清空搜索"
+                aria-label={tx("清空搜索")}
+                title={tx("清空搜索")}
                 className="grid h-6 w-6 place-items-center rounded-md text-paper-3 hover:bg-paper/[0.06] hover:text-paper-2"
               >
                 <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -372,7 +373,7 @@ export function StonePicker({
                 colRefs.current[4] = el;
               }}
               role="listbox"
-              aria-label="搜索结果"
+              aria-label={tx("搜索结果")}
               className="h-[244px] overflow-y-auto p-1"
               onKeyDown={e => {
                 const items = Array.from(
@@ -411,7 +412,7 @@ export function StonePicker({
                 })
               ) : (
                 <p className="grid h-full place-items-center text-[12.5px] text-paper-3">
-                  没有找到「{query.trim()}」
+                  {tx("没有找到「{0}」", query.trim())}
                 </p>
               )}
             </div>
@@ -449,7 +450,7 @@ export function StonePicker({
                             }
                             data-key={o.key}
                             onClick={() => choose(i, o.key)}
-                            title={`${o.label}（${o.word}）`}
+                            title={`${o.label}${paren(o.word)}`}
                             className={optionCls(on)}
                           >
                             <span className="shrink-0">{o.label}</span>
@@ -469,7 +470,7 @@ export function StonePicker({
                   id={`${uid}-col3`}
                   className="px-2.5 pb-1 pt-2 text-[11px] text-paper-3"
                 >
-                  等级
+                  {tx("等级")}
                 </p>
                 <div
                   ref={el => {
@@ -491,7 +492,7 @@ export function StonePicker({
                           type="button"
                           role="radio"
                           aria-checked={on}
-                          aria-label={`${STONE_LEVELS[s.level - 1]}级`}
+                          aria-label={tx("{0}级", STONE_LEVELS[s.level - 1])}
                           tabIndex={on ? 0 : -1}
                           onClick={() => commit(s.name)}
                           onMouseEnter={() => setHoverLv(s.level)}
@@ -504,7 +505,7 @@ export function StonePicker({
                           {isCur && (
                             <Check
                               className="ml-auto h-3.5 w-3.5 text-cinnabar-text"
-                              aria-label="当前"
+                              aria-label={tx("当前")}
                             />
                           )}
                         </button>
@@ -526,15 +527,15 @@ export function StonePicker({
                 {preview.estimated && (
                   <span
                     className="shrink-0 text-[11px] text-paper-3/80"
-                    title="壹到肆级按五级比例换算"
+                    title={tx("壹到肆级按五级比例换算")}
                   >
-                    估算
+                    {tx("估算")}
                   </span>
                 )}
               </p>
             ) : (
               <span className="text-paper-3/80">
-                {searching ? `${results.length} 种` : ""}
+                {searching ? tx("{0} 种", results.length) : ""}
               </span>
             )}
             <button
@@ -553,7 +554,7 @@ export function StonePicker({
                   aria-hidden="true"
                 />
               )}
-              不镶
+              {tx("不镶")}
             </button>
           </div>
         </div>

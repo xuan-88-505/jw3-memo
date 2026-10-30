@@ -1,3 +1,4 @@
+import { tx } from "@/lib/i18n";
 // 宏清洗和检查。
 // 规则来源：
 // - 魔盒云端宏要求无注释、无空行。
@@ -58,14 +59,18 @@ export function lintMacro(content: string): LintItem[] {
   const result = cleanMacro(content);
 
   if (result.text === "") {
-    items.push({ level: "error", text: "宏是空的" });
+    items.push({ level: "error", text: tx("宏是空的") });
     return items;
   }
 
   if (result.length > MACRO_LIMIT) {
     items.push({
       level: "error",
-      text: `去掉注释后有 ${result.length} 个字符，超过游戏上限 ${MACRO_LIMIT}`,
+      text: tx(
+        "去掉注释后有 {0} 个字符，超过游戏上限 {1}",
+        result.length,
+        MACRO_LIMIT
+      ),
     });
   }
 
@@ -75,22 +80,25 @@ export function lintMacro(content: string): LintItem[] {
     if (m) {
       items.push({
         level: "warn",
-        text: `第 ${i + 1} 行有中文符号「${m[0]}」，游戏里不认`,
+        text: tx("第 {0} 行有中文符号「{1}」，游戏里不认", i + 1, m[0]),
       });
     }
     if (!line.trim().startsWith("/")) {
       items.push({
         level: "warn",
-        text: `第 ${i + 1} 行没有以 / 开头，可能不是宏命令`,
+        text: tx("第 {0} 行没有以 / 开头，可能不是宏命令", i + 1),
       });
     }
   });
 
   const removed: string[] = [];
-  if (result.comments) removed.push(`${result.comments} 行注释`);
-  if (result.blanks) removed.push(`${result.blanks} 行空行`);
+  if (result.comments) removed.push(tx("{0} 行注释", result.comments));
+  if (result.blanks) removed.push(tx("{0} 行空行", result.blanks));
   if (removed.length) {
-    items.push({ level: "info", text: `复制时会去掉 ${removed.join("、")}` });
+    items.push({
+      level: "info",
+      text: tx("复制时会去掉 {0}", removed.join("、")),
+    });
   }
   return items;
 }

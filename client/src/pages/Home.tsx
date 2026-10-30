@@ -8,6 +8,7 @@ import type { DataState, Platform, Role, Scene } from "@/data/types";
 import { hotkeyText } from "@/lib/hotkey";
 import { me, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
+import { tx } from "@/lib/i18n";
 
 export default function Home() {
   const { state, actions } = useProto();
@@ -20,10 +21,10 @@ export default function Home() {
       <header className="mx-auto flex max-w-[1488px] flex-wrap items-center gap-x-4 gap-y-2 px-6 pb-3 pt-5">
         <Wordmark size="md" />
         <span className="rounded-[4px] bg-paper/[0.07] px-2 py-0.5 text-[12px] text-paper-2 ring-1 ring-inset ring-paper/10">
-          交互原型 · 示例数据
+          {tx("交互原型 · 示例数据")}
         </span>
         <p className="text-[12.5px] text-paper-3">
-          不连后台，刷新后复原 · 宏和奇穴来自魔盒
+          {tx("不连后台，刷新后复原 · 宏和奇穴来自魔盒")}
         </p>
         <nav className="ml-auto flex items-center gap-1 text-[12.5px]">
           <Link
@@ -31,14 +32,14 @@ export default function Home() {
             className="inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-paper-2 hover:bg-paper/[0.06] hover:text-paper"
           >
             <PanelTop className="h-3.5 w-3.5" aria-hidden="true" />
-            单独看面板
+            {tx("单独看面板")}
           </Link>
           <Link
             href="/manager"
             className="inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-paper-2 hover:bg-paper/[0.06] hover:text-paper"
           >
             <AppWindow className="h-3.5 w-3.5" aria-hidden="true" />
-            单独看管理窗口
+            {tx("单独看管理窗口")}
           </Link>
         </nav>
       </header>
@@ -46,11 +47,11 @@ export default function Home() {
       <div className="mx-auto max-w-[1488px] px-6">
         <div
           className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl bg-ink-2 px-4 py-3 ring-1 ring-inset ring-paper/8"
-          aria-label="演示控制"
+          aria-label={tx("演示控制")}
         >
-          <Control label="平台">
+          <Control label={tx("平台")}>
             <Segmented<Platform>
-              label="平台"
+              label={tx("平台")}
               value={state.platform}
               onChange={actions.setPlatform}
               options={[
@@ -59,54 +60,54 @@ export default function Home() {
               ]}
             />
           </Control>
-          <Control label="场景">
+          <Control label={tx("场景")}>
             <Segmented<Scene>
-              label="场景"
+              label={tx("场景")}
               value={state.scene}
               onChange={actions.setScene}
               options={[
-                { value: "desktop", label: "桌面" },
+                { value: "desktop", label: tx("桌面") },
                 {
                   value: "game-window",
-                  label: "游戏 · 窗口",
+                  label: tx("游戏 · 窗口"),
                   disabled: mac,
-                  title: mac ? "Mac 上不玩游戏" : undefined,
+                  title: mac ? tx("Mac 上不玩游戏") : undefined,
                 },
                 {
                   value: "game-full",
-                  label: "游戏 · 全屏",
+                  label: tx("游戏 · 全屏"),
                   disabled: mac,
-                  title: mac ? "Mac 上不玩游戏" : undefined,
+                  title: mac ? tx("Mac 上不玩游戏") : undefined,
                 },
               ]}
             />
           </Control>
-          <Control label="数据">
+          <Control label={tx("数据")}>
             <Segmented<DataState>
-              label="数据状态"
+              label={tx("数据状态")}
               value={state.dataState}
               onChange={actions.setDataState}
               options={[
-                { value: "normal", label: "正常" },
-                { value: "onboarding", label: "首次使用" },
-                { value: "offline", label: "离线" },
-                { value: "loading", label: "加载中" },
+                { value: "normal", label: tx("正常") },
+                { value: "onboarding", label: tx("首次使用") },
+                { value: "offline", label: tx("离线") },
+                { value: "loading", label: tx("加载中") },
               ]}
             />
           </Control>
-          <Control label="我的身份">
+          <Control label={tx("我的身份")}>
             <Segmented<Role>
-              label="我的身份"
+              label={tx("我的身份")}
               value={role}
               onChange={actions.setMyRole}
               options={[
-                { value: "admin", label: "管理员", disabled: !state.team },
-                { value: "editor", label: "编辑", disabled: !state.team },
-                { value: "viewer", label: "只读", disabled: !state.team },
+                { value: "admin", label: tx("管理员"), disabled: !state.team },
+                { value: "editor", label: tx("编辑"), disabled: !state.team },
+                { value: "viewer", label: tx("只读"), disabled: !state.team },
               ]}
             />
           </Control>
-          <Control label="保存时">
+          <Control label={tx("保存时")}>
             <label className="inline-flex cursor-pointer items-center gap-2 text-[12.5px] text-paper-2">
               <button
                 type="button"
@@ -129,7 +130,7 @@ export default function Home() {
                   )}
                 />
               </button>
-              模拟亲友同时编辑
+              {tx("模拟亲友同时编辑")}
             </label>
           </Control>
         </div>
@@ -139,18 +140,25 @@ export default function Home() {
         </Stage>
 
         <section className="grid gap-x-8 gap-y-3 py-6 text-[13px] leading-relaxed text-paper-2 md:grid-cols-2 xl:grid-cols-4">
-          <Tip n="1" title="打开面板">
-            点{mac ? "菜单栏" : "任务栏"}的备忘录图标，或按 {hk}
-            （可在设置里改）。数字键 1–4 切角色。
+          <Tip n="1" title={tx("打开面板")}>
+            {tx(
+              "点{0}的备忘录图标，或按 {1}（可在设置里改）。数字键 1–4 切角色。",
+              mac ? tx("菜单栏") : tx("任务栏"),
+              hk
+            )}
           </Tip>
-          <Tip n="2" title="通知">
-            点铃铛，看哪些角色有更新、改了什么。游戏里改好后点「我改好了」。
+          <Tip n="2" title={tx("通知")}>
+            {tx(
+              "点铃铛，看哪些角色有更新、改了什么。游戏里改好后点「我改好了」。"
+            )}
           </Tip>
-          <Tip n="3" title="置顶">
-            点图钉后不会自动收起，按住顶部可以拖动。
+          <Tip n="3" title={tx("置顶")}>
+            {tx("点图钉后不会自动收起，按住顶部可以拖动。")}
           </Tip>
-          <Tip n="4" title="改方案">
-            在管理窗口改宏、备注或奇穴。打开「模拟亲友同时编辑」再保存，可以看冲突提示。
+          <Tip n="4" title={tx("改方案")}>
+            {tx(
+              "在管理窗口改宏、备注或奇穴。打开「模拟亲友同时编辑」再保存，可以看冲突提示。"
+            )}
           </Tip>
         </section>
       </div>

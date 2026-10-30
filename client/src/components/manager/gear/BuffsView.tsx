@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SelectBox } from "../shared";
 import { fmt } from "./Dashboard";
+import { tx } from "@/lib/i18n";
 
 /** 分区：不套卡片，分区之间用分隔线 */
 const section = "py-5 first:pt-0 last:pb-0";
@@ -222,7 +223,11 @@ export function BuffsView({
       onChange(next);
       if (turnedOff.length) {
         onNotice(
-          `和「${def.n}」不能同时开，已关掉「${turnedOff.join("」「")}」`
+          tx(
+            "和「{0}」不能同时开，已关掉「{1}」",
+            def.n,
+            turnedOff.join("」「")
+          )
         );
       }
     } else {
@@ -251,29 +256,29 @@ export function BuffsView({
       {/* 汇总：预设 + 估算秒伤 */}
       <section
         className={cn(section, "flex flex-wrap items-center gap-x-4 gap-y-3")}
-        aria-label="增益汇总"
+        aria-label={tx("增益汇总")}
       >
         <div className="flex flex-wrap items-center gap-2">
           <Segmented
-            label="增益预设"
+            label={tx("增益预设")}
             value={presetValue}
             onChange={name => onChange(applyPreset(lo.xinfa, name))}
             options={presets.map(p => ({
               value: p.name,
-              label: PRESET_LABEL[p.name] ?? p.name,
+              label: tx(PRESET_LABEL[p.name] ?? p.name),
             }))}
           />
           {sel.preset === null && (
             <span className="rounded bg-paper/[0.07] px-1.5 py-px text-[11.5px] text-paper-2">
-              自定义
+              {tx("自定义")}
             </span>
           )}
           {profile.generic && (
             <span
               className="rounded bg-gold/10 px-1.5 py-px text-[11.5px] text-gold"
-              title={`计算器还不支持${lo.xinfa}，预设按同类心法生成`}
+              title={tx("计算器还不支持{0}，预设按同类心法生成", lo.xinfa)}
             >
-              通用预设
+              {tx("通用预设")}
             </span>
           )}
         </div>
@@ -282,7 +287,7 @@ export function BuffsView({
             <>
               <span className="tabular-nums">{fmt(base)}</span>
               <span aria-hidden="true">→</span>
-              <span className="sr-only">加增益后约</span>
+              <span className="sr-only">{tx("加增益后约")}</span>
               <span className="text-[20px] font-semibold tabular-nums text-paper">
                 ≈ {fmt(buffed)}
               </span>
@@ -290,7 +295,7 @@ export function BuffsView({
             </>
           ) : (
             <>
-              木桩秒伤
+              {tx("木桩秒伤")}
               <span className="text-[20px] font-semibold tabular-nums text-paper">
                 {fmt(base)}
               </span>
@@ -298,17 +303,21 @@ export function BuffsView({
           )}
           <span
             className="self-center text-paper-3"
-            title="按属性收益估算；正式版交给计算器重算"
+            title={tx("按属性收益估算；正式版交给计算器重算")}
           >
-            <Info className="h-3.5 w-3.5" aria-label="估算说明" />
+            <Info className="h-3.5 w-3.5" aria-label={tx("估算说明")} />
           </span>
         </div>
       </section>
 
       {/* 阵眼 */}
-      <section className={section} aria-label="阵眼">
+      <section className={section} aria-label={tx("阵眼")}>
         <div className="flex items-center gap-3">
-          <h3 className={cn(sectionTitle, "w-16 shrink-0")}>阵眼</h3>
+          <h3
+            className={cn(sectionTitle, "min-w-16 shrink-0 whitespace-nowrap")}
+          >
+            {tx("阵眼")}
+          </h3>
           {zhen ? (
             <Jx3Icon id={zhen.i} name={zhen.n} size={30} />
           ) : (
@@ -318,12 +327,12 @@ export function BuffsView({
             />
           )}
           <SelectBox
-            aria-label="选择阵眼"
+            aria-label={tx("选择阵眼")}
             value={sel.zhen}
             onChange={e => set({ zhen: e.target.value })}
             className={cn(selectCls, "w-56")}
           >
-            <option value="">不开阵眼</option>
+            <option value="">{tx("不开阵眼")}</option>
             {zhenSorted.map(z => (
               <option key={z.n} value={z.n}>
                 {z.n}　≈ +{(zhenPct[z.n] * 100).toFixed(1)}%
@@ -334,7 +343,7 @@ export function BuffsView({
             className="line-clamp-2 min-w-0 flex-1 text-[12px] leading-relaxed text-paper-3"
             title={zhen?.d}
           >
-            {zhen ? zhen.d : "团队里开阵的人决定，选和副本里一样的"}
+            {zhen ? zhen.d : tx("团队里开阵的人决定，选和副本里一样的")}
           </p>
           <span className="w-16 shrink-0 text-right text-[13px]">
             <Gain pct={est.zhen} hideZero />
@@ -343,9 +352,9 @@ export function BuffsView({
       </section>
 
       {/* 小药小吃 */}
-      <section className={section} aria-label="小药小吃">
+      <section className={section} aria-label={tx("小药小吃")}>
         <div className="mb-3 flex items-center gap-2">
-          <h3 className={sectionTitle}>小药小吃</h3>
+          <h3 className={sectionTitle}>{tx("小药小吃")}</h3>
           <span className="text-[12px] tabular-nums text-paper-3">
             {eatenCount}/{foodsByCat.length}
           </span>
@@ -356,7 +365,7 @@ export function BuffsView({
             icon={<Sparkles className="h-3 w-3" />}
             onClick={pickBestFoods}
           >
-            每类选收益最高
+            {tx("每类选收益最高")}
           </Btn>
           <span className="w-16 text-right text-[13px]">
             <Gain pct={est.foods} hideZero />
@@ -367,8 +376,8 @@ export function BuffsView({
             const cur = items.find(f => f.n === sel.foods[cat]);
             return (
               <div key={cat} className="flex items-start gap-2.5">
-                <span className="w-14 shrink-0 pt-1.5 text-[12.5px] text-paper-3">
-                  {cat}
+                <span className="w-[72px] shrink-0 pt-1.5 text-[12.5px] leading-snug text-paper-3">
+                  {tx(cat)}
                 </span>
                 {cur ? (
                   <Jx3Icon id={cur.i} name={cur.n} size={30} />
@@ -380,7 +389,7 @@ export function BuffsView({
                 )}
                 <div className="min-w-0 flex-1">
                   <SelectBox
-                    aria-label={cat}
+                    aria-label={tx(cat)}
                     value={cur?.n ?? ""}
                     wrapClassName="w-full"
                     onChange={e => {
@@ -391,7 +400,7 @@ export function BuffsView({
                     }}
                     className={cn(selectCls, "w-full")}
                   >
-                    <option value="">不吃</option>
+                    <option value="">{tx("不吃")}</option>
                     {items.map(f => (
                       <option key={f.n} value={f.n}>
                         {foodLabel(f, profile.main)}
@@ -412,22 +421,22 @@ export function BuffsView({
       </section>
 
       {/* 团队增益 */}
-      <section className={section} aria-label="团队增益">
+      <section className={section} aria-label={tx("团队增益")}>
         <div className="mb-3 flex items-center gap-2">
-          <h3 className={sectionTitle}>团队增益</h3>
+          <h3 className={sectionTitle}>{tx("团队增益")}</h3>
           <span className="ml-auto text-[13px]">
             <Gain pct={est.team} hideZero />
           </span>
         </div>
         <div
           role="group"
-          aria-label="团队增益分类"
+          aria-label={tx("团队增益分类")}
           className="mb-3 flex flex-wrap items-center gap-1.5"
         >
           {(onCount > 0 || filter === "on") && (
             <>
               <FilterChip
-                label="已开"
+                label={tx("已开")}
                 count={onCount}
                 selected={filter === "on"}
                 onSelect={() => setFilter("on")}
@@ -438,14 +447,14 @@ export function BuffsView({
           {TEAM_TYPES.filter(t => typeCount(t.key)).map(t => (
             <FilterChip
               key={t.key}
-              label={t.label}
+              label={tx(t.label)}
               count={onInType(t.key)}
               selected={filter === t.key}
               onSelect={() => setFilter(t.key)}
             />
           ))}
           <FilterChip
-            label="全部"
+            label={tx("全部")}
             selected={filter === "all"}
             onSelect={() => setFilter("all")}
           />
@@ -453,9 +462,9 @@ export function BuffsView({
 
         {teamRows.length === 0 ? (
           <div className="flex items-center justify-center gap-3 py-6 text-[12.5px] text-paper-3">
-            还没开团队增益
+            {tx("还没开团队增益")}
             <Btn size="xs" onClick={() => setFilter("常用增益")}>
-              看常用
+              {tx("看常用")}
             </Btn>
           </div>
         ) : (
@@ -515,11 +524,11 @@ export function BuffsView({
                   <div className="flex w-[108px] shrink-0 justify-end">
                     {on && def.maxL > 0 && (
                       <NumField
-                        label={`${def.n} 层数`}
+                        label={tx("{0} 层数", def.n)}
                         value={st.layers}
                         min={1}
                         max={def.maxL}
-                        suffix={`/${def.maxL} 层`}
+                        suffix={tx("/{0} 层", def.maxL)}
                         onCommit={v => patchTeam(def, { layers: v })}
                       />
                     )}
@@ -527,11 +536,11 @@ export function BuffsView({
                   <div className="flex w-[92px] shrink-0 justify-end">
                     {on && def.covEdit && (
                       <NumField
-                        label={`${def.n} 覆盖率`}
+                        label={tx("{0} 覆盖率", def.n)}
                         value={st.cov}
                         min={0}
                         max={100}
-                        suffix="% 覆盖"
+                        suffix={tx("% 覆盖")}
                         onCommit={v => patchTeam(def, { cov: v })}
                       />
                     )}

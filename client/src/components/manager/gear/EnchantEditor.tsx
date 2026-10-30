@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { SelectBox, inputCls } from "../shared";
 import { Delta, fmt } from "./Dashboard";
 import { StonePicker } from "./StonePicker";
+import { tx } from "@/lib/i18n";
 
 const selectCls = cn(inputCls(), "h-8 pl-2.5 text-[12.5px]");
 
@@ -96,16 +97,16 @@ export function EnchantEditor({
       <fieldset>
         <div className="flex items-center justify-between">
           <legend className="text-[12.5px] font-medium text-paper">
-            小附魔
+            {tx("小附魔")}
           </legend>
           <button
             type="button"
             onClick={recommend}
             className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[12px] text-paper-3 hover:bg-paper/[0.05] hover:text-paper"
-            title="大附魔全英雄，小附魔、五彩石按秒伤挑最高的"
+            title={tx("大附魔全英雄，小附魔、五彩石按秒伤挑最高的")}
           >
             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            一键推荐
+            {tx("一键推荐")}
           </button>
         </div>
         <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
@@ -139,10 +140,10 @@ export function EnchantEditor({
                   {opts.map(o => (
                     <option key={o.id} value={o.id}>
                       {o.label}
-                      {o.color === "蓝" ? "（节日）" : ""}
+                      {o.color === "蓝" ? tx("（节日）") : ""}
                     </option>
                   ))}
-                  <option value="">不附魔</option>
+                  <option value="">{tx("不附魔")}</option>
                 </SelectBox>
               </div>
             );
@@ -162,7 +163,7 @@ export function EnchantEditor({
                 <label
                   htmlFor={id}
                   className="block text-[12px] text-paper-3"
-                  title={`${b.effect}${b.estimated ? "（秒伤是估算）" : ""}`}
+                  title={`${b.effect}${b.estimated ? tx("（秒伤是估算）") : ""}`}
                 >
                   {b.label}
                 </label>
@@ -219,7 +220,7 @@ export function EnchantEditor({
             className="flex flex-wrap items-baseline gap-x-2 rounded-lg bg-paper/[0.04] px-3 py-2 text-[12.5px] text-paper-3 ring-1 ring-inset ring-paper/10"
             aria-live="polite"
           >
-            秒伤
+            {tx("秒伤")}
             <span className="tabular-nums">{fmt(base.dps)}</span>
             <span aria-hidden="true">→</span>
             <span className="font-medium tabular-nums text-paper">
@@ -228,10 +229,10 @@ export function EnchantEditor({
             <Delta pct={pct * 100} className="text-[12.5px]" />
             {hasteAfter !== hasteBefore && (
               <span className="text-cinnabar-text">
-                加速{hasteBefore} → {hasteAfter}
+                {tx("加速{0} → {1}", hasteBefore, hasteAfter)}
               </span>
             )}
-            <span className="ml-auto text-[11.5px]">估算</span>
+            <span className="ml-auto text-[11.5px]">{tx("估算")}</span>
           </p>
         </div>
       )}

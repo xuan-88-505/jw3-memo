@@ -5,6 +5,7 @@ import { GameImage } from "@/components/desktop/DesktopScreen";
 import { TrayPanel } from "@/components/panel/TrayPanel";
 import type { Platform } from "@/data/types";
 import { useProto } from "@/state/store";
+import { tx } from "@/lib/i18n";
 
 export default function PanelPage() {
   const { state, actions } = useProto();
@@ -20,14 +21,14 @@ export default function PanelPage() {
             className="inline-flex h-7 items-center gap-1.5 rounded-md bg-ink/80 px-2.5 text-[12.5px] text-paper-2 ring-1 ring-inset ring-paper/10 hover:text-paper"
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            回到演示台
+            {tx("回到演示台")}
           </Link>
           <span className="text-[12.5px] text-paper-2">
-            托盘面板 · 实际尺寸 360 × 500
+            {tx("托盘面板 · 实际尺寸 360 × 500")}
           </span>
           <span className="ml-auto">
             <Segmented<Platform>
-              label="快捷键显示"
+              label={tx("快捷键显示")}
               value={state.platform}
               onChange={actions.setPlatform}
               options={[

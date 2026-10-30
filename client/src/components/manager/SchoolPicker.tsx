@@ -11,6 +11,7 @@ import {
 import type { Character } from "@/data/types";
 import { cn } from "@/lib/utils";
 import { Field, SelectBox, inputCls } from "./shared";
+import { tx, paren, colon } from "@/lib/i18n";
 
 /** 角色的门派选择：门派必选，心法可不选（=这个门派的心法都玩），流派另外勾 */
 export type SchoolValue = Pick<Character, "school" | "only" | "liupai">;
@@ -155,7 +156,7 @@ export function SchoolMenu({
   const rightOptions: { only: string | null; title: string; sub?: string }[] =
     xs.length > 1
       ? [
-          { only: null, title: "全部心法", sub: xs.join(" · ") },
+          { only: null, title: tx("全部心法"), sub: xs.join(" · ") },
           ...xs.map(x => ({ only: x, title: x })),
         ]
       : xs.map(() => ({ only: null, title: xs[0] }));
@@ -170,8 +171,8 @@ export function SchoolMenu({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        aria-label={`${label}：${schoolLabel(value)}`}
-        title={disabled ? "离线时不能修改" : "修改门派和心法"}
+        aria-label={`${label}${colon()}${schoolLabel(value)}`}
+        title={disabled ? tx("离线时不能修改") : tx("修改门派和心法")}
         className={cn(
           "inline-flex h-6 items-center gap-1 rounded-md pl-1.5 pr-1 text-[12px] text-paper-3 transition-colors",
           "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-cinnabar-text/50",
@@ -191,7 +192,7 @@ export function SchoolMenu({
         <div
           id={menuId}
           role="dialog"
-          aria-label={`${label}：选门派和心法`}
+          aria-label={tx("{0}：选门派和心法", label)}
           className={cn(
             "absolute left-0 z-30 flex w-[340px] animate-fade flex-col overflow-hidden rounded-xl bg-ink-3 shadow-[0_18px_48px_-12px_rgb(0_0_0/0.7)] ring-1 ring-paper/12",
             up ? "bottom-full mb-1" : "top-full mt-1"
@@ -201,7 +202,7 @@ export function SchoolMenu({
             <div
               ref={leftRef}
               role="radiogroup"
-              aria-label="门派"
+              aria-label={tx("门派")}
               onKeyDown={onLeftKey}
               className="scroll-thin max-h-[272px] w-[128px] shrink-0 overflow-y-auto border-r border-paper/[0.07] p-1"
             >
@@ -256,7 +257,7 @@ export function SchoolMenu({
             <div
               ref={rightRef}
               role="radiogroup"
-              aria-label={`${active}的心法`}
+              aria-label={tx("{0}的心法", active)}
               onKeyDown={onRightKey}
               className="min-w-0 flex-1 p-1"
             >
@@ -305,12 +306,12 @@ export function SchoolMenu({
           </div>
 
           <div className="flex items-center gap-3 border-t border-paper/[0.07] px-3 py-2">
-            <span className="text-[11.5px] text-paper-3">流派</span>
+            <span className="text-[11.5px] text-paper-3">{tx("流派")}</span>
             {LIUPAI_XINFA.map(x => (
               <label
                 key={x}
                 className="inline-flex cursor-pointer items-center gap-1.5 text-[12.5px] text-paper-2"
-                title="任何门派都能学"
+                title={tx("任何门派都能学")}
               >
                 <input
                   type="checkbox"
@@ -348,7 +349,7 @@ export function SchoolFields({
   const xs = schoolXinfa(value.school);
   return (
     <>
-      <Field label="门派" htmlFor={`${idPrefix}-school`}>
+      <Field label={tx("门派")} htmlFor={`${idPrefix}-school`}>
         <SelectBox
           id={`${idPrefix}-school`}
           value={value.school}
@@ -363,7 +364,7 @@ export function SchoolFields({
           ))}
         </SelectBox>
       </Field>
-      <Field label="心法" htmlFor={`${idPrefix}-xinfa`}>
+      <Field label={tx("心法")} htmlFor={`${idPrefix}-xinfa`}>
         <SelectBox
           id={`${idPrefix}-xinfa`}
           value={value.only ?? ""}
@@ -374,7 +375,7 @@ export function SchoolFields({
         >
           {xs.length > 1 ? (
             <>
-              <option value="">全部心法</option>
+              <option value="">{tx("全部心法")}</option>
               {xs.map(x => (
                 <option key={x}>{x}</option>
               ))}
@@ -385,11 +386,13 @@ export function SchoolFields({
         </SelectBox>
       </Field>
       <div className="col-span-2 flex items-center gap-3">
-        <span className="text-[12.5px] font-medium text-paper">流派</span>
+        <span className="text-[12.5px] font-medium text-paper">
+          {tx("流派")}
+        </span>
         {LIUPAI_XINFA.map(x => (
           <label
             key={x}
-            title="任何门派都能学"
+            title={tx("任何门派都能学")}
             className="inline-flex cursor-pointer items-center gap-1.5 text-[13px] text-paper-2"
           >
             <input
@@ -440,14 +443,14 @@ export function XinfaPairSelect({
     !!disabledReason && schoolXinfa(s).every(x => disabledReason(x));
   const schoolOption = (s: string) => (
     <option key={s} value={s} disabled={allDisabled(s)}>
-      {allDisabled(s) ? `${s}（都有了）` : s}
+      {allDisabled(s) ? tx("{0}（都有了）", s) : s}
     </option>
   );
   const liupaiSchools = Array.from(new Set(LIUPAI_XINFA.map(schoolOf)));
   return (
     <div className="grid grid-cols-2 gap-2">
       <SelectBox
-        aria-label="门派"
+        aria-label={tx("门派")}
         data-autofocus={autoFocus || undefined}
         value={school}
         onChange={e => onChange(firstOk(e.target.value))}
@@ -455,7 +458,9 @@ export function XinfaPairSelect({
         className={inputCls()}
       >
         {SCHOOL_GROUPS.map(g => schoolOption(g.school))}
-        <optgroup label="流派">{liupaiSchools.map(schoolOption)}</optgroup>
+        <optgroup label={tx("流派")}>
+          {liupaiSchools.map(schoolOption)}
+        </optgroup>
       </SelectBox>
       <SelectBox
         id={id}
@@ -469,7 +474,7 @@ export function XinfaPairSelect({
           const reason = disabledReason?.(x);
           return (
             <option key={x} value={x} disabled={!!reason}>
-              {reason ? `${x}（${reason}）` : x}
+              {reason ? `${x}${paren(reason)}` : x}
             </option>
           );
         })}

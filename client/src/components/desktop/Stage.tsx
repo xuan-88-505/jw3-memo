@@ -10,6 +10,7 @@ import { Minus, Square, X } from "lucide-react";
 import { BrandSeal } from "@/components/brand/Marks";
 import type { Platform } from "@/data/types";
 import { cn } from "@/lib/utils";
+import { tx } from "@/lib/i18n";
 
 export const SCREEN_W = 1440;
 export const SCREEN_H = 900;
@@ -86,7 +87,7 @@ export function WindowFrame({
           <div className="group flex items-center gap-2">
             <button
               type="button"
-              aria-label="关闭窗口"
+              aria-label={tx("关闭窗口")}
               onClick={onClose}
               className="grid h-3 w-3 place-items-center rounded-full bg-[#ff5f57] ring-1 ring-black/20"
             >
@@ -97,7 +98,7 @@ export function WindowFrame({
             </button>
             <button
               type="button"
-              aria-label="最小化"
+              aria-label={tx("最小化")}
               onClick={onClose}
               className="h-3 w-3 rounded-full bg-[#febc2e] ring-1 ring-black/20"
             />
@@ -117,7 +118,7 @@ export function WindowFrame({
           <div className="ml-auto flex h-full">
             <button
               type="button"
-              aria-label="最小化"
+              aria-label={tx("最小化")}
               onClick={onClose}
               className="grid h-full w-11 place-items-center text-paper-2 hover:bg-paper/[0.08]"
             >
@@ -131,7 +132,7 @@ export function WindowFrame({
             </span>
             <button
               type="button"
-              aria-label="关闭窗口"
+              aria-label={tx("关闭窗口")}
               onClick={onClose}
               className="grid h-full w-11 place-items-center text-paper-2 hover:bg-[#c42b1c] hover:text-white"
             >

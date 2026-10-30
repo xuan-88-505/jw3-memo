@@ -28,7 +28,8 @@ import {
   type TrayMotion,
 } from "@/state/store";
 import { cn } from "@/lib/utils";
-import { SectionHeader } from "./shared";
+import { SectionHeader, SelectBox } from "./shared";
+import { LANGS, setLang, tx, useLang, type Lang } from "@/lib/i18n";
 
 const APP_VERSION = IS_DESKTOP ? "1.0.3" : "v0.1.0";
 
@@ -41,6 +42,7 @@ const MOTION_DESC: Record<TrayMotion, string> = {
 export function SettingsView() {
   const { state, actions } = useProto();
   const mac = state.platform === "mac";
+  const lang = useLang();
   const offline = state.dataState === "offline";
   const [checking, setChecking] = useState(false);
 
@@ -53,42 +55,57 @@ export function SettingsView() {
     setChecking(true);
     window.setTimeout(() => {
       setChecking(false);
-      actions.toast("manager", "success", `已是最新版本 ${APP_VERSION}`);
+      actions.toast("manager", "success", tx("已是最新版本 {0}", APP_VERSION));
     }, 900);
   };
 
   return (
     <div>
-      <SectionHeader title="设置" />
+      <SectionHeader title={tx("设置")} />
       <div className="divide-y divide-paper/[0.07]">
-        <SettingGroup title="快捷键">
+        <SettingGroup title={tx("快捷键")}>
           <HotkeyRow />
         </SettingGroup>
 
-        <SettingGroup title="通用">
+        <SettingGroup title={tx("通用")}>
+          <SettingRow titleId="set-lang" title={tx("语言")}>
+            <SelectBox
+              aria-labelledby="set-lang"
+              value={lang}
+              onChange={e => setLang(e.target.value as Lang)}
+              wrapClassName="w-[140px]"
+              className="h-8 rounded-md bg-paper/[0.04] pl-3 text-[13px] text-paper ring-1 ring-inset ring-paper/10 hover:ring-paper/[0.18] focus:outline-none focus:ring-2 focus:ring-cinnabar-text/60"
+            >
+              {LANGS.map(l => (
+                <option key={l.value} value={l.value}>
+                  {l.label}
+                </option>
+              ))}
+            </SelectBox>
+          </SettingRow>
           {/* 系统托盘图标是静态图，桌面版没有动效可选 */}
           {!IS_DESKTOP && (
             <SettingRow
               titleId="set-motion"
-              title="托盘表情动效"
-              desc={MOTION_DESC[state.trayMotion]}
+              title={tx("托盘表情动效")}
+              desc={tx(MOTION_DESC[state.trayMotion])}
             >
               <Segmented<TrayMotion>
-                label="托盘表情动效"
+                label={tx("托盘表情动效")}
                 value={state.trayMotion}
                 onChange={actions.setTrayMotion}
                 options={[
-                  { value: "hover", label: "悬停时" },
-                  { value: "always", label: "一直动" },
-                  { value: "off", label: "不动" },
+                  { value: "hover", label: tx("悬停时") },
+                  { value: "always", label: tx("一直动") },
+                  { value: "off", label: tx("不动") },
                 ]}
               />
             </SettingRow>
           )}
           <SettingRow
             titleId="set-launch"
-            title="开机自动启动"
-            desc={mac ? "登录后在菜单栏待命" : "开机后在任务栏托盘待命"}
+            title={tx("开机自动启动")}
+            desc={mac ? tx("登录后在菜单栏待命") : tx("开机后在任务栏托盘待命")}
           >
             <Toggle
               checked={state.launchAtLogin}
@@ -97,8 +114,8 @@ export function SettingsView() {
             />
           </SettingRow>
           <SettingRow
-            title="面板位置"
-            desc="按住面板顶部拖动，双击顶部回到原位"
+            title={tx("面板位置")}
+            desc={tx("按住面板顶部拖动，双击顶部回到原位")}
           >
             <Btn
               size="sm"
@@ -106,36 +123,39 @@ export function SettingsView() {
                 // 桌面版的位置由系统记录，这里不知道是否已在默认位置，按钮一直可用
                 if (IS_DESKTOP) void resetPanelPosition();
                 else actions.resetPanelOffset();
-                actions.toast("manager", "success", "面板已回到默认位置");
+                actions.toast("manager", "success", tx("面板已回到默认位置"));
               }}
               disabled={
                 !IS_DESKTOP && !state.panelOffset.x && !state.panelOffset.y
               }
               title={
                 !IS_DESKTOP && !state.panelOffset.x && !state.panelOffset.y
-                  ? "现在就在默认位置"
+                  ? tx("现在就在默认位置")
                   : undefined
               }
             >
-              恢复默认
+              {tx("恢复默认")}
             </Btn>
           </SettingRow>
-          <SettingRow title="侧栏顺序" desc="按住侧栏里的项目拖动排序">
+          <SettingRow
+            title={tx("侧栏顺序")}
+            desc={tx("按住侧栏里的项目拖动排序")}
+          >
             <Btn
               size="sm"
               onClick={() => {
                 actions.resetNavOrder();
-                actions.toast("manager", "success", "侧栏已恢复默认顺序");
+                actions.toast("manager", "success", tx("侧栏已恢复默认顺序"));
               }}
               disabled={isDefaultNav(state)}
-              title={isDefaultNav(state) ? "现在就是默认顺序" : undefined}
+              title={isDefaultNav(state) ? tx("现在就是默认顺序") : undefined}
             >
-              恢复默认
+              {tx("恢复默认")}
             </Btn>
           </SettingRow>
           <SettingRow
-            title="版本"
-            desc={IS_DESKTOP ? APP_VERSION : `${APP_VERSION} · 交互原型`}
+            title={tx("版本")}
+            desc={IS_DESKTOP ? APP_VERSION : tx("{0} · 交互原型", APP_VERSION)}
           >
             <Btn
               size="sm"
@@ -143,9 +163,9 @@ export function SettingsView() {
               disabled={checking || (!IS_DESKTOP && offline)}
               title={
                 IS_DESKTOP
-                  ? "打开发布页"
+                  ? tx("打开发布页")
                   : offline
-                    ? "离线时不能检查更新"
+                    ? tx("离线时不能检查更新")
                     : undefined
               }
               icon={
@@ -154,13 +174,13 @@ export function SettingsView() {
                 ) : undefined
               }
             >
-              {checking ? "正在检查" : "检查更新"}
+              {checking ? tx("正在检查") : tx("检查更新")}
             </Btn>
           </SettingRow>
         </SettingGroup>
 
         {IS_DESKTOP && (
-          <SettingGroup title="数据">
+          <SettingGroup title={tx("数据")}>
             <DataRows />
           </SettingGroup>
         )}
@@ -187,12 +207,12 @@ function DataRows() {
   const doExport = async () => {
     try {
       const ok = await exportFile(
-        `备忘录数据-${today()}.json`,
+        tx("备忘录数据-{0}.json", today()),
         serializeData(state)
       );
-      if (ok) actions.toast("manager", "success", "已导出");
+      if (ok) actions.toast("manager", "success", tx("已导出"));
     } catch {
-      actions.toast("manager", "error", "导出失败，换个位置再试");
+      actions.toast("manager", "error", tx("导出失败，换个位置再试"));
     }
   };
 
@@ -200,39 +220,47 @@ function DataRows() {
     if (!file) return;
     const data = parseData(await file.text());
     if (!data) {
-      actions.toast("manager", "error", "这个文件不是备忘录导出的数据");
+      actions.toast("manager", "error", tx("这个文件不是备忘录导出的数据"));
       return;
     }
     setPending(data);
   };
 
   const summary = pending
-    ? `${pending.characters?.length ?? 0} 个角色、${pending.schemes?.length ?? 0} 个方案、${Object.keys(pending.loadouts ?? {}).length} 套配装`
+    ? tx(
+        "{0} 个角色、{1} 个方案、{2} 套配装",
+        pending.characters?.length ?? 0,
+        pending.schemes?.length ?? 0,
+        Object.keys(pending.loadouts ?? {}).length
+      )
     : "";
 
   return (
     <>
-      <SettingRow title="导出数据" desc="存成一个文件，在另一台电脑上导入">
+      <SettingRow
+        title={tx("导出数据")}
+        desc={tx("存成一个文件，在另一台电脑上导入")}
+      >
         <Btn size="sm" onClick={() => void doExport()}>
-          导出
+          {tx("导出")}
         </Btn>
       </SettingRow>
       <SettingRow
-        title="导入数据"
+        title={tx("导入数据")}
         desc={
           pending ? (
             <span className="text-gold">
-              文件里有 {summary}。导入后本机现有的数据会被替换。
+              {tx("文件里有 {0}。导入后本机现有的数据会被替换。", summary)}
             </span>
           ) : (
-            "用导出的文件替换本机数据"
+            tx("用导出的文件替换本机数据")
           )
         }
       >
         {pending ? (
           <>
             <Btn size="sm" variant="ghost" onClick={() => setPending(null)}>
-              取消
+              {tx("取消")}
             </Btn>
             <Btn
               size="sm"
@@ -240,15 +268,15 @@ function DataRows() {
               onClick={() => {
                 actions.importData(pending);
                 setPending(null);
-                actions.toast("manager", "success", "已导入");
+                actions.toast("manager", "success", tx("已导入"));
               }}
             >
-              替换并导入
+              {tx("替换并导入")}
             </Btn>
           </>
         ) : (
           <Btn size="sm" onClick={() => fileRef.current?.click()}>
-            选择文件
+            {tx("选择文件")}
           </Btn>
         )}
         <input
@@ -345,7 +373,7 @@ function HotkeyRow() {
         actions.toast(
           "manager",
           "success",
-          `快捷键改成 ${hotkeyText(next, platform)}`
+          tx("快捷键改成 {0}", hotkeyText(next, platform))
         );
       }
     };
@@ -372,8 +400,8 @@ function HotkeyRow() {
     <div>
       <SettingRow
         titleId="hk-label"
-        title="呼出面板"
-        desc="全局快捷键，游戏里也能用 · 只对这台电脑生效"
+        title={tx("呼出面板")}
+        desc={tx("全局快捷键，游戏里也能用 · 只对这台电脑生效")}
       >
         {recording ? (
           <>
@@ -393,7 +421,9 @@ function HotkeyRow() {
               {heldParts.length ? (
                 <KeyChips keys={[...heldParts, "…"]} />
               ) : (
-                <span className="text-[13px] text-paper-2">按下新的组合键</span>
+                <span className="text-[13px] text-paper-2">
+                  {tx("按下新的组合键")}
+                </span>
               )}
             </div>
             <Btn
@@ -403,7 +433,7 @@ function HotkeyRow() {
               onMouseDown={e => e.preventDefault()}
               onClick={stopAndRefocus}
             >
-              取消
+              {tx("取消")}
             </Btn>
           </>
         ) : (
@@ -414,18 +444,18 @@ function HotkeyRow() {
                 <Btn
                   variant="ghost"
                   size="sm"
-                  title={`恢复默认 ${hotkeyText(def, platform)}`}
+                  title={tx("恢复默认 {0}", hotkeyText(def, platform))}
                   icon={<RotateCcw className="h-3.5 w-3.5" />}
                   onClick={() => {
                     actions.resetHotkey(platform);
                     actions.toast(
                       "manager",
                       "success",
-                      `已恢复默认 ${hotkeyText(def, platform)}`
+                      tx("已恢复默认 {0}", hotkeyText(def, platform))
                     );
                   }}
                 >
-                  恢复默认
+                  {tx("恢复默认")}
                 </Btn>
               )}
               <Btn
@@ -434,7 +464,7 @@ function HotkeyRow() {
                 aria-describedby="hk-msg"
                 onClick={start}
               >
-                修改
+                {tx("修改")}
               </Btn>
             </span>
           </>

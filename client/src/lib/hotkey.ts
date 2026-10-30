@@ -1,4 +1,5 @@
 import type { Platform } from "@/data/types";
+import { tx } from "@/lib/i18n";
 
 /** 全局快捷键。code 用 KeyboardEvent.code（如 KeyQ、Digit1、F5），不受输入法和 ⌥ 字符影响 */
 export interface Hotkey {
@@ -65,9 +66,9 @@ const NAMED: Record<string, string> = {
 export function keyLabel(code: string) {
   if (code.startsWith("Key")) return code.slice(3);
   if (code.startsWith("Digit")) return code.slice(5);
-  if (code.startsWith("Numpad")) return `小键盘 ${code.slice(6)}`;
+  if (code.startsWith("Numpad")) return tx("小键盘 {0}", code.slice(6));
   if (/^F\d{1,2}$/.test(code)) return code;
-  return NAMED[code] ?? code;
+  return code === "Space" ? tx("空格") : (NAMED[code] ?? code);
 }
 
 /** 按平台习惯排序：Windows 用文字，Mac 用 ⌃⌥⇧⌘ 符号 */
@@ -209,23 +210,31 @@ export function checkHotkey(hk: Hotkey, platform: Platform): HotkeyCheck {
       ok: false,
       error:
         platform === "mac"
-          ? "至少要带 ⌃、⌥ 或 ⌘ 其中一个"
-          : "至少要带 Ctrl、Alt 或 Win 其中一个",
+          ? tx("至少要带 ⌃、⌥ 或 ⌘ 其中一个")
+          : tx("至少要带 Ctrl、Alt 或 Win 其中一个"),
     };
   }
   const s = sig(hk);
   const reserved = RESERVED[platform][s];
   if (reserved)
-    return { ok: false, error: `${text} 是系统的「${reserved}」，换一个` };
+    return {
+      ok: false,
+      error: tx("{0} 是系统的「{1}」，换一个", text, tx(reserved)),
+    };
   const taken = TAKEN[platform][s];
   if (taken)
-    return { ok: false, error: `${text} 已被其他软件占用（${taken}），换一个` };
+    return {
+      ok: false,
+      error: tx("{0} 已被其他软件占用（{1}），换一个", text, tx(taken)),
+    };
   // 只带一个修饰键的两键组合，游戏里常用来绑技能
   const mods = [hk.ctrl, hk.alt, hk.shift, hk.meta].filter(Boolean).length;
   if (platform === "win" && mods === 1 && (hk.ctrl || hk.alt)) {
     return {
       ok: true,
-      warn: "两键组合在游戏里常用，可能冲突。建议再加一个 Ctrl、Alt 或 Shift",
+      warn: tx(
+        "两键组合在游戏里常用，可能冲突。建议再加一个 Ctrl、Alt 或 Shift"
+      ),
     };
   }
   return { ok: true };

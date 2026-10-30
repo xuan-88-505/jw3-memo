@@ -40,6 +40,7 @@ import { cn } from "@/lib/utils";
 import { DiffDetails, Field, diffSummary, inputCls } from "./shared";
 import { XinfaPairSelect } from "./SchoolPicker";
 import { TalentPicker } from "./TalentPicker";
+import { tx, paren } from "@/lib/i18n";
 
 export function SchemesView() {
   const { state } = useProto();
@@ -83,7 +84,7 @@ function SchemeList() {
   return (
     <div className="flex w-[236px] shrink-0 flex-col border-r border-paper/[0.07]">
       <nav
-        aria-label="方案列表"
+        aria-label={tx("方案列表")}
         className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2.5 py-3"
       >
         {editable && (
@@ -94,12 +95,12 @@ function SchemeList() {
             icon={<Plus className="h-4 w-4" />}
             onClick={() => setCreating(true)}
           >
-            新建方案
+            {tx("新建方案")}
           </Btn>
         )}
         {listed.length === 0 && (
           <p className="px-2 py-8 text-center text-[12.5px] text-paper-3">
-            还没有方案
+            {tx("还没有方案")}
           </p>
         )}
         <ul className="space-y-3">
@@ -118,7 +119,7 @@ function SchemeList() {
                   </span>
                   {editable && missing.length === 1 && (
                     <IconBtn
-                      label={`给${x}添加 ${missing[0]} 方案`}
+                      label={tx("给{0}添加 {1} 方案", x, missing[0])}
                       onClick={() => actions.startDraft(x, missing[0])}
                       className="ml-auto h-6 w-6 text-paper-3 opacity-0 focus-visible:opacity-100 group-hover/x:opacity-100"
                     >
@@ -137,14 +138,14 @@ function SchemeList() {
                       ? isSolo(state)
                         ? relativeTime(last.at)
                         : `${memberName(state, last.authorId)} · ${relativeTime(last.at)}`
-                      : "新建中，未保存";
+                      : tx("新建中，未保存");
                     return (
                       <li key={m}>
                         <button
                           type="button"
                           onClick={() => actions.selectScheme(id)}
                           aria-current={active ? "page" : undefined}
-                          aria-label={`${x} ${m} · ${meta}${draft ? " · 有未保存的修改" : ""}`}
+                          aria-label={`${x} ${m} · ${meta}${draft ? tx(" · 有未保存的修改") : ""}`}
                           className={cn(
                             "flex w-full items-center gap-2 rounded-md py-1.5 pl-[36px] pr-2 text-left text-[12.5px] transition-colors",
                             active
@@ -177,7 +178,7 @@ function SchemeList() {
                               draft && "bg-gold"
                             )}
                             aria-hidden="true"
-                            title={draft ? "有未保存的修改" : undefined}
+                            title={draft ? tx("有未保存的修改") : undefined}
                           />
                         </button>
                       </li>
@@ -205,7 +206,7 @@ function SchemeList() {
           className="flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-[13px] text-paper-2 transition-colors hover:bg-paper/[0.05] hover:text-paper"
         >
           <History className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span className="flex-1 text-left">修改记录</span>
+          <span className="flex-1 text-left">{tx("修改记录")}</span>
           {versionCount > 0 && (
             <span className="text-[11.5px] tabular-nums text-paper-3">
               {versionCount}
@@ -278,17 +279,17 @@ function NewSchemeDialog({
     <InlineModal
       open
       onClose={onClose}
-      title="新建方案"
+      title={tx("新建方案")}
       width={420}
       footer={
         <>
           {!online && (
             <span className="mr-auto text-[12px] text-gold">
-              离线时不能新建
+              {tx("离线时不能新建")}
             </span>
           )}
           <Btn variant="ghost" size="md" onClick={onClose}>
-            取消
+            {tx("取消")}
           </Btn>
           <Btn
             variant="primary"
@@ -296,13 +297,13 @@ function NewSchemeDialog({
             onClick={create}
             disabled={full || has(xinfa, mode) || !online}
           >
-            创建
+            {tx("创建")}
           </Btn>
         </>
       }
     >
       <div className="space-y-4 pb-1">
-        <Field label="心法" htmlFor="new-scheme-xinfa">
+        <Field label={tx("心法")} htmlFor="new-scheme-xinfa">
           <XinfaPairSelect
             id="new-scheme-xinfa"
             autoFocus
@@ -313,26 +314,32 @@ function NewSchemeDialog({
               setMode(firstMissing(x));
             }}
             disabledReason={x =>
-              MODES.every(m => has(x, m)) ? "PVE、PVP 都有了" : false
+              MODES.every(m => has(x, m)) ? tx("PVE、PVP 都有了") : false
             }
           />
         </Field>
         <div>
-          <p className="mb-1.5 text-[12.5px] text-paper-2">模式</p>
+          <p className="mb-1.5 text-[12.5px] text-paper-2">{tx("模式")}</p>
           <Segmented<Mode>
-            label="模式"
+            label={tx("模式")}
             value={mode}
             onChange={setMode}
             options={MODES.map(m => ({
               value: m,
               label: m,
               disabled: has(xinfa, m),
-              title: has(xinfa, m) ? `${xinfa}已经有 ${m} 方案` : undefined,
+              title: has(xinfa, m)
+                ? tx("{0}已经有 {1} 方案", xinfa, m)
+                : undefined,
             }))}
           />
           {MODES.some(m => has(xinfa, m)) && (
             <p className="mt-1.5 text-[12px] text-paper-3">
-              {xinfa}已有 {MODES.filter(m => has(xinfa, m)).join("、")} 方案
+              {tx(
+                "{0}已有 {1} 方案",
+                xinfa,
+                MODES.filter(m => has(xinfa, m)).join("、")
+              )}
             </p>
           )}
         </div>
@@ -408,7 +415,7 @@ function SchemeTitle({
     actions.toast(
       "manager",
       "success",
-      next ? `标题已改为「${next}」` : "已恢复默认标题"
+      next ? tx("标题已改为「{0}」", next) : tx("已恢复默认标题")
     );
   };
 
@@ -427,8 +434,8 @@ function SchemeTitle({
           size={1}
           maxLength={24}
           spellCheck={false}
-          aria-label="方案标题"
-          title="点击修改标题，清空后恢复默认"
+          aria-label={tx("方案标题")}
+          title={tx("点击修改标题，清空后恢复默认")}
           placeholder={fallback}
           onChange={e => setValue(e.target.value)}
           onKeyDown={e => {
@@ -476,10 +483,14 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
       <div className="flex h-full flex-col items-center justify-center px-10 text-center">
         <XinfaMark xinfa={xinfa} size={48} className="opacity-60" />
         <p className="mt-4 text-[17px] font-semibold">
-          {otherExists ? `${xinfa}还没有 ${mode} 方案` : `${xinfa}还没有方案`}
+          {otherExists
+            ? tx("{0}还没有 {1} 方案", xinfa, mode)
+            : tx("{0}还没有方案", xinfa)}
         </p>
         {!editable && (
-          <p className="mt-1.5 text-[13px] text-paper-3">只读成员不能新建</p>
+          <p className="mt-1.5 text-[13px] text-paper-3">
+            {tx("只读成员不能新建")}
+          </p>
         )}
         {editable && (
           <div className="mt-5 flex gap-2">
@@ -491,7 +502,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
                 icon={<Plus className="h-4 w-4" />}
                 onClick={() => actions.startDraft(xinfa, m)}
               >
-                新建 {m} 方案
+                {tx("新建 {0} 方案", m)}
               </Btn>
             ))}
           </div>
@@ -505,14 +516,14 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
   const errors = view.macros.flatMap(m =>
     lintMacro(m.content)
       .filter(l => l.level === "error")
-      .map(l => `${m.name || "未命名宏"}：${l.text}`)
+      .map(l => `${m.name || tx("未命名宏")}：${l.text}`)
   );
   const nameMissing = view.macros.some(m => !m.name.trim());
   // 可以只存奇穴，不要求有宏
   const blockReason = !online
-    ? "离线时不能保存"
+    ? tx("离线时不能保存")
     : nameMissing
-      ? "有宏没写名字"
+      ? tx("有宏没写名字")
       : errors.length
         ? errors[0]
         : "";
@@ -530,7 +541,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
         ...d.macros,
         {
           id: `${schemeId}-n${Date.now()}`,
-          name: `新宏 ${d.macros.length + 1}`,
+          name: tx("新宏 {0}", d.macros.length + 1),
           icon: 13,
           content: "/cast ",
           note: "",
@@ -564,16 +575,16 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
                     <span className="text-paper-2">
                       {creator?.name ?? memberName(state, creatorId ?? "")}
                     </span>
-                    <span>创建</span>
+                    <span>{tx("创建")}</span>
                     <span aria-hidden="true">·</span>
                   </>
                 )}
                 <span title={absoluteTime(last.at)}>
-                  {relativeTime(last.at)}更新
+                  {tx("{0}更新", relativeTime(last.at))}
                 </span>
               </>
             ) : (
-              "新方案，还没保存"
+              tx("新方案，还没保存")
             )}
           </p>
           {last && editable && !otherExists && (
@@ -583,7 +594,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
               icon={<Plus className="h-3.5 w-3.5" />}
               onClick={() => actions.startDraft(xinfa, other)}
             >
-              添加 {other} 方案
+              {tx("添加 {0} 方案", other)}
             </Btn>
           )}
           {last && (
@@ -593,7 +604,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
               icon={<History className="h-3.5 w-3.5" />}
               onClick={() => actions.openChangelog(xinfa)}
             >
-              历史版本
+              {tx("历史版本")}
             </Btn>
           )}
         </div>
@@ -601,7 +612,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
         {!editable && (
           <div className="mt-4 flex items-center gap-2 rounded-lg bg-paper/[0.04] px-3 py-2 text-[12.5px] text-paper-2 ring-1 ring-inset ring-paper/10">
             <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            只读成员不能修改
+            {tx("只读成员不能修改")}
           </div>
         )}
 
@@ -615,17 +626,17 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
                   icon={<Plus className="h-3.5 w-3.5" />}
                   onClick={addMacro}
                 >
-                  添加宏
+                  {tx("添加宏")}
                 </Btn>
               )
             }
           >
-            宏 · {view.macros.length}
+            {tx("宏 · {0}", view.macros.length)}
           </SectionLabel>
           <div className="mt-1 divide-y divide-paper/[0.07]">
             {view.macros.length === 0 && (
               <p className="py-6 text-center text-[12.5px] text-paper-3">
-                还没有宏
+                {tx("还没有宏")}
               </p>
             )}
             {view.macros.map(m => (
@@ -643,7 +654,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
         </div>
 
         <div className="mt-8">
-          <SectionLabel>奇穴 · 9 层</SectionLabel>
+          <SectionLabel>{tx("奇穴 · 9 层")}</SectionLabel>
           <div className="mt-3">
             <TalentPicker
               xinfa={xinfa}
@@ -664,7 +675,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
           />
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-medium text-paper">
-              {last ? "未保存的修改" : "新方案，未保存"}
+              {last ? tx("未保存的修改") : tx("新方案，未保存")}
             </p>
             {blockReason && (
               <p className="truncate text-[12px] text-cinnabar-text">
@@ -682,7 +693,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
                 actions.selectScheme(`${xinfa}-${other}`);
             }}
           >
-            {last ? "放弃修改" : "放弃新建"}
+            {last ? tx("放弃修改") : tx("放弃新建")}
           </Btn>
           <Btn
             variant="primary"
@@ -690,7 +701,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
             disabled={!!blockReason}
             onClick={() => setSaving(true)}
           >
-            保存为 v{(last?.version ?? 0) + 1}
+            {tx("保存为 v{0}", (last?.version ?? 0) + 1)}
           </Btn>
         </div>
       )}
@@ -741,19 +752,19 @@ function MacroEditor({
   return (
     <div className="py-3.5">
       <div className="flex items-center gap-2.5">
-        <Jx3Icon id={macro.icon} name={macro.name || "宏"} size={30} />
+        <Jx3Icon id={macro.icon} name={macro.name || tx("宏")} size={30} />
         <input
           value={macro.name}
           readOnly={!editable}
           onChange={e => onChange({ name: e.target.value })}
           maxLength={20}
-          aria-label="宏名称"
-          placeholder="宏名称"
+          aria-label={tx("宏名称")}
+          placeholder={tx("宏名称")}
           className="h-8 min-w-0 flex-1 rounded-md bg-transparent px-1.5 text-[14px] font-medium text-paper placeholder:text-paper-3 hover:bg-paper/[0.04] focus:bg-paper/[0.04] focus:outline-none focus:ring-1 focus:ring-paper/20 read-only:hover:bg-transparent"
         />
         {modified && (
           <span className="text-[11.5px] text-gold">
-            {base ? "已修改" : "新增"}
+            {base ? tx("已修改") : tx("新增")}
           </span>
         )}
         <span
@@ -761,12 +772,12 @@ function MacroEditor({
             "font-mono text-[12px] tabular-nums",
             over ? "font-semibold text-cinnabar-text" : "text-paper-3"
           )}
-          title="去掉注释和空行后的字符数（含换行）"
+          title={tx("去掉注释和空行后的字符数（含换行）")}
         >
           {cleaned.length}/{MACRO_LIMIT}
         </span>
         {editable && (
-          <IconBtn label={`删除宏 ${macro.name}`} onClick={onRemove}>
+          <IconBtn label={tx("删除宏 {0}", macro.name)} onClick={onRemove}>
             <Trash2 className="h-3.5 w-3.5" />
           </IconBtn>
         )}
@@ -777,8 +788,8 @@ function MacroEditor({
           readOnly={!editable}
           onChange={e => onChange({ note: e.target.value })}
           maxLength={30}
-          aria-label={`${macro.name} 的备注`}
-          placeholder={editable ? "备注（显示在面板里，可不填）" : ""}
+          aria-label={tx("{0} 的备注", macro.name)}
+          placeholder={editable ? tx("备注（显示在面板里，可不填）") : ""}
           className="mb-2 h-7 w-full rounded-md bg-transparent px-1.5 text-[12.5px] text-paper-2 placeholder:text-paper-3/70 hover:bg-paper/[0.04] focus:bg-paper/[0.04] focus:outline-none focus:ring-1 focus:ring-paper/20 read-only:hover:bg-transparent"
         />
         <textarea
@@ -787,7 +798,7 @@ function MacroEditor({
           onChange={e => onChange({ content: e.target.value })}
           rows={rows}
           spellCheck={false}
-          aria-label={`${macro.name} 的宏内容`}
+          aria-label={tx("{0} 的宏内容", macro.name)}
           className="scroll-thin block w-full resize-y rounded-md bg-paper/[0.04] px-3 py-2 font-mono text-[12.5px] leading-[1.7] text-paper ring-1 ring-inset ring-paper/10 hover:ring-paper/[0.18] focus:outline-none focus:ring-2 focus:ring-cinnabar-text/50"
         />
         {lints.length > 0 && (
@@ -866,7 +877,7 @@ function SaveDialog({
   const submit = () => {
     const n = note.trim();
     if (!n) {
-      setError("写一句改了什么，方便亲友看懂");
+      setError(tx("写一句改了什么，方便亲友看懂"));
       return;
     }
     const r = actions.saveDraft(schemeId, n);
@@ -876,7 +887,13 @@ function SaveDialog({
       actions.toast(
         "manager",
         "success",
-        `已保存 v${nextV}。${affected.length ? `${affected.length} 个角色要在游戏里跟着改。` : ""}`
+        tx(
+          "已保存 v{0}。{1}",
+          nextV,
+          affected.length
+            ? tx("{0} 个角色要在游戏里跟着改。", affected.length)
+            : ""
+        )
       );
     }
   };
@@ -886,19 +903,19 @@ function SaveDialog({
       open={open}
       onClose={onClose}
       width={480}
-      title={`保存为 v${nextV}`}
+      title={tx("保存为 v{0}", nextV)}
       description={
         last
-          ? `基于 v${last.version}：${diffSummary(diff)}`
-          : "这是这个方案的第一个版本。"
+          ? tx("基于 v{0}：{1}", last.version, diffSummary(diff))
+          : tx("这是这个方案的第一个版本。")
       }
       footer={
         <>
           <Btn variant="ghost" size="md" onClick={onClose}>
-            取消
+            {tx("取消")}
           </Btn>
           <Btn variant="primary" size="md" onClick={submit}>
-            保存
+            {tx("保存")}
           </Btn>
         </>
       }
@@ -909,7 +926,7 @@ function SaveDialog({
             htmlFor="save-note"
             className="text-[12.5px] font-medium text-paper"
           >
-            更新说明
+            {tx("更新说明")}
           </label>
           <textarea
             id="save-note"
@@ -921,7 +938,7 @@ function SaveDialog({
               setNote(e.target.value);
               setError("");
             }}
-            placeholder="比如：技改后第七重换正气"
+            placeholder={tx("比如：技改后第七重换正气")}
             aria-invalid={!!error}
             className={cn(
               inputCls(!!error),
@@ -934,20 +951,20 @@ function SaveDialog({
               error ? "text-cinnabar-text" : "text-paper-3"
             )}
           >
-            {error || `亲友会在通知里看到 · ${note.length}/60`}
+            {error || tx("亲友会在通知里看到 · {0}/60", note.length)}
           </p>
         </div>
 
         {affected.length > 0 && (
           <div className="rounded-lg bg-cinnabar/[0.07] px-3 py-2.5 text-[12.5px] ring-1 ring-inset ring-cinnabar/20">
             <p className="text-paper">
-              保存后，这 {affected.length} 个角色要在游戏里更新：
+              {tx("保存后，这 {0} 个角色要在游戏里更新：", affected.length)}
             </p>
             <p className="mt-1 text-paper-2">
               {affected
                 .map(
                   c =>
-                    `${c.name}（${c.ownerId === ME_ID ? "你" : memberName(state, c.ownerId)}）`
+                    `${c.name}${paren(c.ownerId === ME_ID ? tx("你") : memberName(state, c.ownerId))}`
                 )
                 .join("、")}
             </p>
@@ -962,7 +979,7 @@ function SaveDialog({
               aria-expanded={showDiff}
               className="inline-flex items-center gap-1 text-[12.5px] text-paper-2 hover:text-paper"
             >
-              查看改动（旧 → 新）
+              {tx("查看改动（旧 → 新）")}
               <ChevronDown
                 className={cn(
                   "h-3.5 w-3.5 transition-transform",
@@ -1017,8 +1034,15 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
       dismissible={false}
       tone="warning"
       width={520}
-      title={`${rivalName} 刚刚也保存了这个方案`}
-      description={`你是基于 v${last.version} 改的。${rivalName} 在 ${relativeTime(pc.rival.at)}保存了 v${pc.rival.version}：“${pc.rival.note}”。两份改动不一样，要选一个。`}
+      title={tx("{0} 刚刚也保存了这个方案", rivalName)}
+      description={tx(
+        "你是基于 v{0} 改的。{1} 在 {2}保存了 v{3}：“{4}”。两份改动不一样，要选一个。",
+        last.version,
+        rivalName,
+        relativeTime(pc.rival.at),
+        pc.rival.version,
+        pc.rival.note
+      )}
       footer={
         <>
           <Btn
@@ -1029,11 +1053,15 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
               actions.toast(
                 "manager",
                 "info",
-                `已放弃你的修改，现在是 ${rivalName} 的 v${pc.rival.version}。`
+                tx(
+                  "已放弃你的修改，现在是 {0} 的 v{1}。",
+                  rivalName,
+                  pc.rival.version
+                )
               );
             }}
           >
-            放弃我的修改
+            {tx("放弃我的修改")}
           </Btn>
           <Btn
             variant="primary"
@@ -1043,11 +1071,16 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
               actions.toast(
                 "manager",
                 "success",
-                `已保存 v${pc.rival.version + 1}。${rivalName} 的 v${pc.rival.version} 留在修改记录里。`
+                tx(
+                  "已保存 v{0}。{1} 的 v{2} 留在修改记录里。",
+                  pc.rival.version + 1,
+                  rivalName,
+                  pc.rival.version
+                )
               );
             }}
           >
-            以我的为准，另存为 v{pc.rival.version + 1}
+            {tx("以我的为准，另存为 v{0}", pc.rival.version + 1)}
           </Btn>
         </>
       }
@@ -1057,10 +1090,15 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
           [
             [
               "theirs",
-              `${rivalName} 的改动（v${last.version} → v${pc.rival.version}）`,
+              tx(
+                "{0} 的改动（v{1} → v{2}）",
+                rivalName,
+                last.version,
+                pc.rival.version
+              ),
               theirs,
             ],
-            ["mine", `你的改动（基于 v${last.version}）`, mine],
+            ["mine", tx("你的改动（基于 v{0}）", last.version), mine],
           ] as const
         ).map(([key, label, d]) => (
           <div
@@ -1091,7 +1129,9 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
             )}
           </div>
         ))}
-        <p className="pt-1 text-[12px] text-paper-3">两份都会留在修改记录里</p>
+        <p className="pt-1 text-[12px] text-paper-3">
+          {tx("两份都会留在修改记录里")}
+        </p>
       </div>
     </InlineModal>
   );

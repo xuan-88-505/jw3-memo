@@ -3,6 +3,7 @@ import { Huangji, huangjiSrc } from "./Huangji";
 import { XINFA_META } from "@/data/seed";
 import { xinfaIconUrl } from "@/data/xinfaIcons";
 import { cn } from "@/lib/utils";
+import { tx } from "@/lib/i18n";
 
 /** 品牌标记：黄鸡大笑（游戏表情第 1 帧），和托盘图标、应用图标同一只 */
 export function BrandSeal({
@@ -36,7 +37,7 @@ export function Wordmark({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
           text
         )}
       >
-        备忘录
+        {tx("备忘录")}
       </span>
     </span>
   );

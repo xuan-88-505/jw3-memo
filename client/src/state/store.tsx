@@ -80,6 +80,7 @@ import type {
   Team,
   CharacterAvatar,
 } from "@/data/types";
+import { tx } from "@/lib/i18n";
 
 // ---------- 状态 ----------
 
@@ -610,7 +611,7 @@ export function me(state: ProtoState): Member | undefined {
 }
 
 export function memberName(state: ProtoState, id: string) {
-  return state.members.find(m => m.id === id)?.name ?? "已离开的成员";
+  return state.members.find(m => m.id === id)?.name ?? tx("已离开的成员");
 }
 
 export function canEdit(state: ProtoState) {
@@ -726,9 +727,9 @@ function recalcAfterPatch(
         {
           at,
           dps,
-          label: `v${version} 技改`,
+          label: tx("v{0} 技改", version),
           kind: "patch",
-          detail: "奇穴有变化",
+          detail: tx("奇穴有变化"),
         },
       ],
     };
@@ -1108,7 +1109,12 @@ function useActions(
               version: pc.rival.version + 1,
               macros: draft.macros,
               talents: draft.talents,
-              note: `${pc.note}（覆盖了 ${memberName(st, pc.rival.authorId)} 的 v${pc.rival.version}）`,
+              note: tx(
+                "{0}（覆盖了 {1} 的 v{2}）",
+                pc.note,
+                memberName(st, pc.rival.authorId),
+                pc.rival.version
+              ),
               authorId: ME_ID,
               at: new Date().toISOString(),
             });
@@ -1277,7 +1283,7 @@ function useActions(
                   {
                     at: new Date().toISOString(),
                     dps: next.dps,
-                    label: "改附魔",
+                    label: tx("改附魔"),
                     kind: "gear" as const,
                   },
                 ];
@@ -1305,8 +1311,8 @@ function useActions(
         const saved = applyDraft(lo, draft);
         const label =
           changes.length === 1
-            ? `改${changes[0].replace(/ \d$/, "")}`
-            : `改 ${changes.length} 处`;
+            ? tx("改{0}", changes[0].replace(/ \d$/, ""))
+            : tx("改 {0} 处", changes.length);
         const next: Loadout = {
           ...saved,
           history: [
@@ -1340,7 +1346,7 @@ function useActions(
             {
               at,
               dps: saved.dps,
-              label: `从「${lo.name}」另存`,
+              label: tx("从「{0}」另存", lo.name),
               kind: "import",
             },
           ],
@@ -1463,11 +1469,11 @@ function useActions(
                 ...s.raidLogs,
               ],
         }));
-        toast("manager", "success", id ? "已保存修改" : "已记下");
+        toast("manager", "success", id ? tx("已保存修改") : tx("已记下"));
       },
       deleteRaidLog: (id: string) => {
         update(s => ({ raidLogs: s.raidLogs.filter(r => r.id !== id) }));
-        toast("manager", "success", "已删除这条记录");
+        toast("manager", "success", tx("已删除这条记录"));
       },
       // 记录：避雷名单
       saveBlack: (input: Omit<BlackEntry, "id" | "by" | "at">, id?: string) => {
@@ -1484,7 +1490,11 @@ function useActions(
                 ...s.blacklist,
               ],
         }));
-        toast("manager", "success", id ? "已保存修改" : "已加入避雷名单");
+        toast(
+          "manager",
+          "success",
+          id ? tx("已保存修改") : tx("已加入避雷名单")
+        );
       },
       // 记录：链接。返回实际加了几条（已有的地址跳过）
       addLinks: (urls: string[], visibility: LinkVisibility) => {
@@ -1509,12 +1519,12 @@ function useActions(
             "manager",
             "success",
             dup
-              ? `已添加 ${added} 条，${dup} 条已经在列表里`
+              ? tx("已添加 {0} 条，{1} 条已经在列表里", added, dup)
               : added > 1
-                ? `已添加 ${added} 条链接`
-                : "已添加链接"
+                ? tx("已添加 {0} 条链接", added)
+                : tx("已添加链接")
           );
-        else toast("manager", "info", "这条链接已经在列表里");
+        else toast("manager", "info", tx("这条链接已经在列表里"));
         return added;
       },
       /** 记录：链接页里直接放图片，每张一条 */
@@ -1537,7 +1547,9 @@ function useActions(
         toast(
           "manager",
           "success",
-          items.length > 1 ? `已添加 ${items.length} 张图片` : "已添加图片"
+          items.length > 1
+            ? tx("已添加 {0} 张图片", items.length)
+            : tx("已添加图片")
         );
       },
       saveLink: (
@@ -1547,16 +1559,20 @@ function useActions(
         update(s => ({
           links: s.links.map(l => (l.id === id ? { ...l, ...input } : l)),
         }));
-        toast("manager", "success", "已保存修改");
+        toast("manager", "success", tx("已保存修改"));
       },
       deleteLink: (id: string) => {
         const isImage = !!stateRef.current.links.find(l => l.id === id)?.image;
         update(s => ({ links: s.links.filter(l => l.id !== id) }));
-        toast("manager", "success", isImage ? "已删除图片" : "已删除链接");
+        toast(
+          "manager",
+          "success",
+          isImage ? tx("已删除图片") : tx("已删除链接")
+        );
       },
       deleteBlack: (id: string) => {
         update(s => ({ blacklist: s.blacklist.filter(b => b.id !== id) }));
-        toast("manager", "success", "已移出避雷名单");
+        toast("manager", "success", tx("已移出避雷名单"));
       },
       setRole: (memberId: string, role: Role) =>
         update(s => ({
@@ -1694,8 +1710,8 @@ function useDesktopData(
                 "manager",
                 "error",
                 name
-                  ? `数据文件读不出来，已另存为 ${name}，现在从空白开始`
-                  : "数据文件读不出来，现在从空白开始"
+                  ? tx("数据文件读不出来，已另存为 {0}，现在从空白开始", name)
+                  : tx("数据文件读不出来，现在从空白开始")
               );
           }
         }
@@ -1745,7 +1761,7 @@ function useDesktopData(
         actions.toast(
           WINDOW_LABEL === "panel" ? "panel" : "manager",
           "error",
-          "保存失败，这次的改动没有写进文件"
+          tx("保存失败，这次的改动没有写进文件")
         );
       });
     }, 300);

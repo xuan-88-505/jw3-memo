@@ -11,6 +11,7 @@ import {
 } from "@/data/gear";
 import { Btn } from "@/components/common/ui";
 import { cn } from "@/lib/utils";
+import { tx } from "@/lib/i18n";
 
 /** 装备码解码状态 */
 type Decode =
@@ -97,17 +98,17 @@ export function ImportField({
   if (parsed.ok && decode.state === "ok") {
     const s = decode.summary;
     detail = [
-      `${s.items} 件装备`,
+      tx("{0} 件装备", s.items),
       s.strength &&
         (s.strength[0] === s.strength[1]
-          ? `精炼 ${s.strength[0]}`
-          : `精炼 ${s.strength[0]}–${s.strength[1]}`),
-      s.stone && `五行石 ${s.stone} 级`,
+          ? tx("精炼 {0}", s.strength[0])
+          : tx("精炼 {0}–{1}", s.strength[0], s.strength[1])),
+      s.stone && tx("五行石 {0} 级", s.stone),
     ]
       .filter(Boolean)
       .join(" · ");
   } else if (parsed.ok && !code) {
-    detail = `${xinfa} · 12 件装备`;
+    detail = tx("{0} · 12 件装备", xinfa);
   }
 
   return (
@@ -126,7 +127,7 @@ export function ImportField({
         }}
         aria-invalid={showError || undefined}
         aria-describedby={`${id}-msg`}
-        placeholder={"粘贴茗伊插件导出的装备码\n也可以贴魔盒配装链接"}
+        placeholder={tx("粘贴茗伊插件导出的装备码\n也可以贴魔盒配装链接")}
         className={cn(
           "mt-2 block w-full resize-none break-all rounded-lg bg-paper/[0.04] px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-paper placeholder:text-paper-3/70 ring-1 ring-inset focus:outline-none focus:ring-2",
           showError
@@ -138,12 +139,12 @@ export function ImportField({
       <div id={`${id}-msg`} className="mt-2.5 min-h-[40px]">
         {codeBad ? (
           <p role="alert" className="text-[12.5px] text-cinnabar-text">
-            装备码不完整，回游戏里重新点一次「导出」，全部复制
+            {tx("装备码不完整，回游戏里重新点一次「导出」，全部复制")}
           </p>
         ) : parsed.ok && decode.state === "busy" ? (
           <p className="flex items-center gap-2 text-[12.5px] text-paper-2">
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-            正在读装备码…
+            {tx("正在读装备码…")}
           </p>
         ) : parsed.ok ? (
           <div className="flex items-start gap-2 text-[12.5px]">
@@ -153,24 +154,25 @@ export function ImportField({
             />
             <div>
               <p className="text-paper">
-                认出来了：{IMPORT_KIND_LABEL[parsed.kind]}
+                {tx("认出来了：")}
+                {IMPORT_KIND_LABEL[parsed.kind]}
                 {parsed.sourceId && (
                   <span className="tabular-nums">
-                    {" "}
-                    · 方案 #{parsed.sourceId}
+                    {tx("{0}· 方案 #{1}", " ", parsed.sourceId)}
                   </span>
                 )}
               </p>
               <p className="mt-0.5 text-paper-3">
                 {detail}
-                {" · "}奇穴用
-                {talentSource ? ` ${talentSource}` : "配装里自带的"}
+                {" · "}
+                {tx("奇穴用")}
+                {talentSource ? ` ${talentSource}` : tx("配装里自带的")}
               </p>
               {code && (
                 <p className="mt-0.5 text-paper-3">
                   {charName
-                    ? `装备码里没有角色名，确认是「${charName}」身上这套`
-                    : `装备码里没有心法，确认是${xinfa}的配装`}
+                    ? tx("装备码里没有角色名，确认是「{0}」身上这套", charName)
+                    : tx("装备码里没有心法，确认是{0}的配装", xinfa)}
                 </p>
               )}
             </div>
@@ -181,13 +183,15 @@ export function ImportField({
           </p>
         ) : (
           <p className="text-[12px] leading-relaxed text-paper-3">
-            游戏里打开 茗伊插件 → 角色统计 → 装备统计，点右上角「导出」。
+            {tx(
+              "游戏里打开 茗伊插件 → 角色统计 → 装备统计，点右上角「导出」。"
+            )}
             <button
               type="button"
               onClick={() => input.setText(SAMPLE_MYCODE)}
               className="ml-1 text-paper-2 underline decoration-paper/30 underline-offset-2 hover:text-paper"
             >
-              填入示例
+              {tx("填入示例")}
             </button>
           </p>
         )}
@@ -229,10 +233,10 @@ export function ImportCard({
             className="h-4 w-4 animate-spin text-jade"
             aria-hidden="true"
           />
-          正在算木桩秒伤…
+          {tx("正在算木桩秒伤…")}
         </div>
         <p className="mt-1.5 pl-[26px] text-[12px] text-paper-3">
-          {xinfa} · 134 级木桩 · 304 秒
+          {tx("{0} · 134 级木桩 · 304 秒", xinfa)}
         </p>
         <div className="mt-6 grid grid-cols-3 gap-3" aria-hidden="true">
           {[0, 1, 2].map(i => (
@@ -275,11 +279,11 @@ export function ImportCard({
           disabled={offline || !input.canSubmit}
           onClick={submit}
         >
-          导入并计算
+          {tx("导入并计算")}
         </Btn>
         {onCancel && (
           <Btn variant="ghost" size="md" onClick={onCancel}>
-            取消
+            {tx("取消")}
           </Btn>
         )}
         {offline && <OfflineHint />}
@@ -292,7 +296,7 @@ export function OfflineHint() {
   return (
     <span className="ml-1 inline-flex items-center gap-1.5 text-[12px] text-gold">
       <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
-      离线时不能导入，联网后再试
+      {tx("离线时不能导入，联网后再试")}
     </span>
   );
 }

@@ -16,6 +16,7 @@ import { GearEditor, QuickMenu, useQuickActions } from "./GearEditor";
 import { GearFilterButton } from "./GearFilterButton";
 import { useGearFilter } from "./gearFilter";
 import { useEquipDb } from "./useEquipDb";
+import { tx } from "@/lib/i18n";
 
 /**
  * 配装器弹窗，照参考站：盖住整个管理窗口，一张表改全身，底部保存。
@@ -85,7 +86,7 @@ export function GearEditorDialog({
         {/* 标题行：左边是哪套配装，右边是筛选、一键和关闭 */}
         <div className="flex shrink-0 items-center gap-3 border-b border-paper/[0.07] px-5 py-3">
           <h2 id={titleId} className="text-[16px] font-semibold text-paper">
-            配装器
+            {tx("配装器")}
           </h2>
           <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-paper-2">
             <XinfaMark xinfa={lo.xinfa} size={16} />
@@ -95,13 +96,13 @@ export function GearEditorDialog({
             {failed ? (
               <span className="inline-flex items-center gap-1.5 text-[12px] text-cinnabar-text">
                 <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                装备库加载失败
+                {tx("装备库加载失败")}
                 <button
                   type="button"
                   onClick={retry}
                   className="text-paper-2 underline underline-offset-2 hover:text-paper"
                 >
-                  重试
+                  {tx("重试")}
                 </button>
               </span>
             ) : (
@@ -111,7 +112,7 @@ export function GearEditorDialog({
                     className="h-3.5 w-3.5 animate-spin"
                     aria-hidden="true"
                   />
-                  正在加载装备库
+                  {tx("正在加载装备库")}
                 </span>
               )
             )}
@@ -120,8 +121,8 @@ export function GearEditorDialog({
             <button
               type="button"
               onClick={onClose}
-              aria-label="关闭"
-              title="关闭，改动会留着"
+              aria-label={tx("关闭")}
+              title={tx("关闭，改动会留着")}
               className="-mr-1 ml-1 grid h-8 w-8 place-items-center rounded-md text-paper-3 transition-colors hover:bg-paper/[0.08] hover:text-paper"
             >
               <X className="h-4 w-4" />
@@ -147,7 +148,7 @@ export function GearEditorDialog({
             className="flex min-w-0 items-baseline gap-2.5"
             aria-live="polite"
           >
-            <span className="text-[12px] text-paper-3">秒伤</span>
+            <span className="text-[12px] text-paper-3">{tx("秒伤")}</span>
             <span className="text-[20px] font-semibold tabular-nums text-paper">
               {fmt(Math.round(ev.dps * factor))}
             </span>
@@ -155,20 +156,20 @@ export function GearEditorDialog({
               <>
                 <Delta pct={ev.pct * 100} className="text-[13px]" />
                 <span className="truncate text-[12px] text-paper-3">
-                  原 {fmt(Math.round(lo.dps * factor))}
+                  {tx("原 {0}", fmt(Math.round(lo.dps * factor)))}
                   <span className="mx-1.5" aria-hidden="true">
                     ·
                   </span>
                   <span title={changes.join("、")}>
-                    改了 {changes.length} 处
+                    {tx("改了 {0} 处", changes.length)}
                   </span>
                 </span>
               </>
             ) : (
-              <span className="text-[12px] text-paper-3">未改动</span>
+              <span className="text-[12px] text-paper-3">{tx("未改动")}</span>
             )}
             <span className="text-[11.5px] text-paper-3">
-              {factor !== 1 ? "含增益，估算" : "估算"}
+              {factor !== 1 ? tx("含增益，估算") : tx("估算")}
             </span>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -178,13 +179,13 @@ export function GearEditorDialog({
               disabled={!dirty}
               onClick={() => onDraft(draftOf(lo))}
             >
-              撤销
+              {tx("撤销")}
             </Btn>
             <Btn size="md" disabled={!dirty} onClick={onSaveAs}>
-              另存为新配装
+              {tx("另存为新配装")}
             </Btn>
             <Btn variant="primary" size="md" disabled={!dirty} onClick={onSave}>
-              保存
+              {tx("保存")}
             </Btn>
           </div>
         </div>

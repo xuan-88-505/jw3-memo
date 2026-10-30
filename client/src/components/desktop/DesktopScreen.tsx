@@ -34,6 +34,7 @@ import {
   WindowFrame,
   useStageScale,
 } from "./Stage";
+import { tx, weekdayMonthDay } from "@/lib/i18n";
 
 export const GAME_SCENE =
   "/manus-storage/async-images/Pp06SKzGl2FLaqKfhCWqEW/image-1.webp";
@@ -238,7 +239,7 @@ export function DesktopScreen() {
       {state.managerOpen && (
         <WindowFrame
           platform={state.platform}
-          title="备忘录"
+          title={tx("备忘录")}
           onClose={actions.closeManager}
           className="z-20"
           style={{
@@ -299,10 +300,10 @@ export function DesktopScreen() {
       )}
       {full && !state.panelOpen && (
         <DemoNote className="absolute left-1/2 top-6 z-30 w-[520px] -translate-x-1/2 text-center">
-          游戏全屏中，按 {hk} 呼出面板
+          {tx("游戏全屏中，按 {0} 呼出面板", hk)}
           <br />
           <span className="text-gold/75">
-            需设为无边框窗口，独占全屏会被盖住（实机待验证）
+            {tx("需设为无边框窗口，独占全屏会被盖住（实机待验证）")}
           </span>
         </DemoNote>
       )}
@@ -328,7 +329,7 @@ function GameWindow() {
         <span className="mr-2 grid h-4 w-4 place-items-center rounded-[3px] bg-[#3a2c1a] font-serif text-[10px] text-[#e9c77b]">
           剑
         </span>
-        剑网3 · 旗舰（窗口模式）
+        {tx("剑网3 · 旗舰（窗口模式）")}
         <span className="ml-auto flex h-full text-white/70">
           <span className="grid w-11 place-items-center">—</span>
           <span className="grid w-11 place-items-center">▢</span>
@@ -363,7 +364,10 @@ function WinTaskbar({
           type="button"
           onClick={onTray}
           {...motion.handlers}
-          aria-label={`备忘录${pending ? `，${pending} 个角色有更新` : ""}`}
+          aria-label={tx(
+            "备忘录{0}",
+            pending ? tx("，{0} 个角色有更新", pending) : ""
+          )}
           aria-expanded={active}
           className={cn(
             "relative grid h-9 w-9 place-items-center rounded transition-colors hover:bg-white/[0.08]",
@@ -434,10 +438,9 @@ function Clock({ mac }: { mac?: boolean }) {
   }, []);
   const hm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
   if (!mac) return <span>{hm}</span>;
-  const week = ["日", "一", "二", "三", "四", "五", "六"][now.getDay()];
   return (
     <span>
-      {now.getMonth() + 1}月{now.getDate()}日 周{week} {hm}
+      {weekdayMonthDay(now)} {hm}
     </span>
   );
 }
@@ -457,8 +460,15 @@ function MacMenuBar({
   return (
     <div className="absolute inset-x-0 top-0 z-30 flex h-7 items-center bg-[#1e1a22]/55 px-3 text-[13px] text-white/90 backdrop-blur-xl">
       <Apple className="h-[15px] w-[15px] fill-white/90" strokeWidth={0} />
-      <span className="ml-4 font-semibold">访达</span>
-      {["文件", "编辑", "显示", "前往", "窗口", "帮助"].map(m => (
+      <span className="ml-4 font-semibold">{tx("访达")}</span>
+      {[
+        tx("文件"),
+        tx("编辑"),
+        tx("显示"),
+        tx("前往"),
+        tx("窗口"),
+        tx("帮助"),
+      ].map(m => (
         <span key={m} className="ml-4 text-white/85">
           {m}
         </span>
@@ -469,7 +479,10 @@ function MacMenuBar({
           type="button"
           onClick={onTray}
           {...motion.handlers}
-          aria-label={`备忘录${pending ? `，${pending} 个角色有更新` : ""}`}
+          aria-label={tx(
+            "备忘录{0}",
+            pending ? tx("，{0} 个角色有更新", pending) : ""
+          )}
           aria-expanded={active}
           className={cn(
             "flex h-[22px] items-center gap-1 rounded-[5px] px-1.5 transition-colors hover:bg-white/[0.12]",
@@ -564,15 +577,17 @@ function CoachMark({
     >
       <div className="relative flex items-start gap-2 rounded-xl bg-ink-2 py-2.5 pl-3.5 pr-1.5 shadow-[0_12px_32px_-8px_rgb(0_0_0/0.65)] ring-1 ring-paper/12">
         <div className="whitespace-nowrap">
-          <p className="text-[13px] font-medium text-paper">点这里打开面板</p>
+          <p className="text-[13px] font-medium text-paper">
+            {tx("点这里打开面板")}
+          </p>
           <p className="mt-1 flex items-center gap-1.5 text-[12px] text-paper-3">
-            或按 <Kbd keys={keys} />
+            {tx("或按")} <Kbd keys={keys} />
           </p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          aria-label="关闭提示"
+          aria-label={tx("关闭提示")}
           className="-mt-1 grid h-6 w-6 place-items-center rounded-md text-paper-3 transition-colors hover:bg-paper/[0.08] hover:text-paper"
         >
           <X className="h-3.5 w-3.5" />

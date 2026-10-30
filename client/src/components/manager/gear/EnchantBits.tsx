@@ -10,6 +10,7 @@ import {
 } from "@/data/enchants";
 import { primaryAttr, type GearSlot, type Loadout } from "@/data/gear";
 import { cn } from "@/lib/utils";
+import { tx } from "@/lib/i18n";
 
 type LoadoutBits = Pick<Loadout, "xinfa" | "big" | "stone">;
 
@@ -54,7 +55,7 @@ export function BigIcon({
   size?: number;
 }) {
   const [failed, setFailed] = useState(false);
-  const text = `大附魔 ${BIG_LEVEL_LABEL[level]}·${label}`;
+  const text = tx("大附魔 {0}·{1}", BIG_LEVEL_LABEL[level], label);
   if (failed)
     return (
       <span
@@ -69,7 +70,7 @@ export function BigIcon({
         )}
         style={{ width: size, height: size }}
       >
-        {level === 2 ? "英" : "普"}
+        {level === 2 ? tx("英") : tx("普")}
       </span>
     );
   return (
@@ -106,9 +107,9 @@ export function ExtrasLine({
     >
       <span
         className={cn("truncate", !x.enchant && "text-cinnabar-text/80")}
-        title={x.enchant ? `小附魔 ${x.enchant}` : undefined}
+        title={x.enchant ? tx("小附魔 {0}", x.enchant) : undefined}
       >
-        {x.enchant ?? "未附魔"}
+        {x.enchant ?? tx("未附魔")}
       </span>
       {x.hasStone && (
         <span
@@ -116,10 +117,10 @@ export function ExtrasLine({
             "flex min-w-0 items-center gap-1",
             !x.stone && "text-cinnabar-text/80"
           )}
-          title={x.stone ? `五彩石 ${x.stone.name}` : undefined}
+          title={x.stone ? tx("五彩石 {0}", x.stone.name) : undefined}
         >
           <Gem className="h-3 w-3 shrink-0" aria-hidden="true" />
-          <span className="truncate">{x.stone?.label ?? "未镶五彩石"}</span>
+          <span className="truncate">{x.stone?.label ?? tx("未镶五彩石")}</span>
         </span>
       )}
     </span>

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { DpsPoint } from "@/data/gear";
 import { cn } from "@/lib/utils";
+import { compactNumber, monthDay, tx, colon } from "@/lib/i18n";
 
 const PAD = { l: 46, r: 16, t: 26, b: 24 };
 
 /** 222.9万 */
 export function wan(n: number) {
-  return `${(n / 10000).toFixed(1)}万`;
+  return compactNumber(n);
 }
 
 function shortDate(iso: string) {
@@ -16,7 +17,7 @@ function shortDate(iso: string) {
 
 function longDate(iso: string) {
   const d = new Date(iso);
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
+  return monthDay(d);
 }
 
 /** 估算 10px 文字宽度：中文约 10px，其他约 6px */
@@ -57,7 +58,7 @@ export function DpsChart({ history }: { history: DpsPoint[] }) {
           {p ? p.dps.toLocaleString("en-US") : "—"}
         </p>
         <p className="mt-2 max-w-[260px] text-[12px] leading-relaxed text-paper-3">
-          以后每次换装、技改后都会在这里记一个点
+          {tx("以后每次换装、技改后都会在这里记一个点")}
         </p>
       </div>
     );
@@ -104,7 +105,7 @@ export function DpsChart({ history }: { history: DpsPoint[] }) {
   for (let i = n - 1; i >= 0; i--) {
     const p = history[i];
     if ((p.kind !== "patch" && p.kind !== "gear") || !p.label) continue;
-    const w = textWidth(p.label);
+    const w = textWidth(tx(p.label));
     const half = w / 2;
     const cx = Math.min(
       Math.max(pts[i][0], PAD.l + half),
@@ -115,7 +116,7 @@ export function DpsChart({ history }: { history: DpsPoint[] }) {
       cx,
       cy: p.kind === "patch" ? PAD.t - 12 : pts[i][1] - 12,
       w,
-      text: p.label,
+      text: tx(p.label),
       kind: p.kind,
     };
     if (!overlaps(cand)) placed.push(cand);
@@ -129,7 +130,13 @@ export function DpsChart({ history }: { history: DpsPoint[] }) {
         viewBox={`0 0 ${W} ${H}`}
         className="block"
         role="img"
-        aria-label={`秒伤变化：从 ${longDate(history[0].at)} 的 ${history[0].dps.toLocaleString("en-US")} 到 ${longDate(history[n - 1].at)} 的 ${history[n - 1].dps.toLocaleString("en-US")}`}
+        aria-label={tx(
+          "秒伤变化：从 {0} 的 {1} 到 {2} 的 {3}",
+          longDate(history[0].at),
+          history[0].dps.toLocaleString("en-US"),
+          longDate(history[n - 1].at),
+          history[n - 1].dps.toLocaleString("en-US")
+        )}
       >
         <defs>
           <linearGradient id="dps-area" x1="0" y1="0" x2="0" y2="1">
@@ -197,7 +204,7 @@ export function DpsChart({ history }: { history: DpsPoint[] }) {
               strokeWidth="1.5"
             >
               <title>
-                {`${longDate(p.at)} · ${p.dps.toLocaleString("en-US")}${p.label ? ` · ${p.label}` : ""}${p.detail ? `：${p.detail}` : ""}`}
+                {`${longDate(p.at)} · ${p.dps.toLocaleString("en-US")}${p.label ? ` · ${tx(p.label)}` : ""}${p.detail ? `${colon()}${p.detail}` : ""}`}
               </title>
             </circle>
           );

@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { passes, type GearFilter } from "./gearFilter";
 import { ItemTile, QUALITY_TEXT } from "./ItemTile";
+import { tx } from "@/lib/i18n";
 
 type Sort = "gain" | "ilvl";
 
@@ -140,7 +141,7 @@ export function EquipPicker({
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`${slot.label}：${slot.item.name}，换装备`}
+        aria-label={tx("{0}：{1}，换装备", slot.label, slot.item.name)}
         onClick={() => (open ? close() : show())}
         className="group flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-paper/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cinnabar/60"
       >
@@ -180,7 +181,7 @@ export function EquipPicker({
         onClose={close}
         width={640}
         maxHeight={460}
-        label={`选择${slot.label}`}
+        label={tx("选择{0}", slot.label)}
       >
         <div className="flex shrink-0 items-center gap-2 border-b border-paper/[0.07] px-3 py-2">
           <Search className="h-3.5 w-3.5 text-paper-3" aria-hidden="true" />
@@ -209,19 +210,19 @@ export function EquipPicker({
             aria-activedescendant={
               focused ? `${uid}-${shown.indexOf(focused)}` : undefined
             }
-            aria-label={`搜索${slot.label}`}
-            placeholder="名称、词条、品级或来源"
+            aria-label={tx("搜索{0}", slot.label)}
+            placeholder={tx("名称、词条、品级或来源")}
             className="h-8 min-w-0 flex-1 bg-transparent text-[13px] text-paper placeholder:text-paper-3 focus:outline-none"
           />
           <div
             role="radiogroup"
-            aria-label="排序"
+            aria-label={tx("排序")}
             className="flex shrink-0 rounded-md bg-paper/[0.04] p-0.5 ring-1 ring-inset ring-paper/10"
           >
             {(
               [
-                ["gain", "按收益"],
-                ["ilvl", "按品级"],
+                ["gain", tx("按收益")],
+                ["ilvl", tx("按品级")],
               ] as [Sort, string][]
             ).map(([k, label]) => (
               <button
@@ -248,16 +249,16 @@ export function EquipPicker({
             ref={listRef}
             id={`${uid}-list`}
             role="listbox"
-            aria-label={`${slot.label}可选装备`}
+            aria-label={tx("{0}可选装备", slot.label)}
             className="scroll-thin min-h-0 flex-1 overflow-y-auto py-1"
           >
             {!pool ? (
               <p className="px-4 py-6 text-center text-[12.5px] text-paper-3">
-                正在加载装备库…
+                {tx("正在加载装备库…")}
               </p>
             ) : shown.length === 0 ? (
               <p className="px-4 py-6 text-center text-[12.5px] text-paper-3">
-                没有符合的装备
+                {tx("没有符合的装备")}
               </p>
             ) : (
               shown.map((o, i) => (
@@ -298,7 +299,7 @@ export function EquipPicker({
                       )}
                       {o.current && (
                         <span className="shrink-0 text-[11px] text-paper-3">
-                          当前
+                          {tx("当前")}
                         </span>
                       )}
                     </span>
@@ -316,8 +317,10 @@ export function EquipPicker({
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-paper/[0.07] px-3 py-2 text-[11.5px] text-paper-3">
           <span>
-            {shown.length} 件
-            {hiddenCount > 0 && !showAll && <>，筛选隐藏了 {hiddenCount} 件</>}
+            {shown.length} {tx("件")}
+            {hiddenCount > 0 && !showAll && (
+              <>{tx("，筛选隐藏了 {0} 件", hiddenCount)}</>
+            )}
           </span>
           {hiddenCount > 0 && (
             <button
@@ -325,7 +328,7 @@ export function EquipPicker({
               onClick={() => setShowAll(v => !v)}
               className="text-paper-2 underline decoration-paper/30 underline-offset-2 hover:text-paper"
             >
-              {showAll ? "按筛选显示" : "显示全部"}
+              {showAll ? tx("按筛选显示") : tx("显示全部")}
             </button>
           )}
         </div>
@@ -340,15 +343,18 @@ function Detail({ o }: { o: Option }) {
   const r = maxRefine(d);
   return (
     <aside
-      aria-label="装备详情"
+      aria-label={tx("装备详情")}
       className="scroll-thin hidden w-[210px] shrink-0 overflow-y-auto border-l border-paper/[0.07] px-3.5 py-3 text-[12px] sm:block"
     >
       <p className={cn("text-[13px] font-medium", QUALITY_TEXT[qualityOf(d)])}>
         {d.name}
       </p>
       <p className="mt-0.5 text-paper-3">
-        品级 {d.ilvl}
-        {TYPE_TAG[d.type] && ` · ${TYPE_TAG[d.type]}`}
+        {tx(
+          "品级 {0}{1}",
+          d.ilvl,
+          TYPE_TAG[d.type] && ` · ${TYPE_TAG[d.type]}`
+        )}
       </p>
       <dl className="mt-2.5 space-y-1">
         {d.stats.map(([k, v]) => (
@@ -361,17 +367,19 @@ function Detail({ o }: { o: Option }) {
         ))}
         {d.weaponDmg > 0 && (
           <div className="flex justify-between gap-2">
-            <dt className="text-paper-3">武器伤害</dt>
+            <dt className="text-paper-3">{tx("武器伤害")}</dt>
             <dd className="tabular-nums text-paper-2">
               {d.weaponDmg.toLocaleString("zh-CN")}
             </dd>
           </div>
         )}
       </dl>
-      <p className="mt-1.5 text-[11px] text-paper-3">按精炼 {r} 显示</p>
+      <p className="mt-1.5 text-[11px] text-paper-3">
+        {tx("按精炼 {0} 显示", r)}
+      </p>
       {d.holes.length > 0 && (
         <p className="mt-2.5 text-paper-2">
-          <span className="text-paper-3">镶嵌孔 </span>
+          <span className="text-paper-3">{tx("镶嵌孔")} </span>
           {d.holes.map(attrShort).join(" · ")}
         </p>
       )}

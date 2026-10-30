@@ -1,18 +1,19 @@
 import type { Platform, Role } from "@/data/types";
 import { IS_DESKTOP, writeClipboard } from "@/lib/desktop";
+import { getLang, monthDay, tx } from "@/lib/i18n";
 
 export function relativeTime(iso: string, now = Date.now()): string {
   const t = new Date(iso).getTime();
   const diff = Math.max(0, now - t);
   const min = Math.floor(diff / 60000);
-  if (min < 1) return "刚刚";
-  if (min < 60) return `${min} 分钟前`;
+  if (min < 1) return tx("刚刚");
+  if (min < 60) return min === 1 ? tx("1 分钟前") : tx("{0} 分钟前", min);
   const hour = Math.floor(min / 60);
-  if (hour < 24) return `${hour} 小时前`;
+  if (hour < 24) return hour === 1 ? tx("1 小时前") : tx("{0} 小时前", hour);
   const day = Math.floor(hour / 24);
-  if (day < 7) return `${day} 天前`;
+  if (day < 7) return day === 1 ? tx("1 天前") : tx("{0} 天前", day);
   const d = new Date(t);
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
+  return monthDay(d);
 }
 
 /** 绝对时间，带时区，用于 title 提示 */
@@ -21,32 +22,35 @@ export function absoluteTime(iso: string): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   const offset = -d.getTimezoneOffset() / 60;
   const tz = `UTC${offset >= 0 ? "+" : ""}${offset}`;
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(
-    d.getMinutes()
-  )}（${tz}）`;
+  const text = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
+  return getLang() === "zh" ? `${text}（${tz}）` : `${text} (${tz})`;
 }
 
 export function pasteHint(platform: Platform): string {
   return platform === "mac" ? "⌘V" : "Ctrl+V";
 }
 
+/** 取值时按当前语言翻译 */
 export const ROLE_LABEL: Record<Role, string> = {
-  admin: "管理员",
-  editor: "编辑",
-  viewer: "只读",
+  get admin() {
+    return tx("管理员");
+  },
+  get editor() {
+    return tx("编辑");
+  },
+  get viewer() {
+    return tx("只读");
+  },
 };
 
-export const LAYER_LABEL = [
-  "一",
-  "二",
-  "三",
-  "四",
-  "五",
-  "六",
-  "七",
-  "八",
-  "九",
-];
+const LAYER_ZH = ["一", "二", "三", "四", "五", "六", "七", "八", "九"];
+
+/** 奇穴第几重：中文写「一」到「九」，其他语言写 1 到 9。i 从 0 开始 */
+export function layerLabel(i: number): string {
+  return getLang() === "zh" ? (LAYER_ZH[i] ?? String(i + 1)) : String(i + 1);
+}
 
 export async function copyText(text: string): Promise<boolean> {
   // 桌面版：直接写系统剪贴板，不受网页权限限制

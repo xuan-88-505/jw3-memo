@@ -11,6 +11,7 @@ import { fmt } from "./Dashboard";
 import { ItemTile } from "./ItemTile";
 import { BigIcon, ExtrasLine, extrasDiffer, slotExtras } from "./EnchantBits";
 import { panelRows, panelSame, showPanelValue } from "./panelRows";
+import { tx } from "@/lib/i18n";
 
 type BuffMode = "same" | "own";
 
@@ -40,7 +41,7 @@ function Diff({
   const zero = unit === "pct" ? Math.abs(d) < 0.005 : d === 0;
   if (zero)
     return (
-      <span className="text-paper-3" aria-label="相同">
+      <span className="text-paper-3" aria-label={tx("相同")}>
         —
       </span>
     );
@@ -55,7 +56,7 @@ function Diff({
       )}
     >
       <Icon className="h-3 w-3" aria-hidden="true" />
-      <span className="sr-only">{up ? "高" : "低"}</span>
+      <span className="sr-only">{up ? tx("高") : tx("低")}</span>
       {unit === "pct" ? `${abs.toFixed(2)}%` : fmt(abs)}
       {pct != null && (
         <span className="ml-0.5 font-normal opacity-80">
@@ -138,8 +139,8 @@ export function CompareView({
     return (
       <EmptyState
         icon="swords"
-        title={`${a.xinfa}只有这一套配装`}
-        description="再建一套同心法的配装，就能对比属性"
+        title={tx("{0}只有这一套配装", a.xinfa)}
+        description={tx("再建一套同心法的配装，就能对比属性")}
         action={
           <Btn
             variant="primary"
@@ -147,7 +148,7 @@ export function CompareView({
             disabled={state.dataState === "offline"}
             onClick={onCreate}
           >
-            新建{a.xinfa}配装
+            {tx("新建{0}配装", a.xinfa)}
           </Btn>
         }
       />
@@ -198,26 +199,26 @@ export function CompareView({
         <div className="flex justify-end px-3">
           <Segmented
             size="xs"
-            label="增益"
+            label={tx("增益")}
             value={mode}
             onChange={setMode}
             options={[
               {
                 value: "same",
-                label: "同样增益",
-                title: "B 也按 A 的增益算秒伤，比较更公平",
+                label: tx("同样增益"),
+                title: tx("B 也按 A 的增益算秒伤，比较更公平"),
               },
               {
                 value: "own",
-                label: "各自增益",
-                title: "各自按自己选的增益算秒伤",
+                label: tx("各自增益"),
+                title: tx("各自按自己选的增益算秒伤"),
               },
             ]}
           />
         </div>
         <table className="w-full table-fixed text-[13px]">
           <caption className="sr-only">
-            {a.name} 和 {b.name} 的属性对比，差值是 B 减 A
+            {tx("{0} 和 {1} 的属性对比，差值是 B 减 A", a.name, b.name)}
           </caption>
           <colgroup>
             <col className="w-[72px]" />
@@ -228,9 +229,9 @@ export function CompareView({
           <thead>
             <tr className="border-b border-paper/[0.07] align-top">
               <th scope="col" className="px-3 pb-3 pt-2 text-left">
-                <span className="sr-only">属性</span>
+                <span className="sr-only">{tx("属性")}</span>
                 <IconBtn
-                  label="交换 A 和 B"
+                  label={tx("交换 A 和 B")}
                   onClick={() => onSwap(b.id)}
                   className="-ml-1.5"
                 >
@@ -248,7 +249,7 @@ export function CompareView({
                   </span>
                 </div>
                 <p className="mt-1 truncate text-[11.5px] text-paper-3">
-                  {charName(a) ?? "未关联角色"} · {buffLabel(a.buffs)}
+                  {charName(a) ?? tx("未关联角色")} · {buffLabel(a.buffs)}
                 </p>
               </th>
               <th scope="col" className="px-3 pb-3 pt-2 text-right font-normal">
@@ -258,7 +259,7 @@ export function CompareView({
                   </span>
                   <XinfaMark xinfa={b.xinfa} size={18} />
                   <SelectBox
-                    aria-label="选择 B"
+                    aria-label={tx("选择 B")}
                     value={b.id}
                     onChange={e => onPickB(e.target.value)}
                     wrapClassName="min-w-[84px] max-w-full"
@@ -272,14 +273,14 @@ export function CompareView({
                   </SelectBox>
                 </div>
                 <p className="mt-1 truncate text-[11.5px] text-paper-3">
-                  {charName(b) ?? "未关联角色"} ·{" "}
-                  {mode === "same" ? `按 A 的增益` : buffLabel(b.buffs)}
+                  {charName(b) ?? tx("未关联角色")} ·{" "}
+                  {mode === "same" ? tx("按 A 的增益") : buffLabel(b.buffs)}
                   <button
                     type="button"
                     onClick={() => onOpen(b.id)}
                     className="ml-2 text-paper-2 underline decoration-paper/30 underline-offset-2 hover:text-paper"
                   >
-                    查看
+                    {tx("查看")}
                   </button>
                 </p>
               </th>
@@ -297,7 +298,7 @@ export function CompareView({
                 scope="row"
                 className="px-3 py-3.5 text-left font-normal text-paper-2"
               >
-                秒伤
+                {tx("秒伤")}
               </th>
               <td
                 className={cn(
@@ -364,14 +365,14 @@ export function CompareView({
       </div>
 
       <section
-        aria-label="装备差异"
+        aria-label={tx("装备差异")}
         className="border-t border-paper/[0.07] pt-6"
       >
         <div className="flex items-center justify-between pb-2">
           <h3 className="text-[14px] font-medium text-paper">
             {changed.length
-              ? `${changed.length} 个部位不同`
-              : "装备和附魔完全相同"}
+              ? tx("{0} 个部位不同", changed.length)
+              : tx("装备和附魔完全相同")}
           </h3>
           {changed.length > 0 && changed.length < slotPairs.length && (
             <button
@@ -380,7 +381,9 @@ export function CompareView({
               aria-expanded={showAll}
               className="text-[12px] text-paper-3 hover:text-paper"
             >
-              {showAll ? "只看不同" : `显示全部 ${slotPairs.length} 个部位`}
+              {showAll
+                ? tx("只看不同")
+                : tx("显示全部 {0} 个部位", slotPairs.length)}
             </button>
           )}
         </div>
@@ -411,7 +414,7 @@ export function CompareView({
       </section>
 
       <p className="text-[11.5px] text-paper-3">
-        面板属性不含增益；秒伤是木桩估算值
+        {tx("面板属性不含增益；秒伤是木桩估算值")}
       </p>
     </div>
   );

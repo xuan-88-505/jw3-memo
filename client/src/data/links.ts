@@ -4,6 +4,7 @@
  * 在亲友团里默认全团可见，可改成仅自己；没加入亲友团时只有自己看到。
  */
 import type { NoteImage } from "@/lib/image";
+import { tx } from "@/lib/i18n";
 
 export type LinkVisibility = "team" | "private";
 
@@ -123,7 +124,13 @@ export function imageTitle(file: File, at = new Date()): string {
   const base = file.name.replace(/\.[a-z0-9]+$/i, "").trim();
   if (base && !/^image$/i.test(base)) return base.slice(0, 40);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `截图 ${at.getMonth() + 1}月${at.getDate()}日 ${pad(at.getHours())}:${pad(at.getMinutes())}`;
+  return tx(
+    "截图 {0}月{1}日 {2}:{3}",
+    at.getMonth() + 1,
+    at.getDate(),
+    pad(at.getHours()),
+    pad(at.getMinutes())
+  );
 }
 
 /** 站点图标：直接取该站的 /favicon.ico，不经过第三方服务 */

@@ -22,6 +22,7 @@ import {
 } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { ChangeList } from "./PanelContent";
+import { tx } from "@/lib/i18n";
 
 /** 面板的二级页：列出所有"有更新"的方案 */
 export function Inbox({
@@ -41,7 +42,7 @@ export function Inbox({
 
   const markAll = () => {
     const n = actions.markAllSynced();
-    if (n) actions.toast("panel", "success", `${n} 条都已是最新`);
+    if (n) actions.toast("panel", "success", tx("{0} 条都已是最新", n));
   };
 
   return (
@@ -54,11 +55,11 @@ export function Inbox({
         )}
       >
         <span onPointerDown={e => e.stopPropagation()}>
-          <IconBtn label="返回" onClick={onBack}>
+          <IconBtn label={tx("返回")} onClick={onBack}>
             <ArrowLeft className="h-4 w-4" />
           </IconBtn>
         </span>
-        <h2 className="text-[14px] font-medium text-paper">通知</h2>
+        <h2 className="text-[14px] font-medium text-paper">{tx("通知")}</h2>
         {items.length > 1 && (
           <span className="ml-auto" onPointerDown={e => e.stopPropagation()}>
             <Btn
@@ -66,9 +67,11 @@ export function Inbox({
               size="xs"
               onClick={markAll}
               disabled={!online}
-              title={online ? "在游戏里都改好后点这里" : "离线时不能操作"}
+              title={
+                online ? tx("在游戏里都改好后点这里") : tx("离线时不能操作")
+              }
             >
-              全部改好了
+              {tx("全部改好了")}
             </Btn>
           </span>
         )}
@@ -78,7 +81,7 @@ export function Inbox({
         {items.length === 0 ? (
           <div className="empty-state flex h-full flex-col items-center justify-center gap-3 pb-6 text-paper-3">
             <PixelIcon name="bell" className="pixel-hop" />
-            <p className="text-[13px]">没有新通知</p>
+            <p className="text-[13px]">{tx("没有新通知")}</p>
           </div>
         ) : (
           <ul className="divide-y divide-paper/[0.07]">
@@ -118,7 +121,11 @@ function InboxRow({
   const onMark = () => {
     const r = actions.markSynced(char.id, mode, xinfa);
     if (r)
-      actions.toast("panel", "success", `${r.name} ${xinfa} ${mode} 已是最新`);
+      actions.toast(
+        "panel",
+        "success",
+        tx("{0} {1} {2} 已是最新", r.name, xinfa, mode)
+      );
   };
 
   return (
@@ -130,7 +137,7 @@ function InboxRow({
             type="button"
             onClick={onOpen}
             className="group flex max-w-full items-center gap-1 text-left"
-            aria-label={`切到 ${char.name} ${xinfa} ${mode}`}
+            aria-label={tx("切到 {0} {1} {2}", char.name, xinfa, mode)}
           >
             <span className="truncate text-[13.5px] font-medium text-paper group-hover:underline group-hover:underline-offset-2">
               {char.name}
@@ -149,7 +156,7 @@ function InboxRow({
           >
             {base
               ? `v${base.version} → v${last.version}`
-              : `首次使用 v${last.version}`}
+              : tx("首次使用 v{0}", last.version)}
             {" · "}
             {!isSolo(state) && `${memberName(state, last.authorId)} · `}
             {relativeTime(last.at)}
@@ -161,9 +168,9 @@ function InboxRow({
           onClick={onMark}
           disabled={!online}
           icon={<Check className="h-3.5 w-3.5" />}
-          title={online ? "在游戏里改好后点这里" : "离线时不能操作"}
+          title={online ? tx("在游戏里改好后点这里") : tx("离线时不能操作")}
         >
-          我改好了
+          {tx("我改好了")}
         </Btn>
       </div>
 
@@ -193,7 +200,7 @@ function InboxRow({
               aria-expanded={open}
               className="mt-1.5 inline-flex items-center gap-1 text-[12px] text-paper-3 hover:text-paper"
             >
-              {open ? "收起" : `${diff.total} 处变化`}
+              {open ? tx("收起") : tx("{0} 处变化", diff.total)}
               <ChevronDown
                 className={cn(
                   "h-3.5 w-3.5 transition-transform",

@@ -4,6 +4,7 @@ import {
   AddCharacterFields,
   useAddCharacterForm,
 } from "@/components/manager/AddCharacterForm";
+import { tx } from "@/lib/i18n";
 
 /**
  * 面板里原地添加角色，不打开管理窗口。
@@ -33,7 +34,7 @@ export function PanelAddCharacter({ onCancel }: { onCancel: () => void }) {
         id="panel-add-title"
         className="mb-4 text-[14px] font-medium text-paper"
       >
-        添加角色
+        {tx("添加角色")}
       </h2>
       <AddCharacterFields
         form={form}
@@ -43,7 +44,7 @@ export function PanelAddCharacter({ onCancel }: { onCancel: () => void }) {
       />
       <div className="mt-6 flex justify-end gap-2">
         <Btn variant="ghost" size="md" onClick={onCancel}>
-          取消
+          {tx("取消")}
         </Btn>
         <Btn
           variant="primary"
@@ -51,7 +52,7 @@ export function PanelAddCharacter({ onCancel }: { onCancel: () => void }) {
           onClick={() => form.submit()}
           disabled={!form.canSubmit}
         >
-          添加
+          {tx("添加")}
         </Btn>
       </div>
     </div>

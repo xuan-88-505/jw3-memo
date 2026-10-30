@@ -9,6 +9,7 @@ import type { Character, CharacterAvatar } from "@/data/types";
 import { AVATAR_MAX_MB, AVATAR_TYPES, fileToAvatar } from "@/lib/image";
 import { isOnline, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
+import { tx } from "@/lib/i18n";
 
 const DEFAULT_AVATAR: CharacterAvatar = { kind: "preset", mood: "大笑" };
 
@@ -65,8 +66,11 @@ export function EditableAvatar({
       <button
         type="button"
         disabled={busy}
-        aria-label="上传图片作为头像"
-        title={`上传图片作为头像（PNG、JPG、WebP，最大 ${AVATAR_MAX_MB} MB）`}
+        aria-label={tx("上传图片作为头像")}
+        title={tx(
+          "上传图片作为头像（PNG、JPG、WebP，最大 {0} MB）",
+          AVATAR_MAX_MB
+        )}
         onClick={() => inputRef.current?.click()}
         onDragOver={e => {
           e.preventDefault();
@@ -149,7 +153,7 @@ export function AvatarChoices({
   const [hovered, setHovered] = useState<HuangjiMood | null>(null);
   return (
     <>
-      <p className="mb-2 mt-5 text-[12px] text-paper-3">黄鸡表情</p>
+      <p className="mb-2 mt-5 text-[12px] text-paper-3">{tx("黄鸡表情")}</p>
       <div
         className="grid grid-cols-6 gap-1.5"
         onMouseLeave={() => setHovered(null)}
@@ -161,7 +165,7 @@ export function AvatarChoices({
               key={m.key}
               type="button"
               aria-pressed={selected}
-              aria-label={m.key}
+              aria-label={tx(m.key)}
               onMouseEnter={() => setHovered(m.key)}
               onFocus={() => setHovered(m.key)}
               onClick={() => onChange({ kind: "preset", mood: m.key })}
@@ -177,7 +181,7 @@ export function AvatarChoices({
                 36,
                 selected || hovered === m.key
               )}
-              {m.key}
+              {tx(m.key)}
             </button>
           );
         })}
@@ -213,7 +217,11 @@ export function AvatarPicker({
   const changed = !sameAvatar(choice, character.avatar);
   const save = () => {
     actions.setCharacterAvatar(character.id, choice);
-    actions.toast("manager", "success", `已更换「${character.name}」的头像`);
+    actions.toast(
+      "manager",
+      "success",
+      tx("已更换「{0}」的头像", character.name)
+    );
     onClose();
   };
 
@@ -221,18 +229,18 @@ export function AvatarPicker({
     <InlineModal
       open
       onClose={onClose}
-      title="更换头像"
+      title={tx("更换头像")}
       width={460}
       bodyMaxHeight={520}
       footer={
         <>
           {!online && (
             <span className="mr-auto text-[12px] text-gold">
-              离线时不能保存
+              {tx("离线时不能保存")}
             </span>
           )}
           <Btn variant="ghost" size="md" onClick={onClose}>
-            取消
+            {tx("取消")}
           </Btn>
           <Btn
             variant="primary"
@@ -240,7 +248,7 @@ export function AvatarPicker({
             onClick={save}
             disabled={!changed || busy || !online}
           >
-            保存
+            {tx("保存")}
           </Btn>
         </>
       }

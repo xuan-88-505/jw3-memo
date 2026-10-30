@@ -26,6 +26,7 @@ import {
 } from "./equip";
 import { gearIconId } from "./gearIcons";
 import { SEED_EQUIP_ROWS, SEED_ZIXIA, SEED_ZIXIA_ALT } from "./seedEquip";
+import { tx } from "@/lib/i18n";
 /**
  * 配装与木桩（原型）。
  *
@@ -948,11 +949,20 @@ export function parseImport(raw: string): ParsedImport {
   };
 }
 
+/** 取值时按当前语言翻译 */
 export const IMPORT_KIND_LABEL: Record<ImportKind, string> = {
-  mycode: "茗伊插件装备码",
-  link: "魔盒配装链接",
-  id: "魔盒方案 ID",
-  json: "数据版 JSON",
+  get mycode() {
+    return tx("茗伊插件装备码");
+  },
+  get link() {
+    return tx("魔盒配装链接");
+  },
+  get id() {
+    return tx("魔盒方案 ID");
+  },
+  get json() {
+    return tx("数据版 JSON");
+  },
 };
 
 export const IMPORT_SOURCE: Record<ImportKind, LoadoutSource> = {
@@ -963,10 +973,18 @@ export const IMPORT_SOURCE: Record<ImportKind, LoadoutSource> = {
 };
 
 export const SOURCE_LABEL: Record<LoadoutSource, string> = {
-  myplugin: "茗伊装备码",
-  jx3box: "魔盒",
-  json: "数据版 JSON",
-  manual: "手动",
+  get myplugin() {
+    return tx("茗伊装备码");
+  },
+  get jx3box() {
+    return tx("魔盒");
+  },
+  get json() {
+    return tx("数据版 JSON");
+  },
+  get manual() {
+    return tx("手动");
+  },
 };
 
 /** 示例装备码：装备 ID 取自魔盒导入文档的样例，只用来演示格式 */

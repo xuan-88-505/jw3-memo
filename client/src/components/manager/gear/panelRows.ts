@@ -1,4 +1,5 @@
 import { hasteOf, panelPct, primaryAttr, type PanelStats } from "@/data/gear";
+import { tx } from "@/lib/i18n";
 
 export type PanelUnit = "pct" | "int";
 
@@ -68,8 +69,8 @@ export function panelRows(
       value: p.attack,
       unit: "int",
       core: true,
-      sub: `基础 ${n(p.baseAttack)}`,
-      title: `基础攻击 ${n(p.baseAttack)}，面板攻击 ${n(p.attack)}`,
+      sub: tx("基础 {0}", n(p.baseAttack)),
+      title: tx("基础攻击 {0}，面板攻击 {1}", n(p.baseAttack), n(p.attack)),
     },
     pctRow("crit", "会心", "会心", panelPct.crit(p), p.critLv),
     pctRow("critDmg", "会效", "会心效果", panelPct.critDmg(p), p.critDmgLv),

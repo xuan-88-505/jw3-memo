@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { XinfaMark } from "@/components/brand/Marks";
 import { cn } from "@/lib/utils";
+import { tx } from "@/lib/i18n";
 
 /**
  * 筛选胶囊：点名字筛选；可带数量、心法标识和「×」移除。
@@ -63,8 +64,8 @@ export function FilterChip({
         <button
           type="button"
           onClick={onRemove}
-          aria-label={removeLabel ?? `移除${label}`}
-          title={removeLabel ?? "移除"}
+          aria-label={removeLabel ?? tx("移除{0}", label)}
+          title={removeLabel ?? tx("移除")}
           className="mr-1.5 inline-grid h-5 w-5 place-items-center rounded-full text-paper-3 transition-colors hover:bg-paper/10 hover:text-paper"
         >
           <X className="h-3 w-3" />

@@ -5,6 +5,7 @@ import { SEED_TEAM } from "@/data/seed";
 import { isOnline, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { SectionHeader, inputCls } from "./shared";
+import { tx } from "@/lib/i18n";
 
 const NAME_MAX = 12;
 
@@ -21,24 +22,24 @@ export function TeamSetup() {
 
   const create = () => {
     const n = name.trim();
-    if (!n) return setNameError("先填名字");
-    if (n.length > NAME_MAX) return setNameError(`最多 ${NAME_MAX} 个字`);
+    if (!n) return setNameError(tx("先填名字"));
+    if (n.length > NAME_MAX) return setNameError(tx("最多 {0} 个字", NAME_MAX));
     actions.createTeam(n);
-    actions.toast("manager", "success", `已创建「${n}」`);
+    actions.toast("manager", "success", tx("已创建「{0}」", n));
   };
   const join = () => {
-    if (!code.trim()) return setCodeError("先输入邀请码");
-    if (!actions.joinTeam(code)) return setCodeError("邀请码无效或已过期");
-    actions.toast("manager", "success", `已加入「${SEED_TEAM.name}」`);
+    if (!code.trim()) return setCodeError(tx("先输入邀请码"));
+    if (!actions.joinTeam(code)) return setCodeError(tx("邀请码无效或已过期"));
+    actions.toast("manager", "success", tx("已加入「{0}」", SEED_TEAM.name));
   };
 
   return (
     <div>
-      <SectionHeader title="亲友团" />
+      <SectionHeader title={tx("亲友团")} />
       <div className="grid max-w-[760px] grid-cols-1 divide-y divide-paper/[0.07] min-[880px]:grid-cols-2 min-[880px]:divide-x min-[880px]:divide-y-0">
         <Card
           icon={<Plus className="h-4 w-4" aria-hidden="true" />}
-          title="创建亲友团"
+          title={tx("创建亲友团")}
           htmlFor={nameId}
         >
           <div className="flex gap-2">
@@ -50,7 +51,7 @@ export function TeamSetup() {
                 setNameError("");
               }}
               onKeyDown={e => e.key === "Enter" && create()}
-              placeholder="亲友团名字"
+              placeholder={tx("亲友团名字")}
               maxLength={20}
               disabled={!online}
               aria-invalid={!!nameError}
@@ -63,7 +64,7 @@ export function TeamSetup() {
               onClick={create}
               disabled={!online}
             >
-              创建
+              {tx("创建")}
             </Btn>
           </div>
           <p
@@ -73,12 +74,12 @@ export function TeamSetup() {
               nameError ? "text-cinnabar-text" : "text-paper-3"
             )}
           >
-            {nameError || "你的角色和方案会一起带进去"}
+            {nameError || tx("你的角色和方案会一起带进去")}
           </p>
         </Card>
         <Card
           icon={<LogIn className="h-4 w-4" aria-hidden="true" />}
-          title="用邀请码加入"
+          title={tx("用邀请码加入")}
           htmlFor={codeId}
         >
           <div className="flex gap-2">
@@ -105,7 +106,7 @@ export function TeamSetup() {
               onClick={join}
               disabled={!online}
             >
-              加入
+              {tx("加入")}
             </Btn>
           </div>
           <p
@@ -117,7 +118,7 @@ export function TeamSetup() {
           >
             {codeError || (
               <>
-                演示码{" "}
+                {tx("演示码{0}", " ")}
                 <button
                   type="button"
                   className="font-mono text-paper-2 underline decoration-paper/30 underline-offset-2 hover:text-paper"

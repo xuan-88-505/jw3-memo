@@ -9,10 +9,12 @@ import {
   resetPanelPosition,
   setPinned,
   setTrayBadge,
+  setUiTexts,
   startDragging,
   togglePanel,
   unregisterHotkeys,
 } from "@/lib/desktop";
+import { tx, useLang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { myCharacters, pendingCount, useProto } from "@/state/store";
 
@@ -50,9 +52,21 @@ export default function DesktopPanel() {
 
   // 托盘提示里的更新数
   const pending = pendingCount(state);
+  const lang = useLang();
   useEffect(() => {
-    void setTrayBadge(pending);
-  }, [pending]);
+    void setTrayBadge(
+      pending,
+      pending > 0 ? tx("备忘录 · {0} 条更新", pending) : tx("备忘录")
+    );
+  }, [pending, lang]);
+  // 托盘菜单和窗口标题跟着界面语言
+  useEffect(() => {
+    void setUiTexts({
+      title: tx("备忘录"),
+      open: tx("打开备忘录"),
+      quit: tx("退出"),
+    });
+  }, [lang]);
 
   // Esc 收起（置顶时不收）；1–9 切换角色
   useEffect(() => {
@@ -99,7 +113,9 @@ export default function DesktopPanel() {
         mac ? "bg-transparent" : "bg-ink"
       )}
     >
+      {/* 换语言时只重新挂载面板界面；快捷键和事件监听留在外层，不重新注册 */}
       <TrayPanel
+        key={lang}
         className={cn(
           "desktop-solid shadow-none",
           // Windows 11 的无边框窗口由系统画圆角和阴影

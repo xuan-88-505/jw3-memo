@@ -20,6 +20,7 @@ import { canEdit, isOnline, memberName, useProto, isSolo } from "@/state/store";
 import { EmptyState, Field, inputCls, SelectBox } from "../shared";
 import { NoteComposer, NoteThumbs, useNoteImages } from "./NoteImages";
 import { RoleLookup, RoleName } from "./RoleLookup";
+import { intlLocale, monthDay, tx } from "@/lib/i18n";
 
 // 一周没几条记录，只按月或全部看
 type Period = "month" | "all";
@@ -36,8 +37,13 @@ function fmtWhen(iso: string) {
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   return {
-    day: `${d.getMonth() + 1}月${d.getDate()}日`,
-    time: `周${WEEK[d.getDay()]} ${hh}:${mm}`,
+    day: monthDay(d),
+    // 中文写「周三」，其他语言用系统的星期简称
+    time: `${
+      intlLocale() === "zh-CN"
+        ? `周${WEEK[d.getDay()]}`
+        : new Intl.DateTimeFormat(intlLocale(), { weekday: "short" }).format(d)
+    } ${hh}:${mm}`,
   };
 }
 
@@ -78,9 +84,9 @@ export function RaidLogTab({
     );
   const writable = canEdit(state) && isOnline(state);
   const lockReason = !canEdit(state)
-    ? "只读成员不能修改"
+    ? tx("只读成员不能修改")
     : !isOnline(state)
-      ? "离线时不能修改"
+      ? tx("离线时不能修改")
       : undefined;
 
   const mine = state.characters.filter(c => c.ownerId === ME_ID);
@@ -116,23 +122,23 @@ export function RaidLogTab({
     <div className="flex flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-2 pb-3">
         <Segmented<Period>
-          label="时间范围"
+          label={tx("时间范围")}
           value={period}
           onChange={setPeriod}
           options={[
-            { value: "month", label: "本月" },
-            { value: "all", label: "全部" },
+            { value: "month", label: tx("本月") },
+            { value: "all", label: tx("全部") },
           ]}
         />
         <SelectBox
-          aria-label="角色"
+          aria-label={tx("角色")}
           value={charFilter}
           onChange={e => setCharFilter(e.target.value)}
           className={cn(inputCls(), "h-8 w-auto text-[12.5px]")}
         >
-          <option value="all">全部角色</option>
-          <option value="mine">我的角色</option>
-          <optgroup label="我的">
+          <option value="all">{tx("全部角色")}</option>
+          <option value="mine">{tx("我的角色")}</option>
+          <optgroup label={tx("我的")}>
             {mine.map(c => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -140,7 +146,7 @@ export function RaidLogTab({
             ))}
           </optgroup>
           {others.length > 0 && (
-            <optgroup label="亲友">
+            <optgroup label={tx("亲友")}>
               {others.map(c => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -150,18 +156,22 @@ export function RaidLogTab({
           )}
         </SelectBox>
         <p className="ml-auto text-[12.5px] text-paper-3">
-          {rows.length} 次 · 合计{" "}
+          {tx("{0} 次 · 合计{1}", rows.length, " ")}
           <span className="font-medium tabular-nums text-paper">
             {nf.format(total)}
-          </span>{" "}
-          金
+          </span>
+          {tx("{0}金", " ")}
         </p>
       </div>
 
       {rows.length === 0 ? (
         <EmptyState
           icon="chest"
-          title={state.raidLogs.length ? "这段时间没有记录" : "还没有打本记录"}
+          title={
+            state.raidLogs.length
+              ? tx("这段时间没有记录")
+              : tx("还没有打本记录")
+          }
           action={
             <Btn
               variant="primary"
@@ -171,7 +181,7 @@ export function RaidLogTab({
               title={lockReason}
               onClick={() => onEdit("new")}
             >
-              记一笔
+              {tx("记一笔")}
             </Btn>
           }
         />
@@ -190,25 +200,25 @@ export function RaidLogTab({
             <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
               <tr>
                 <SortTh
-                  label="时间"
+                  label={tx("时间")}
                   sortKey="at"
                   sort={sort}
                   onSort={onSort}
                   className="px-3"
                 />
-                <th className="px-3 py-2.5 font-normal">副本</th>
-                <th className="px-3 py-2.5 font-normal">团牌</th>
-                <th className="px-3 py-2.5 font-normal">团长</th>
-                <th className="px-3 py-2.5 font-normal">角色</th>
+                <th className="px-3 py-2.5 font-normal">{tx("副本")}</th>
+                <th className="px-3 py-2.5 font-normal">{tx("团牌")}</th>
+                <th className="px-3 py-2.5 font-normal">{tx("团长")}</th>
+                <th className="px-3 py-2.5 font-normal">{tx("角色")}</th>
                 <SortTh
-                  label="工资"
+                  label={tx("工资")}
                   sortKey="wage"
                   sort={sort}
                   onSort={onSort}
                   className="px-3"
                   alignRight
                 />
-                <th className="px-3 py-2.5 font-normal">备注</th>
+                <th className="px-3 py-2.5 font-normal">{tx("备注")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-paper/[0.07]">
@@ -230,11 +240,11 @@ export function RaidLogTab({
                     title={
                       isSolo(state)
                         ? writable
-                          ? "点击修改"
+                          ? tx("点击修改")
                           : undefined
                         : writable
-                          ? `${memberName(state, r.by)} 记录，点击修改`
-                          : `${memberName(state, r.by)} 记录`
+                          ? tx("{0} 记录，点击修改", memberName(state, r.by))
+                          : tx("{0} 记录", memberName(state, r.by))
                     }
                   >
                     <td className="px-3 py-2.5">
@@ -246,7 +256,7 @@ export function RaidLogTab({
                           onEdit(r.id);
                         }}
                         className="text-left disabled:cursor-default"
-                        aria-label={`修改 ${w.day} ${r.dungeon} 的记录`}
+                        aria-label={tx("修改 {0} {1} 的记录", w.day, r.dungeon)}
                       >
                         <span className="block text-paper">{w.day}</span>
                         <span className="block text-[12px] tabular-nums text-paper-3">
@@ -275,7 +285,9 @@ export function RaidLogTab({
                           <span className="truncate">{char.name}</span>
                         </span>
                       ) : (
-                        <span className="text-paper-3">已删除的角色</span>
+                        <span className="text-paper-3">
+                          {tx("已删除的角色")}
+                        </span>
                       )}
                     </td>
                     <td
@@ -378,14 +390,14 @@ function RaidLogDialog({
   );
   const wageNum = Number(wage);
   const errors = {
-    at: !at || Number.isNaN(new Date(at).getTime()) ? "选一下时间" : "",
-    charId: !charId ? "选一下角色" : "",
-    dungeon: isOther && !dungeon.trim() ? "填一下副本名称" : "",
+    at: !at || Number.isNaN(new Date(at).getTime()) ? tx("选一下时间") : "",
+    charId: !charId ? tx("选一下角色") : "",
+    dungeon: isOther && !dungeon.trim() ? tx("填一下副本名称") : "",
     wage:
       wage.trim() === "" || !Number.isInteger(wageNum) || wageNum < 0
-        ? "工资填 0 或正整数"
+        ? tx("工资填 0 或正整数")
         : wageNum > WAGE_MAX
-          ? "工资不能超过 1000 万金"
+          ? tx("工资不能超过 1000 万金")
           : "",
   };
   const hasError = Object.values(errors).some(Boolean);
@@ -415,7 +427,7 @@ function RaidLogDialog({
     <InlineModal
       open={open}
       onClose={onClose}
-      title={log ? "修改记录" : "记一笔"}
+      title={log ? tx("修改记录") : tx("记一笔")}
       width={540}
       bodyMaxHeight={520}
       footer={
@@ -430,7 +442,7 @@ function RaidLogDialog({
                   onClose();
                 }}
               >
-                确定删除
+                {tx("确定删除")}
               </Btn>
             ) : (
               <Btn
@@ -439,21 +451,21 @@ function RaidLogDialog({
                 icon={<Trash2 className="h-3.5 w-3.5" />}
                 onClick={() => setConfirmDelete(true)}
               >
-                删除
+                {tx("删除")}
               </Btn>
             ))}
           <span className="flex-1" />
           <Btn variant="ghost" size="md" onClick={onClose}>
-            取消
+            {tx("取消")}
           </Btn>
           <Btn
             variant="primary"
             size="md"
             disabled={notes.pending > 0}
-            title={notes.pending > 0 ? "图片还在处理" : undefined}
+            title={notes.pending > 0 ? tx("图片还在处理") : undefined}
             onClick={save}
           >
-            保存
+            {tx("保存")}
           </Btn>
         </div>
       }
@@ -466,7 +478,7 @@ function RaidLogDialog({
           save();
         }}
       >
-        <Field label="时间" htmlFor="rl-at" error={show("at")}>
+        <Field label={tx("时间")} htmlFor="rl-at" error={show("at")}>
           <input
             id="rl-at"
             type="datetime-local"
@@ -475,7 +487,7 @@ function RaidLogDialog({
             className={cn(inputCls(!!show("at")), "[color-scheme:dark]")}
           />
         </Field>
-        <Field label="角色" htmlFor="rl-char" error={show("charId")}>
+        <Field label={tx("角色")} htmlFor="rl-char" error={show("charId")}>
           <SelectBox
             id="rl-char"
             value={charId}
@@ -484,10 +496,10 @@ function RaidLogDialog({
             className={inputCls(!!show("charId"))}
           >
             {mine.length === 0 && others.length === 0 && (
-              <option value="">先去「我的角色」添加角色</option>
+              <option value="">{tx("先去「我的角色」添加角色")}</option>
             )}
             {mine.length > 0 && (
-              <optgroup label="我的">
+              <optgroup label={tx("我的")}>
                 {mine.map(c => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -496,7 +508,7 @@ function RaidLogDialog({
               </optgroup>
             )}
             {others.length > 0 && (
-              <optgroup label="亲友">
+              <optgroup label={tx("亲友")}>
                 {others.map(c => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -507,7 +519,7 @@ function RaidLogDialog({
           </SelectBox>
         </Field>
         <div className="col-span-2">
-          <Field label="副本" htmlFor="rl-raid">
+          <Field label={tx("副本")} htmlFor="rl-raid">
             <SelectBox
               id="rl-raid"
               value={raid}
@@ -515,21 +527,21 @@ function RaidLogDialog({
               wrapClassName="w-full"
               className={inputCls()}
             >
-              <optgroup label={`本赛季 · ${SEASON_NAME}`}>
+              <optgroup label={tx("本赛季 · {0}", SEASON_NAME)}>
                 {SEASON_RAIDS.map((r, i) => (
                   <option key={i} value={String(i)} disabled={r.upcoming}>
                     {seasonRaidLabel(r)}
                   </option>
                 ))}
               </optgroup>
-              <option value="other">其他副本…</option>
+              <option value="other">{tx("其他副本…")}</option>
             </SelectBox>
           </Field>
         </div>
         {isOther && (
           <>
             <Field
-              label="副本名称"
+              label={tx("副本名称")}
               htmlFor="rl-dungeon"
               error={show("dungeon")}
             >
@@ -548,7 +560,7 @@ function RaidLogDialog({
                 ))}
               </datalist>
             </Field>
-            <Field label="难度" htmlFor="rl-diff">
+            <Field label={tx("难度")} htmlFor="rl-diff">
               <SelectBox
                 id="rl-diff"
                 value={difficulty}
@@ -563,7 +575,7 @@ function RaidLogDialog({
             </Field>
           </>
         )}
-        <Field label="团牌" htmlFor="rl-tuanpai">
+        <Field label={tx("团牌")} htmlFor="rl-tuanpai">
           <input
             id="rl-tuanpai"
             value={tuanpai}
@@ -572,7 +584,7 @@ function RaidLogDialog({
             className={inputCls()}
           />
         </Field>
-        <Field label="工资" htmlFor="rl-wage" error={show("wage")}>
+        <Field label={tx("工资")} htmlFor="rl-wage" error={show("wage")}>
           <div className="relative">
             <input
               id="rl-wage"
@@ -582,12 +594,12 @@ function RaidLogDialog({
               className={cn(inputCls(!!show("wage")), "pr-9 tabular-nums")}
             />
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12.5px] text-paper-3">
-              金
+              {tx("金")}
             </span>
           </div>
         </Field>
         <div className="col-span-2">
-          <Field label="团长" htmlFor="rl-leader">
+          <Field label={tx("团长")} htmlFor="rl-leader">
             <RoleLookup
               id="rl-leader"
               defaultServer={
@@ -601,7 +613,7 @@ function RaidLogDialog({
           </Field>
         </div>
         <div className="col-span-2">
-          <Field label="备注" htmlFor="rl-note">
+          <Field label={tx("备注")} htmlFor="rl-note">
             <NoteComposer
               id="rl-note"
               value={note}
@@ -654,7 +666,7 @@ function SortTh({
       <button
         type="button"
         onClick={() => onSort(sortKey)}
-        title={`按${label}排序`}
+        title={tx("按{0}排序", label)}
         className={cn(
           "group/sort -mx-1 inline-flex items-center gap-1 rounded px-1 py-1 transition-colors hover:text-paper",
           alignRight && "flex-row-reverse",

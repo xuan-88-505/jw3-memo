@@ -26,6 +26,7 @@ import { SchemesView } from "./SchemesView";
 import { SettingsView } from "./SettingsView";
 import { SortableNav, type NavItem } from "./SortableNav";
 import { TeamView } from "./TeamView";
+import { tx } from "@/lib/i18n";
 
 /** 侧栏各项；显示顺序由用户排，见 navOrder */
 const NAV_BY_KEY: Record<NavSection, NavItem> = {
@@ -68,10 +69,10 @@ export function ManagerApp() {
 
   const status =
     state.dataState === "offline"
-      ? { label: "离线", text: "text-gold", dot: "bg-gold" }
+      ? { label: tx("离线"), text: "text-gold", dot: "bg-gold" }
       : state.dataState === "loading"
-        ? { label: "同步中", text: "text-paper-3", dot: "bg-paper-3" }
-        : { label: "在线", text: "text-jade", dot: "bg-jade" };
+        ? { label: tx("同步中"), text: "text-paper-3", dot: "bg-paper-3" }
+        : { label: tx("在线"), text: "text-jade", dot: "bg-jade" };
 
   return (
     <div
@@ -97,7 +98,7 @@ export function ManagerApp() {
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <nav
             id="manager-nav"
-            aria-label="管理窗口导航"
+            aria-label={tx("管理窗口导航")}
             className="flex-1 px-2 pt-3"
           >
             <SortableNav
@@ -117,7 +118,7 @@ export function ManagerApp() {
               aria-current={
                 state.managerSection === "settings" ? "page" : undefined
               }
-              title={collapsed ? "设置" : undefined}
+              title={collapsed ? tx("设置") : undefined}
               className={cn(
                 "relative flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-[13.5px] transition-colors",
                 state.managerSection === "settings"
@@ -138,7 +139,7 @@ export function ManagerApp() {
                   collapsed && "sr-only"
                 )}
               >
-                设置
+                {tx("设置")}
               </span>
             </button>
           </div>
@@ -157,11 +158,13 @@ export function ManagerApp() {
                 title={
                   self
                     ? collapsed
-                      ? `${self.name} · 修改头像和昵称`
-                      : "修改头像和昵称"
+                      ? tx("{0} · 修改头像和昵称", self.name)
+                      : tx("修改头像和昵称")
                     : undefined
                 }
-                aria-label={self ? `修改头像和昵称（${self.name}）` : undefined}
+                aria-label={
+                  self ? tx("修改头像和昵称（{0}）", self.name) : undefined
+                }
                 className="flex min-w-0 flex-1 items-center gap-2.5 text-left outline-none after:absolute after:inset-0 after:rounded-md focus-visible:after:ring-1 focus-visible:after:ring-inset focus-visible:after:ring-cinnabar-text/50"
               >
                 {self ? (
@@ -186,7 +189,7 @@ export function ManagerApp() {
                     <p className="truncate text-[11.5px] text-paper-3">
                       {self && state.team
                         ? ROLE_LABEL[self.role]
-                        : "未加入亲友团"}
+                        : tx("未加入亲友团")}
                     </p>
                   )}
                 </div>
@@ -222,8 +225,8 @@ export function ManagerApp() {
           onClick={() => setCollapsed(c => !c)}
           aria-expanded={!collapsed}
           aria-controls="manager-nav"
-          aria-label={collapsed ? "展开侧栏" : "收起侧栏"}
-          title={collapsed ? "展开侧栏" : "收起侧栏"}
+          aria-label={collapsed ? tx("展开侧栏") : tx("收起侧栏")}
+          title={collapsed ? tx("展开侧栏") : tx("收起侧栏")}
           className="absolute -right-2.5 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-full bg-ink-3 text-paper-3 opacity-0 shadow-[0_2px_8px_rgba(0,0,0,0.45)] ring-1 ring-paper/15 transition-[opacity,color] duration-150 hover:text-paper focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-cinnabar-text/60 group-hover/side:opacity-100 [@media(hover:none)]:opacity-100"
         >
           {collapsed ? (
@@ -277,7 +280,7 @@ export function ManagerApp() {
 
 function ManagerSkeleton() {
   return (
-    <div className="flex h-full" aria-busy="true" aria-label="正在加载">
+    <div className="flex h-full" aria-busy="true" aria-label={tx("正在加载")}>
       <div className="w-[236px] space-y-3 border-r border-paper/[0.07] px-4 py-5">
         {[0, 1, 2, 3].map(i => (
           <div key={i} className="space-y-2">
@@ -299,7 +302,7 @@ function ManagerSkeleton() {
         <span className="skeleton mt-3 block h-28 w-full rounded-xl" />
         <p className="mt-6 flex items-center gap-2 text-[12.5px] text-paper-3">
           <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-          正在从云端同步方案…
+          {tx("正在从云端同步方案…")}
         </p>
       </div>
     </div>

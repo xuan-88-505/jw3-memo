@@ -5,10 +5,11 @@ import { Btn } from "@/components/common/ui";
 import { layersOf } from "@/data/seed";
 import type { Macro, SchemeVersion } from "@/data/types";
 import { changedLines, type SchemeDiff } from "@/lib/diff";
-import { LAYER_LABEL, copyText } from "@/lib/format";
+import { layerLabel, copyText } from "@/lib/format";
 import { MACRO_LIMIT, cleanMacro, isCommentLine } from "@/lib/macro";
 import { useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
+import { tx } from "@/lib/i18n";
 
 // ---------- 变化列表（通知里用） ----------
 
@@ -18,7 +19,7 @@ export function ChangeList({ diff }: { diff: SchemeDiff }) {
       {diff.talents.map(t => (
         <li key={`t${t.layer}`} className="flex items-baseline gap-2">
           <span className="w-11 shrink-0 text-paper-3">
-            第{LAYER_LABEL[t.layer - 1]}重
+            {tx("第{0}重", layerLabel(t.layer - 1))}
           </span>
           <span className="min-w-0">
             {t.from && (
@@ -35,15 +36,15 @@ export function ChangeList({ diff }: { diff: SchemeDiff }) {
         const changed = m.ops.filter(o => o.type !== "same").length;
         const label =
           m.kind === "added"
-            ? "新增"
+            ? tx("新增")
             : m.kind === "removed"
-              ? "删除"
+              ? tx("删除")
               : m.kind === "renamed"
-                ? `原名 ${m.oldName}`
-                : `改了 ${Math.ceil(changed / 2)} 行`;
+                ? tx("原名 {0}", m.oldName)
+                : tx("改了 {0} 行", Math.ceil(changed / 2));
         return (
           <li key={m.macroId} className="flex items-baseline gap-2">
-            <span className="w-11 shrink-0 text-paper-3">宏</span>
+            <span className="w-11 shrink-0 text-paper-3">{tx("宏")}</span>
             <span className="min-w-0">
               <span
                 className={cn(
@@ -89,7 +90,7 @@ export function MacroList({
           compact ? "pb-3 pt-1" : "py-10 text-center"
         )}
       >
-        没有宏
+        {tx("没有宏")}
       </p>
     );
   }
@@ -135,7 +136,7 @@ export function MacroCard({
   const onCopy = async () => {
     const ok = await copyText(cleaned.text);
     if (!ok) {
-      actions.toast("panel", "error", "复制失败，展开后手动选中复制");
+      actions.toast("panel", "error", tx("复制失败，展开后手动选中复制"));
       return;
     }
     setCopied(true);
@@ -143,7 +144,11 @@ export function MacroCard({
     // 按钮本身会变成"已复制"；只有去掉了内容时才额外提示
     const removed = cleaned.comments + cleaned.blanks;
     if (removed)
-      actions.toast("panel", "info", `已复制，去掉了 ${removed} 行注释和空行`);
+      actions.toast(
+        "panel",
+        "info",
+        tx("已复制，去掉了 {0} 行注释和空行", removed)
+      );
   };
 
   return (
@@ -157,7 +162,11 @@ export function MacroCard({
         <button
           type="button"
           aria-expanded={open}
-          aria-label={`${open ? "收起" : "展开"}宏 ${macro.name}`}
+          aria-label={tx(
+            "{0}宏 {1}",
+            open ? tx("收起") : tx("展开"),
+            macro.name
+          )}
           onClick={onToggle}
           className="flex min-h-[44px] min-w-0 flex-1 items-center gap-2.5 rounded-md px-1 py-1 text-left"
         >
@@ -170,7 +179,7 @@ export function MacroCard({
             </span>
             {over ? (
               <span className="mt-0.5 block text-[11.5px] font-medium text-cinnabar-text">
-                超出 {MACRO_LIMIT} 字，游戏里放不下
+                {tx("超出 {0} 字，游戏里放不下", MACRO_LIMIT)}
               </span>
             ) : (
               note && (
@@ -188,8 +197,8 @@ export function MacroCard({
           variant="secondary"
           size="sm"
           onClick={onCopy}
-          aria-label={`复制宏 ${macro.name}`}
-          title={copied ? "已复制" : "复制"}
+          aria-label={tx("复制宏 {0}", macro.name)}
+          title={copied ? tx("已复制") : tx("复制")}
           className={cn("h-8 w-8 px-0", copied && "text-jade")}
           icon={
             copied ? (
@@ -288,7 +297,7 @@ export function TalentList({
               )}
             >
               <span className="w-4 shrink-0 text-center font-serif text-[12px] text-paper-3">
-                {LAYER_LABEL[i]}
+                {layerLabel(i)}
               </span>
               <Jx3Icon id={o.icon} name={o.name} size={28} />
               <span className="flex min-w-0 flex-1 items-center gap-1.5">

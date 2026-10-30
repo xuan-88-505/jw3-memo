@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import { useProto, type ToastSurface } from "@/state/store";
 import { cn } from "@/lib/utils";
+import { tx } from "@/lib/i18n";
 
 /**
  * 内嵌弹窗：绝对定位在最近的 relative 容器里（面板或管理窗口），
@@ -93,7 +94,7 @@ export function InlineModal({
             <button
               type="button"
               onClick={onClose}
-              aria-label="关闭"
+              aria-label={tx("关闭")}
               className="-mr-1 grid h-7 w-7 place-items-center rounded-md text-paper-3 hover:bg-paper/[0.08] hover:text-paper"
             >
               <X className="h-4 w-4" />
@@ -169,7 +170,7 @@ export function ToastStack({
           <button
             type="button"
             onClick={() => actions.dismissToast(t.id)}
-            aria-label="关闭提示"
+            aria-label={tx("关闭提示")}
             className="-mr-1 ml-1 text-paper-3 hover:text-paper"
           >
             <X className="h-3.5 w-3.5" />
@@ -192,13 +193,15 @@ export function OfflineBar({ compact }: { compact?: boolean }) {
       )}
     >
       <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-      <span className="min-w-0 flex-1">离线，显示的是上次同步的内容</span>
+      <span className="min-w-0 flex-1">
+        {tx("离线，显示的是上次同步的内容")}
+      </span>
       <button
         type="button"
         onClick={actions.retry}
         className="shrink-0 rounded px-1.5 py-0.5 font-medium underline-offset-2 hover:underline"
       >
-        重试
+        {tx("重试")}
       </button>
     </div>
   );

@@ -44,6 +44,7 @@ import {
 } from "@/state/store";
 import { EmptyState, Field, inputCls } from "../shared";
 import { clipboardImages, hasFiles } from "./NoteImages";
+import { tx } from "@/lib/i18n";
 
 const VIS_OPTIONS: { value: LinkVisibility; label: string }[] = [
   { value: "team", label: "亲友团" },
@@ -74,7 +75,7 @@ export function LinksTab() {
   const add = (raw: string) => {
     const urls = extractUrls(raw);
     if (!urls.length) {
-      setError("没找到网址");
+      setError(tx("没找到网址"));
       return;
     }
     actions.addLinks(urls, visibility);
@@ -87,7 +88,7 @@ export function LinksTab() {
     if (!files.length) return;
     const imgs = files.filter(f => f.type.startsWith("image/"));
     if (!imgs.length) {
-      setError("只能添加图片");
+      setError(tx("只能添加图片"));
       return;
     }
     setError(null);
@@ -108,7 +109,7 @@ export function LinksTab() {
       setError(
         imgs.length === 1
           ? failed[0]
-          : `${failed.length} 张没加上：${failed[0]}`
+          : tx("{0} 张没加上：{1}", failed.length, failed[0])
       );
   };
 
@@ -178,12 +179,12 @@ export function LinksTab() {
             onPaste={onPaste}
             placeholder={
               writable
-                ? "粘贴链接或截图，回车添加"
+                ? tx("粘贴链接或截图，回车添加")
                 : canEdit(state)
-                  ? "离线时不能添加"
-                  : "只读成员不能添加"
+                  ? tx("离线时不能添加")
+                  : tx("只读成员不能添加")
             }
-            aria-label="粘贴链接或截图"
+            aria-label={tx("粘贴链接或截图")}
             aria-invalid={!!error}
             aria-describedby={error ? "link-error" : undefined}
             className={cn(inputCls(!!error), "pl-9 pr-10")}
@@ -192,8 +193,8 @@ export function LinksTab() {
             type="button"
             disabled={!writable || pending > 0}
             onClick={() => fileRef.current?.click()}
-            aria-label={pending > 0 ? "正在处理图片" : "上传图片"}
-            title={pending > 0 ? "正在处理图片" : "上传图片"}
+            aria-label={pending > 0 ? tx("正在处理图片") : tx("上传图片")}
+            title={pending > 0 ? tx("正在处理图片") : tx("上传图片")}
             className="absolute right-1.5 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded text-paper-3 transition-colors hover:bg-paper/[0.08] hover:text-paper disabled:pointer-events-none disabled:opacity-40"
           >
             {pending > 0 ? (
@@ -209,7 +210,7 @@ export function LinksTab() {
           size="md"
           disabled={!writable || !text.trim()}
         >
-          添加
+          {tx("添加")}
         </Btn>
       </form>
       <input
@@ -236,9 +237,9 @@ export function LinksTab() {
       )}
 
       {links.length === 0 ? (
-        <EmptyState icon="pigeon" title="还没有链接或图片" />
+        <EmptyState icon="pigeon" title={tx("还没有链接或图片")} />
       ) : (
-        <ul className={cn("-mx-3 mt-4", DIVIDE)} aria-label="链接和图片">
+        <ul className={cn("-mx-3 mt-4", DIVIDE)} aria-label={tx("链接和图片")}>
           {links.map(l => {
             const mine = l.by === ME_ID;
             const canChange = writable && (mine || isAdmin);
@@ -252,7 +253,9 @@ export function LinksTab() {
                   {l.title}
                 </span>
                 <span className="block truncate text-[12px] text-paper-3">
-                  {img ? `图片 · ${img.w}×${img.h}` : linkSubtitle(l.url)}
+                  {img
+                    ? tx("图片 · {0}×{1}", img.w, img.h)
+                    : linkSubtitle(l.url)}
                 </span>
               </>
             );
@@ -277,7 +280,7 @@ export function LinksTab() {
                     onClick={e =>
                       viewer.open([img], 0, e.currentTarget, l.title)
                     }
-                    aria-label={`查看图片「${l.title}」`}
+                    aria-label={tx("查看图片「{0}」", l.title)}
                     className={hit}
                   >
                     {label}
@@ -296,7 +299,7 @@ export function LinksTab() {
                 {l.visibility === "private" && inTeam && (
                   <Lock
                     className="h-3.5 w-3.5 shrink-0 text-paper-3"
-                    aria-label="仅自己可见"
+                    aria-label={tx("仅自己可见")}
                   />
                 )}
                 {!solo && (
@@ -317,7 +320,7 @@ export function LinksTab() {
                 <span className="relative z-10 flex w-7 shrink-0 justify-end">
                   {canChange ? (
                     <IconBtn
-                      label={`编辑「${l.title}」`}
+                      label={tx("编辑「{0}」", l.title)}
                       onClick={() => setEditing(l)}
                       className="opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100"
                     >
@@ -343,7 +346,7 @@ export function LinksTab() {
 
       {dragging && (
         <div className="pointer-events-none absolute -inset-2 z-20 grid place-items-center rounded-lg border-2 border-dashed border-cinnabar-text/60 bg-ink-2/90 text-[13px] text-paper">
-          松开添加图片
+          {tx("松开添加图片")}
         </div>
       )}
 
@@ -409,7 +412,8 @@ function EditLinkDialog({
   }, [link]);
   const img = link?.image;
   const normalized = normalizeUrl(url);
-  const urlError = tried && !img && !normalized ? "不是有效的网址" : undefined;
+  const urlError =
+    tried && !img && !normalized ? tx("不是有效的网址") : undefined;
   const save = () => {
     setTried(true);
     if (!link) return;
@@ -425,7 +429,7 @@ function EditLinkDialog({
     <InlineModal
       open={!!link}
       onClose={onClose}
-      title={img ? "编辑图片" : "编辑链接"}
+      title={img ? tx("编辑图片") : tx("编辑链接")}
       footer={
         <div className="flex w-full items-center">
           <Btn
@@ -436,14 +440,14 @@ function EditLinkDialog({
               onClose();
             }}
           >
-            删除
+            {tx("删除")}
           </Btn>
           <div className="ml-auto flex gap-2">
             <Btn variant="ghost" size="sm" onClick={onClose}>
-              取消
+              {tx("取消")}
             </Btn>
             <Btn variant="primary" size="sm" onClick={save}>
-              保存
+              {tx("保存")}
             </Btn>
           </div>
         </div>
@@ -463,7 +467,7 @@ function EditLinkDialog({
             className="max-h-40 rounded-md bg-ink object-contain ring-1 ring-inset ring-paper/12"
           />
         )}
-        <Field label="名称" htmlFor="link-title">
+        <Field label={tx("名称")} htmlFor="link-title">
           <input
             id="link-title"
             value={title}
@@ -473,7 +477,7 @@ function EditLinkDialog({
           />
         </Field>
         {!img && (
-          <Field label="网址" htmlFor="link-url" error={urlError}>
+          <Field label={tx("网址")} htmlFor="link-url" error={urlError}>
             <input
               id="link-url"
               value={url}
@@ -484,12 +488,14 @@ function EditLinkDialog({
         )}
         {inTeam && (
           <div>
-            <p className="mb-1.5 text-[12.5px] text-paper-2">谁能看到</p>
+            <p className="mb-1.5 text-[12.5px] text-paper-2">
+              {tx("谁能看到")}
+            </p>
             <Segmented
-              label="谁能看到"
+              label={tx("谁能看到")}
               value={vis}
               onChange={setVis}
-              options={VIS_OPTIONS}
+              options={VIS_OPTIONS.map(o => ({ ...o, label: tx(o.label) }))}
             />
           </div>
         )}

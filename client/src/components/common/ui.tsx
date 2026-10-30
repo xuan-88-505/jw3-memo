@@ -3,6 +3,7 @@ import { Check, Circle } from "lucide-react";
 import type { Member, SyncStatus } from "@/data/types";
 import { Huangji, chickSize, moodFor } from "@/components/brand/Huangji";
 import { cn } from "@/lib/utils";
+import { tx } from "@/lib/i18n";
 
 type BtnVariant = "primary" | "secondary" | "ghost" | "danger" | "quiet";
 type BtnSize = "xs" | "sm" | "md";
@@ -229,11 +230,11 @@ export function StatusPill({
   if (status === "synced") {
     return (
       <span
-        title={version ? `游戏里是 v${version}` : undefined}
+        title={version ? tx("游戏里是 v{0}", version) : undefined}
         className="inline-flex items-center gap-1 whitespace-nowrap text-[12px] text-jade"
       >
         <Check className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden="true" />
-        已是最新
+        {tx("已是最新")}
       </span>
     );
   }
@@ -244,14 +245,14 @@ export function StatusPill({
           className="h-1.5 w-1.5 rounded-[1.5px] bg-cinnabar"
           aria-hidden="true"
         />
-        有更新
+        {tx("有更新")}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap text-[12px] text-paper-3">
       <Circle className="h-3 w-3" aria-hidden="true" />
-      无方案
+      {tx("无方案")}
     </span>
   );
 }
@@ -265,10 +266,10 @@ export function StatusDot({ status }: { status: SyncStatus }) {
         : "bg-paper-3/50";
   const label =
     status === "synced"
-      ? "已是最新"
+      ? tx("已是最新")
       : status === "pending" || status === "never"
-        ? "有更新"
-        : "无方案";
+        ? tx("有更新")
+        : tx("无方案");
   return (
     <span
       className={cn("inline-block h-2 w-2 shrink-0 rounded-[2px]", cls)}

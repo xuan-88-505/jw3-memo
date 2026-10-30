@@ -9,6 +9,7 @@ import { LinksTab } from "./LinksTab";
 import { RaidLogTab } from "./RaidLogTab";
 import { ME_ID } from "@/data/seed";
 import { visibleLinks } from "@/data/links";
+import { tx } from "@/lib/i18n";
 
 type Tab = "raid" | "black" | "links";
 
@@ -19,17 +20,17 @@ export function RecordsView() {
   const [blackEditing, setBlackEditing] = useState<BlackEditing>(null);
   const writable = canEdit(state) && isOnline(state);
   const lockReason = !canEdit(state)
-    ? "只读成员不能修改"
+    ? tx("只读成员不能修改")
     : !isOnline(state)
-      ? "离线时不能修改"
+      ? tx("离线时不能修改")
       : undefined;
 
   const tabs: { key: Tab; label: string; count: number }[] = [
-    { key: "raid", label: "打本", count: state.raidLogs.length },
-    { key: "black", label: "避雷", count: state.blacklist.length },
+    { key: "raid", label: tx("打本"), count: state.raidLogs.length },
+    { key: "black", label: tx("避雷"), count: state.blacklist.length },
     {
       key: "links",
-      label: "链接",
+      label: tx("链接"),
       count: visibleLinks(state.links, ME_ID).length,
     },
   ];
@@ -37,7 +38,7 @@ export function RecordsView() {
   return (
     <div className="flex flex-1 flex-col">
       <SectionHeader
-        title="记录"
+        title={tx("记录")}
         right={
           tab !== "links" && (
             <Btn
@@ -52,14 +53,14 @@ export function RecordsView() {
                   : setBlackEditing({ id: "new" })
               }
             >
-              {tab === "raid" ? "记一笔" : "加入避雷"}
+              {tab === "raid" ? tx("记一笔") : tx("加入避雷")}
             </Btn>
           )
         }
       />
       <div
         role="tablist"
-        aria-label="记录类型"
+        aria-label={tx("记录类型")}
         className="mb-4 flex gap-5 border-b border-paper/[0.07]"
       >
         {tabs.map(t => (

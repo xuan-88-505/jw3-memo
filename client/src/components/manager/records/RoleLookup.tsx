@@ -10,6 +10,7 @@ import {
 } from "@/data/records";
 import { cn } from "@/lib/utils";
 import { inputCls } from "../shared";
+import { monthDay, tx } from "@/lib/i18n";
 
 export function SchoolMark({
   school,
@@ -45,7 +46,7 @@ export function SchoolMark({
 
 export function fmtDay(iso: string) {
   const d = new Date(iso);
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
+  return monthDay(d);
 }
 
 /** 表格里的角色名：门派标记 + 当前名字；改过名时显示曾用名 */
@@ -84,9 +85,14 @@ export function RoleName({
   const former = role.formerNames.map(f => f.name);
   const tip = [
     `${role.name} · ${role.server} · ${role.school}`,
-    former.length ? `曾用名：${former.join("、")}` : "",
+    former.length ? tx("曾用名：{0}", former.join("、")) : "",
     blackHit?.length
-      ? `避雷：${Array.from(new Set(blackHit.flatMap(b => b.tags))).join("、")}`
+      ? tx(
+          "避雷：{0}",
+          Array.from(new Set(blackHit.flatMap(b => b.tags)))
+            .map(t => tx(t))
+            .join(tx("、"))
+        )
       : "",
   ]
     .filter(Boolean)
@@ -100,13 +106,13 @@ export function RoleName({
           {blackHit && blackHit.length > 0 && (
             <AlertTriangle
               className="h-3.5 w-3.5 shrink-0 text-cinnabar-text"
-              aria-label="在避雷名单里"
+              aria-label={tx("在避雷名单里")}
             />
           )}
         </span>
         {stacked && former.length > 0 && (
           <span className="block truncate text-[11.5px] text-paper-3">
-            曾用名 {former.join("、")}
+            {tx("曾用名 {0}", former.join("、"))}
           </span>
         )}
       </span>
@@ -197,13 +203,16 @@ export function RoleLookup({
             </p>
             {viaFormer ? (
               <p className="mt-1 text-[12px] text-gold">
-                「{viaFormer}」已改名为「{value.name}」
+                {tx("「{0}」已改名为「{1}」", viaFormer, value.name)}
               </p>
             ) : (
               lastFormer && (
                 <p className="mt-1 text-[12px] text-paper-3">
-                  曾用名 {value.formerNames.map(f => f.name).join("、")}（
-                  {fmtDay(lastFormer.until)}改名）
+                  {tx(
+                    "曾用名 {0}（{1}改名）",
+                    value.formerNames.map(f => f.name).join("、"),
+                    fmtDay(lastFormer.until)
+                  )}
                 </p>
               )
             )}
@@ -217,8 +226,8 @@ export function RoleLookup({
                 setText("");
               }}
               className="grid h-6 w-6 shrink-0 place-items-center rounded text-paper-3 transition-colors hover:bg-paper/[0.06] hover:text-paper"
-              aria-label="换一个角色"
-              title="换一个角色"
+              aria-label={tx("换一个角色")}
+              title={tx("换一个角色")}
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -234,9 +243,13 @@ export function RoleLookup({
               aria-hidden="true"
             />
             <span>
-              在避雷名单里：
-              {Array.from(new Set(hits.flatMap(h => h.tags))).join("、")}
-              {hits[0].reason ? `。${hits[0].reason}` : ""}
+              {tx(
+                "在避雷名单里：{0}{1}",
+                Array.from(new Set(hits.flatMap(h => h.tags)))
+                  .map(t => tx(t))
+                  .join(tx("、")),
+                hits[0].reason ? `。${hits[0].reason}` : ""
+              )}
             </span>
           </p>
         )}
@@ -250,7 +263,7 @@ export function RoleLookup({
     <div>
       <div className="flex gap-2">
         <input
-          aria-label="服务器"
+          aria-label={tx("服务器")}
           value={server}
           disabled={blocked || loading}
           maxLength={8}
@@ -259,7 +272,7 @@ export function RoleLookup({
             if (status.kind === "error") setStatus({ kind: "idle" });
           }}
           onKeyDown={onKey}
-          placeholder="服务器"
+          placeholder={tx("服务器")}
           className={cn(inputCls(), "w-[96px] shrink-0")}
         />
         <div className="relative min-w-0 flex-1">
@@ -272,7 +285,9 @@ export function RoleLookup({
               if (status.kind === "error") setStatus({ kind: "idle" });
             }}
             onKeyDown={onKey}
-            placeholder={online ? "角色名或 UID，回车查找" : "离线时不能查找"}
+            placeholder={
+              online ? tx("角色名或 UID，回车查找") : tx("离线时不能查找")
+            }
             aria-invalid={status.kind === "error" || invalid || undefined}
             className={cn(inputCls(status.kind === "error" || invalid), "pr-9")}
           />
@@ -281,8 +296,8 @@ export function RoleLookup({
             onClick={run}
             disabled={blocked || loading || !text.trim()}
             className="absolute right-1 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded text-paper-3 transition-colors enabled:hover:bg-paper/[0.06] enabled:hover:text-paper disabled:opacity-50"
-            aria-label="查找角色"
-            title="查找"
+            aria-label={tx("查找角色")}
+            title={tx("查找")}
           >
             {loading ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />

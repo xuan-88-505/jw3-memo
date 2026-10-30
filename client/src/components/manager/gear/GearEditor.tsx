@@ -34,6 +34,7 @@ import { PanelStrip } from "./PanelStrip";
 import { StonePicker } from "./StonePicker";
 import type { GearFilter } from "./gearFilter";
 import { useEquipDb } from "./useEquipDb";
+import { tx } from "@/lib/i18n";
 
 const selectCls = cn(inputCls(), "h-8 pl-2.5 text-[12.5px]");
 const gemCls = cn(inputCls(), "h-8 w-[60px] px-1.5 text-center text-[12.5px]");
@@ -108,7 +109,7 @@ export function GearEditor({
           base={
             dirty ? { panel: lo.panel, hasteValue: lo.haste.value } : undefined
           }
-          note={factor !== 1 ? "面板不含增益" : undefined}
+          note={factor !== 1 ? tx("面板不含增益") : undefined}
         />
       </div>
 
@@ -117,11 +118,11 @@ export function GearEditor({
         aria-hidden="true"
         className="-mx-3 mt-4 hidden items-center gap-2 px-3 text-[11.5px] text-paper-3 @min-[880px]:flex"
       >
-        <span className="w-[64px] shrink-0">部位</span>
-        <span className="min-w-0 flex-1">装备</span>
-        <span className="w-[150px] shrink-0">附魔</span>
-        <span className="w-[80px] shrink-0">精炼</span>
-        <span className="w-[196px] shrink-0">镶嵌</span>
+        <span className="w-[64px] shrink-0">{tx("部位")}</span>
+        <span className="min-w-0 flex-1">{tx("装备")}</span>
+        <span className="w-[150px] shrink-0">{tx("附魔")}</span>
+        <span className="w-[80px] shrink-0">{tx("精炼")}</span>
+        <span className="w-[196px] shrink-0">{tx("镶嵌")}</span>
         <span className="w-[124px] shrink-0">大附魔</span>
         <span className="w-7 shrink-0" />
       </div>
@@ -161,7 +162,7 @@ export function GearEditor({
                     aria-hidden="true"
                   />
                   {slot.label}
-                  {changed && <span className="sr-only">（已改）</span>}
+                  {changed && <span className="sr-only">{tx("（已改）")}</span>}
                 </span>
                 <EquipPicker
                   lo={lo}
@@ -179,7 +180,7 @@ export function GearEditor({
                 <div className="w-[150px] shrink-0">
                   {enchants.length ? (
                     <SelectBox
-                      aria-label={`${slot.label}附魔`}
+                      aria-label={tx("{0}附魔", slot.label)}
                       value={slot.enchant ?? ""}
                       onChange={e =>
                         setSlot(slot.key, s => ({
@@ -190,7 +191,7 @@ export function GearEditor({
                       className={selectCls}
                       wrapClassName="w-full"
                     >
-                      <option value="">不附</option>
+                      <option value="">{tx("不附")}</option>
                       {enchants.map(o => (
                         <option key={o.id} value={o.id}>
                           {o.label}
@@ -208,7 +209,7 @@ export function GearEditor({
                 <div className="w-[80px] shrink-0">
                   {slot.def ? (
                     <SelectBox
-                      aria-label={`${slot.label}精炼`}
+                      aria-label={tx("{0}精炼", slot.label)}
                       value={slot.refine}
                       onChange={e =>
                         setSlot(slot.key, s =>
@@ -223,13 +224,13 @@ export function GearEditor({
                         (_, i) => maxRefine(slot.def!) - i
                       ).map(n => (
                         <option key={n} value={n}>
-                          精 {n}
+                          {tx("精 {0}", n)}
                         </option>
                       ))}
                     </SelectBox>
                   ) : (
                     <span className="block px-2.5 text-[12px] text-paper-3">
-                      精 {slot.refine}
+                      {tx("精 {0}", slot.refine)}
                     </span>
                   )}
                 </div>
@@ -240,8 +241,13 @@ export function GearEditor({
                     slot.def.holes.map((h, i) => (
                       <SelectBox
                         key={i}
-                        aria-label={`${slot.label}镶嵌孔 ${i + 1}（${h}）`}
-                        title={`${h} ${slot.gems[i]} 级`}
+                        aria-label={tx(
+                          "{0}镶嵌孔 {1}（{2}）",
+                          slot.label,
+                          i + 1,
+                          h
+                        )}
+                        title={tx("{0} {1} 级", h, slot.gems[i])}
                         value={slot.gems[i] ?? 0}
                         onChange={e =>
                           setSlot(slot.key, s =>
@@ -259,7 +265,7 @@ export function GearEditor({
                           <option key={lv} value={lv}>
                             {lv
                               ? `${attrShort(h)} ${lv}`
-                              : `${attrShort(h)} 空`}
+                              : tx("{0} 空", attrShort(h))}
                           </option>
                         ))}
                       </SelectBox>
@@ -275,7 +281,7 @@ export function GearEditor({
                 <div className="w-[124px] shrink-0">
                   {big ? (
                     <SelectBox
-                      aria-label={`${slot.label}大附魔（${big.label}）`}
+                      aria-label={tx("{0}大附魔（{1}）", slot.label, big.label)}
                       title={big.effect}
                       value={draft.big[big.key]}
                       onChange={e =>
@@ -292,7 +298,9 @@ export function GearEditor({
                     >
                       {([2, 1, 0] as BigLevel[]).map(lv => (
                         <option key={lv} value={lv}>
-                          {lv ? `${big.label} ${BIG_LEVEL_LABEL[lv]}` : "不附"}
+                          {lv
+                            ? `${big.label} ${BIG_LEVEL_LABEL[lv]}`
+                            : tx("不附")}
                         </option>
                       ))}
                     </SelectBox>
@@ -306,7 +314,7 @@ export function GearEditor({
                 <div className="w-7 shrink-0">
                   {changed && (
                     <IconBtn
-                      label={`还原${slot.label}`}
+                      label={tx("还原{0}", slot.label)}
                       onClick={() =>
                         onDraft({
                           ...draft,
@@ -467,26 +475,26 @@ export function QuickMenu({
         className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] text-paper-2 ring-1 ring-inset ring-paper/10 transition-colors hover:text-paper hover:ring-paper/20"
       >
         <Wand2 className="h-3.5 w-3.5" aria-hidden="true" />
-        一键
+        {tx("一键")}
       </button>
       <Anchored
         anchor={btn}
         open={open}
         onClose={() => setOpen(false)}
         width={220}
-        label="一键操作"
+        label={tx("一键操作")}
       >
-        <div role="menu" aria-label="一键操作" className="p-1">
-          {item("附魔、五彩石挑收益最高", onBest)}
+        <div role="menu" aria-label={tx("一键操作")} className="p-1">
+          {item(tx("附魔、五彩石挑收益最高"), onBest)}
           {sep("a")}
-          {item("五行石全部 8 级", () => onGems(8))}
-          {item("五行石全部 7 级", () => onGems(7))}
-          {item("五行石全部 6 级", () => onGems(6))}
-          {item("精炼全部满级", onRefine)}
+          {item(tx("五行石全部 8 级"), () => onGems(8))}
+          {item(tx("五行石全部 7 级"), () => onGems(7))}
+          {item(tx("五行石全部 6 级"), () => onGems(6))}
+          {item(tx("精炼全部满级"), onRefine)}
           {sep("b")}
-          {item("大附魔全英雄", () => onBig(2))}
-          {item("大附魔全普通", () => onBig(1))}
-          {item("去掉大附魔", () => onBig(0))}
+          {item(tx("大附魔全英雄"), () => onBig(2))}
+          {item(tx("大附魔全普通"), () => onBig(1))}
+          {item(tx("去掉大附魔"), () => onBig(0))}
         </div>
       </Anchored>
     </>

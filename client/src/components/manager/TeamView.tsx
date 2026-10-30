@@ -9,6 +9,7 @@ import { isOnline, me, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { SectionHeader, SelectBox } from "./shared";
 import { TeamSetup } from "./TeamSetup";
+import { monthDay, tx } from "@/lib/i18n";
 
 const PERMS: { label: string; roles: Role[] }[] = [
   { label: "查看方案、复制宏", roles: ["admin", "editor", "viewer"] },
@@ -36,12 +37,12 @@ function TeamDetail() {
   const onCopy = async () => {
     const ok = await copyText(team.inviteCode);
     if (!ok) {
-      actions.toast("manager", "error", "复制失败，请手动选中复制");
+      actions.toast("manager", "error", tx("复制失败，请手动选中复制"));
       return;
     }
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1500);
-    actions.toast("manager", "success", "邀请码已复制");
+    actions.toast("manager", "success", tx("邀请码已复制"));
   };
 
   const onRole = (m: Member, role: Role) => {
@@ -50,7 +51,7 @@ function TeamDetail() {
       actions.toast(
         "manager",
         "error",
-        "亲友团至少要有一个管理员。先把别人设成管理员。"
+        tx("亲友团至少要有一个管理员。先把别人设成管理员。")
       );
       return;
     }
@@ -58,7 +59,7 @@ function TeamDetail() {
     actions.toast(
       "manager",
       "success",
-      `已把 ${m.name} 设为${ROLE_LABEL[role]}`
+      tx("已把 {0} 设为{1}", m.name, ROLE_LABEL[role])
     );
   };
 
@@ -69,11 +70,11 @@ function TeamDetail() {
         right={
           <div
             role="group"
-            aria-label="邀请码"
-            title="把邀请码发给亲友。新成员默认只读"
+            aria-label={tx("邀请码")}
+            title={tx("把邀请码发给亲友。新成员默认只读")}
             className="flex h-8 items-center rounded-md bg-paper/[0.04] pl-3 pr-1 ring-1 ring-inset ring-paper/10"
           >
-            <span className="text-[12px] text-paper-3">邀请码</span>
+            <span className="text-[12px] text-paper-3">{tx("邀请码")}</span>
             <span className="ml-2.5 select-all font-mono text-[14px] font-medium tracking-[0.08em] text-paper">
               {team.inviteCode}
             </span>
@@ -82,7 +83,7 @@ function TeamDetail() {
               aria-hidden="true"
             />
             <IconBtn
-              label={copied ? "已复制" : "复制邀请码"}
+              label={copied ? tx("已复制") : tx("复制邀请码")}
               onClick={onCopy}
               className={cn("h-7 w-7", copied && "text-jade hover:text-jade")}
             >
@@ -98,7 +99,7 @@ function TeamDetail() {
             </IconBtn>
             {isAdmin && (
               <IconBtn
-                label={online ? "重新生成邀请码" : "离线时不能重新生成"}
+                label={online ? tx("重新生成邀请码") : tx("离线时不能重新生成")}
                 onClick={() => setRegen(true)}
                 disabled={!online}
                 className="h-7 w-7"
@@ -114,12 +115,12 @@ function TeamDetail() {
         <table className="w-full text-left text-[13px]">
           <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
             <tr>
-              <th className="px-3 py-2.5 font-normal">成员</th>
-              <th className="px-3 py-2.5 font-normal">权限</th>
-              <th className="px-3 py-2.5 font-normal">角色数</th>
-              <th className="px-3 py-2.5 font-normal">加入时间</th>
+              <th className="px-3 py-2.5 font-normal">{tx("成员")}</th>
+              <th className="px-3 py-2.5 font-normal">{tx("权限")}</th>
+              <th className="px-3 py-2.5 font-normal">{tx("角色数")}</th>
+              <th className="px-3 py-2.5 font-normal">{tx("加入时间")}</th>
               <th className="px-3 py-2.5 text-right font-normal">
-                <span className="sr-only">操作</span>
+                <span className="sr-only">{tx("操作")}</span>
               </th>
             </tr>
           </thead>
@@ -140,7 +141,7 @@ function TeamDetail() {
                       <span className="font-medium text-paper">{m.name}</span>
                       {isMe && (
                         <span className="rounded-[4px] bg-paper/[0.08] px-1.5 text-[11px] text-paper-2">
-                          你
+                          {tx("你")}
                         </span>
                       )}
                     </span>
@@ -151,7 +152,7 @@ function TeamDetail() {
                         value={m.role}
                         onChange={e => onRole(m, e.target.value as Role)}
                         disabled={!online}
-                        aria-label={`${m.name} 的权限`}
+                        aria-label={tx("{0} 的权限", m.name)}
                         className="h-7 rounded-md bg-paper/[0.04] pl-2.5 text-[12.5px] text-paper ring-1 ring-inset ring-paper/10 hover:ring-paper/[0.18] focus:outline-none focus:ring-2 focus:ring-cinnabar-text/60 disabled:opacity-50"
                       >
                         {(Object.keys(ROLE_LABEL) as Role[]).map(r => (
@@ -175,8 +176,7 @@ function TeamDetail() {
                     className="px-3 py-2.5 text-paper-3"
                     title={absoluteTime(m.joinedAt)}
                   >
-                    {new Date(m.joinedAt).getMonth() + 1}月
-                    {new Date(m.joinedAt).getDate()}日
+                    {monthDay(new Date(m.joinedAt))}
                   </td>
                   <td className="px-3 py-2.5 text-right">
                     {isAdmin && !isMe && (
@@ -187,7 +187,7 @@ function TeamDetail() {
                         disabled={!online}
                         icon={<UserMinus className="h-3.5 w-3.5" />}
                       >
-                        移除
+                        {tx("移除")}
                       </Btn>
                     )}
                   </td>
@@ -199,13 +199,15 @@ function TeamDetail() {
       </div>
 
       <h2 className="mb-1 mt-7 border-t border-paper/[0.07] pt-7 text-[14px] font-medium text-paper">
-        权限说明
+        {tx("权限说明")}
       </h2>
       <div className="-mx-3">
         <table className="w-full text-[13px]">
           <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
             <tr>
-              <th className="px-3 py-2 text-left font-normal">可以做什么</th>
+              <th className="px-3 py-2 text-left font-normal">
+                {tx("可以做什么")}
+              </th>
               {(Object.keys(ROLE_LABEL) as Role[]).map(r => (
                 <th key={r} className="w-24 px-3 py-2 text-center font-normal">
                   {ROLE_LABEL[r]}
@@ -216,18 +218,18 @@ function TeamDetail() {
           <tbody className="divide-y divide-paper/[0.07]">
             {PERMS.map(p => (
               <tr key={p.label}>
-                <td className="px-3 py-2 text-paper-2">{p.label}</td>
+                <td className="px-3 py-2 text-paper-2">{tx(p.label)}</td>
                 {(Object.keys(ROLE_LABEL) as Role[]).map(r => (
                   <td key={r} className="px-3 py-2 text-center">
                     {p.roles.includes(r) ? (
                       <Check
                         className="mx-auto h-4 w-4 text-jade"
-                        aria-label="可以"
+                        aria-label={tx("可以")}
                       />
                     ) : (
                       <Minus
                         className="mx-auto h-4 w-4 text-paper-3/50"
-                        aria-label="不可以"
+                        aria-label={tx("不可以")}
                       />
                     )}
                   </td>
@@ -241,12 +243,12 @@ function TeamDetail() {
       <InlineModal
         open={!!removing}
         onClose={() => setRemoving(null)}
-        title={`移除 ${removing?.name}？`}
-        description="对方的角色会删除，保存过的版本保留。"
+        title={tx("移除 {0}？", removing?.name)}
+        description={tx("对方的角色会删除，保存过的版本保留。")}
         footer={
           <>
             <Btn variant="ghost" size="md" onClick={() => setRemoving(null)}>
-              取消
+              {tx("取消")}
             </Btn>
             <Btn
               variant="primary"
@@ -257,13 +259,13 @@ function TeamDetail() {
                   actions.toast(
                     "manager",
                     "success",
-                    `已移除 ${removing.name}`
+                    tx("已移除 {0}", removing.name)
                   );
                 }
                 setRemoving(null);
               }}
             >
-              移除
+              {tx("移除")}
             </Btn>
           </>
         }
@@ -271,12 +273,12 @@ function TeamDetail() {
       <InlineModal
         open={regen}
         onClose={() => setRegen(false)}
-        title="重新生成邀请码？"
-        description="旧邀请码会立刻失效。"
+        title={tx("重新生成邀请码？")}
+        description={tx("旧邀请码会立刻失效。")}
         footer={
           <>
             <Btn variant="ghost" size="md" onClick={() => setRegen(false)}>
-              取消
+              {tx("取消")}
             </Btn>
             <Btn
               variant="primary"
@@ -284,10 +286,10 @@ function TeamDetail() {
               onClick={() => {
                 actions.regenerateInvite();
                 setRegen(false);
-                actions.toast("manager", "success", "已生成新邀请码");
+                actions.toast("manager", "success", tx("已生成新邀请码"));
               }}
             >
-              重新生成
+              {tx("重新生成")}
             </Btn>
           </>
         }
@@ -316,9 +318,9 @@ function TeamName({
 
   const check = (n: string) =>
     !n
-      ? "团名不能为空"
+      ? tx("团名不能为空")
       : n.length > TEAM_NAME_MAX
-        ? `团名最多 ${TEAM_NAME_MAX} 个字`
+        ? tx("团名最多 {0} 个字", TEAM_NAME_MAX)
         : "";
 
   const finish = () => {
@@ -331,11 +333,11 @@ function TeamName({
     }
     const err = check(n);
     if (err) {
-      actions.toast("manager", "error", `${err}，已恢复原名`);
+      actions.toast("manager", "error", tx("{0}，已恢复原名", err));
       return;
     }
     actions.renameTeam(n);
-    actions.toast("manager", "success", `团名已改为「${n}」`);
+    actions.toast("manager", "success", tx("团名已改为「{0}」", n));
   };
 
   if (editing) {
@@ -346,7 +348,7 @@ function TeamName({
           value={value}
           maxLength={24}
           spellCheck={false}
-          aria-label="团名"
+          aria-label={tx("团名")}
           aria-invalid={!!error}
           onFocus={e => e.currentTarget.select()}
           onChange={e => {
@@ -387,7 +389,7 @@ function TeamName({
       {name}
       {editable && (
         <IconBtn
-          label={online ? "修改团名" : "离线时不能修改"}
+          label={online ? tx("修改团名") : tx("离线时不能修改")}
           disabled={!online}
           onClick={() => {
             setValue(name);

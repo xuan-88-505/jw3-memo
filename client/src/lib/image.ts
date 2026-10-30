@@ -1,3 +1,4 @@
+import { tx } from "@/lib/i18n";
 /** 头像上传：只在本地处理，裁成正方形后缩到 256×256 */
 export const AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp"];
 export const AVATAR_MAX_MB = 5;
@@ -6,22 +7,22 @@ const MIN_SIDE = 32;
 
 export async function fileToAvatar(file: File): Promise<string> {
   if (!AVATAR_TYPES.includes(file.type)) {
-    throw new Error("只支持 PNG、JPG、WebP 图片");
+    throw new Error(tx("只支持 PNG、JPG、WebP 图片"));
   }
   if (file.size > AVATAR_MAX_MB * 1024 * 1024) {
-    throw new Error(`图片不能超过 ${AVATAR_MAX_MB} MB`);
+    throw new Error(tx("图片不能超过 {0} MB", AVATAR_MAX_MB));
   }
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const i = new Image();
       i.onload = () => resolve(i);
-      i.onerror = () => reject(new Error("图片读不出来，换一张试试"));
+      i.onerror = () => reject(new Error(tx("图片读不出来，换一张试试")));
       i.src = url;
     });
     const side = Math.min(img.naturalWidth, img.naturalHeight);
     if (side < MIN_SIDE) {
-      throw new Error(`图片太小，至少 ${MIN_SIDE}×${MIN_SIDE} 像素`);
+      throw new Error(tx("图片太小，至少 {0}×{1} 像素", MIN_SIDE, MIN_SIDE));
     }
     // 居中裁成正方形
     const sx = (img.naturalWidth - side) / 2;
@@ -30,7 +31,7 @@ export async function fileToAvatar(file: File): Promise<string> {
     canvas.width = OUT;
     canvas.height = OUT;
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("图片读不出来，换一张试试");
+    if (!ctx) throw new Error(tx("图片读不出来，换一张试试"));
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(img, sx, sy, side, side, 0, 0, OUT, OUT);
     // 不支持 WebP 的浏览器会自动退回 PNG
@@ -60,21 +61,21 @@ const NOTE_LONG_EDGE = 1920;
 
 export async function fileToNoteImage(file: File): Promise<NoteImage> {
   if (!NOTE_IMAGE_TYPES.includes(file.type)) {
-    throw new Error("只支持 PNG、JPG、WebP 图片");
+    throw new Error(tx("只支持 PNG、JPG、WebP 图片"));
   }
   if (file.size > NOTE_IMAGE_MAX_MB * 1024 * 1024) {
-    throw new Error(`图片不能超过 ${NOTE_IMAGE_MAX_MB} MB`);
+    throw new Error(tx("图片不能超过 {0} MB", NOTE_IMAGE_MAX_MB));
   }
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const i = new Image();
       i.onload = () => resolve(i);
-      i.onerror = () => reject(new Error("图片读不出来，换一张试试"));
+      i.onerror = () => reject(new Error(tx("图片读不出来，换一张试试")));
       i.src = url;
     });
     const { naturalWidth: nw, naturalHeight: nh } = img;
-    if (!nw || !nh) throw new Error("图片读不出来，换一张试试");
+    if (!nw || !nh) throw new Error(tx("图片读不出来，换一张试试"));
     const k = Math.min(1, NOTE_LONG_EDGE / Math.max(nw, nh));
     const w = Math.max(1, Math.round(nw * k));
     const h = Math.max(1, Math.round(nh * k));
@@ -82,7 +83,7 @@ export async function fileToNoteImage(file: File): Promise<NoteImage> {
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("图片读不出来，换一张试试");
+    if (!ctx) throw new Error(tx("图片读不出来，换一张试试"));
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(img, 0, 0, w, h);
     return {

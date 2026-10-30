@@ -7,6 +7,7 @@ import { buffLabel, estimateBuffs, hasteWithBuffs } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
 import { DpsChart } from "./DpsChart";
 import { useEquipDb } from "./useEquipDb";
+import { tx, paren } from "@/lib/i18n";
 
 export const fmt = (n: number) => n.toLocaleString("en-US");
 
@@ -57,9 +58,9 @@ export function DpsSummary({
   const prev = lo.history.length > 1 ? lo.history[lo.history.length - 2] : null;
   const deltaPct = prev ? ((lo.dps - prev.dps) / prev.dps) * 100 : 0;
   return (
-    <section aria-label="木桩秒伤">
+    <section aria-label={tx("木桩秒伤")}>
       <div className="flex min-h-8 items-center justify-between gap-3">
-        <h2 className="text-[13px] text-paper-3">木桩秒伤</h2>
+        <h2 className="text-[13px] text-paper-3">{tx("木桩秒伤")}</h2>
         <div className="flex items-center gap-1.5">{actions}</div>
       </div>
       <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
@@ -71,10 +72,12 @@ export function DpsSummary({
           {prev ? (
             <>
               <Delta pct={deltaPct} className="font-medium" />
-              <span className="ml-1.5">较上次 {fmt(D(prev.dps))}</span>
+              <span className="ml-1.5">
+                {tx("较上次 {0}", fmt(D(prev.dps)))}
+              </span>
             </>
           ) : (
-            "第一次计算"
+            tx("第一次计算")
           )}
         </p>
         {buffed && (
@@ -109,7 +112,7 @@ export function HistoryPanel({
       100
     : 0;
   return (
-    <section aria-label="秒伤变化">
+    <section aria-label={tx("秒伤变化")}>
       <div className="relative h-[260px]">
         <div className="absolute inset-0">
           <DpsChart history={lo.history.map(p => ({ ...p, dps: D(p.dps) }))} />
@@ -126,13 +129,15 @@ export function HistoryPanel({
             aria-hidden="true"
           />
           <span className="min-w-0 flex-1 truncate">
-            <span className="text-paper-2">{patch.label}</span>
-            {patch.detail && <span>（{patch.detail}）</span>}
+            <span className="text-paper-2">
+              {patch.label && tx(patch.label)}
+            </span>
+            {patch.detail && <span>{paren(patch.detail)}</span>}
             <span className="mx-1">·</span>
             <Delta pct={patchDelta} />
           </span>
           <span className="shrink-0 transition-colors group-hover:text-paper-2">
-            修改记录
+            {tx("修改记录")}
           </span>
           <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         </button>
@@ -165,9 +170,9 @@ export function GainsPanel({
 
   return (
     <div className="max-w-[620px] divide-y divide-paper/[0.07]">
-      <section aria-label="属性收益" className="pb-5">
+      <section aria-label={tx("属性收益")} className="pb-5">
         <p className="text-[12px] text-paper-3">
-          每多一个该属性的附魔，秒伤增加多少
+          {tx("每多一个该属性的附魔，秒伤增加多少")}
         </p>
         <ul className="mt-3 space-y-2.5">
           {lo.gains.map((g, i) => (
@@ -203,9 +208,9 @@ export function GainsPanel({
         </ul>
       </section>
 
-      <section aria-label="加速段位" className="py-5">
+      <section aria-label={tx("加速段位")} className="py-5">
         <div className="flex items-baseline justify-between gap-3">
-          <h3 className={sectionTitle}>加速段位</h3>
+          <h3 className={sectionTitle}>{tx("加速段位")}</h3>
           <p className="flex items-baseline gap-2 text-[12.5px]">
             <span className="font-medium text-paper">{haste.tier}</span>
             <span className="tabular-nums text-paper-2">
@@ -213,7 +218,7 @@ export function GainsPanel({
             </span>
             {est.haste > 0 && (
               <span className="text-[11.5px] tabular-nums text-jade">
-                含增益 +{fmt(Math.round(est.haste))}
+                {tx("含增益 +{0}", fmt(Math.round(est.haste)))}
               </span>
             )}
           </p>
@@ -224,7 +229,9 @@ export function GainsPanel({
           aria-valuemin={from}
           aria-valuemax={haste.nextValue ?? haste.value}
           aria-valuenow={haste.value}
-          aria-label={haste.nextTier ? `距离${haste.nextTier}` : "加速段位"}
+          aria-label={
+            haste.nextTier ? tx("距离{0}", haste.nextTier) : tx("加速段位")
+          }
         >
           <div
             className="h-full rounded-full bg-gold/80"
@@ -234,27 +241,31 @@ export function GainsPanel({
         <p className="mt-2 text-[12px] text-paper-3">
           {haste.nextValue ? (
             <>
-              再加{" "}
+              {tx("再加{0}", " ")}
               <span className="tabular-nums text-paper-2">
                 {fmt(haste.nextValue - haste.value)}
-              </span>{" "}
-              到{haste.nextTier}。加速按段位生效，不在上面的收益里
+              </span>
+              {tx(
+                "{0}到{1}。加速按段位生效，不在上面的收益里",
+                " ",
+                haste.nextTier
+              )}
             </>
           ) : (
-            "已经是最高段"
+            tx("已经是最高段")
           )}
         </p>
       </section>
 
-      <section aria-label="下一步建议" className="pt-5">
-        <h3 className={sectionTitle}>下一步建议</h3>
+      <section aria-label={tx("下一步建议")} className="pt-5">
+        <h3 className={sectionTitle}>{tx("下一步建议")}</h3>
         {best ? (
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
             <p className="text-[13.5px] text-paper">
-              把「{best.slotLabel}」换成
+              {tx("把「{0}」换成", best.slotLabel)}
               <span className="font-medium"> {best.name}</span>
               <span className="ml-2 text-[12.5px] text-paper-3">
-                秒伤 <Delta pct={best.pct} className="font-medium" />
+                {tx("秒伤")} <Delta pct={best.pct} className="font-medium" />
               </span>
             </p>
             <Btn
@@ -262,12 +273,12 @@ export function GainsPanel({
               variant="secondary"
               onClick={() => onTry(best.slotKey, best.itemId)}
             >
-              放进配装器
+              {tx("放进配装器")}
             </Btn>
           </div>
         ) : (
           <p className="mt-2 text-[13px] text-paper-2">
-            {db ? "装备库里没有比现在更好的" : "正在从装备库里找…"}
+            {db ? tx("装备库里没有比现在更好的") : tx("正在从装备库里找…")}
           </p>
         )}
       </section>

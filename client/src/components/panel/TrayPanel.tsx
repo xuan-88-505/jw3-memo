@@ -34,6 +34,7 @@ import { Inbox } from "./Inbox";
 import { NotePad } from "./NotePad";
 import { PanelAddCharacter } from "./PanelAddCharacter";
 import { MacroList, TalentList } from "./PanelContent";
+import { tx } from "@/lib/i18n";
 
 // 多心法分段的折叠状态：按「角色:心法」记，宏和奇穴共用；关面板、重启后保持
 const COLLAPSE_KEY = "tongdiao.panelCollapsed.v1";
@@ -95,7 +96,7 @@ export function TrayPanel({
 
   return (
     <section
-      aria-label="备忘录面板"
+      aria-label={tx("备忘录面板")}
       // 下拉菜单挂在面板里：不超出面板，模拟桌面缩放时位置也对
       data-layer-root
       className={cn(
@@ -219,7 +220,9 @@ function PanelMain({
           onPointerDown={e => e.stopPropagation()}
         >
           <IconBtn
-            label={inboxCount ? `通知，${inboxCount} 条有更新` : "通知"}
+            label={
+              inboxCount ? tx("通知，{0} 条有更新", inboxCount) : tx("通知")
+            }
             onClick={() => setView("inbox")}
           >
             <span className="relative">
@@ -233,7 +236,7 @@ function PanelMain({
           </IconBtn>
           {showPin && (
             <IconBtn
-              label={state.pinned ? "取消置顶" : "置顶"}
+              label={state.pinned ? tx("取消置顶") : tx("置顶")}
               active={state.pinned}
               onClick={actions.togglePin}
             >
@@ -241,7 +244,7 @@ function PanelMain({
             </IconBtn>
           )}
           <IconBtn
-            label="打开管理窗口"
+            label={tx("打开管理窗口")}
             onClick={() =>
               // 没有方案时不定位，方案库显示列表里的第一个
               openManager("schemes", focusScheme?.id)
@@ -256,14 +259,14 @@ function PanelMain({
       <div className="flex h-10 shrink-0 items-stretch gap-2 border-b border-paper/[0.07] pl-4 pr-2">
         <div
           role="tablist"
-          aria-label="内容"
+          aria-label={tx("内容")}
           className="flex items-stretch gap-4"
         >
           {(
             [
-              ["macro", "宏"],
-              ["talent", "奇穴"],
-              ["note", "便签"],
+              ["macro", tx("宏")],
+              ["talent", tx("奇穴")],
+              ["note", tx("便签")],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -287,7 +290,7 @@ function PanelMain({
           {/* 便签和 PVE/PVP 无关，不显示切换 */}
           {modes.length > 1 && tab !== "note" && (
             <Segmented<Mode>
-              label="方案类型"
+              label={tx("方案类型")}
               size="xs"
               value={mode}
               onChange={m => actions.setMode(char.id, m)}
@@ -430,11 +433,11 @@ function NewSchemeRow({
       <button
         type="button"
         onClick={onCreate}
-        title={`${missing.join("、")}还没有 ${mode} 方案`}
+        title={tx("{0}还没有 {1} 方案", missing.join("、"), mode)}
         className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[12.5px] text-paper-3 transition-colors hover:bg-paper/[0.06] hover:text-paper"
       >
         <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-        新建方案
+        {tx("新建方案")}
       </button>
     </div>
   );
@@ -496,7 +499,7 @@ function CharacterSwitcher({
 
       {open && (
         <div className="absolute inset-x-2 top-[46px] z-30 animate-panel-down rounded-xl bg-ink-3 p-1 shadow-[0_18px_48px_-12px_rgb(0_0_0/0.7)] ring-1 ring-paper/12">
-          <ul role="listbox" aria-label="我的角色">
+          <ul role="listbox" aria-label={tx("我的角色")}>
             {characters.map((c, i) => {
               const active = c.id === current.id;
               return (
@@ -505,7 +508,9 @@ function CharacterSwitcher({
                     type="button"
                     role="option"
                     aria-selected={active}
-                    title={i < 9 ? `面板打开时按 ${i + 1} 切换` : undefined}
+                    title={
+                      i < 9 ? tx("面板打开时按 {0} 切换", i + 1) : undefined
+                    }
                     onClick={() => {
                       actions.selectCharacter(c.id);
                       setOpen(false);
@@ -537,7 +542,7 @@ function CharacterSwitcher({
               className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[12.5px] text-paper-2 hover:bg-paper/[0.05] hover:text-paper"
             >
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              管理角色
+              {tx("管理角色")}
             </button>
           </div>
         </div>
@@ -568,10 +573,10 @@ function NoScheme({
         <PixelIcon name="book" className="pixel-hop" />
       )}
       <p className="text-[13.5px] text-paper-2">
-        {xinfa ?? ""}还没有 {mode} 方案
+        {tx("{0}还没有 {1} 方案", xinfa ?? "", mode)}
       </p>
       {viewer ? (
-        <p className="text-[12px] text-paper-3">只读成员不能新建</p>
+        <p className="text-[12px] text-paper-3">{tx("只读成员不能新建")}</p>
       ) : (
         <Btn
           variant="secondary"
@@ -579,7 +584,7 @@ function NoScheme({
           onClick={onCreate}
           icon={<Plus className="h-3.5 w-3.5" />}
         >
-          新建方案
+          {tx("新建方案")}
         </Btn>
       )}
     </div>
@@ -621,7 +626,7 @@ function NoCharacters() {
       ) : (
         <div className="empty-state flex flex-1 flex-col items-center justify-center gap-3 px-8 pb-6 text-center">
           <PixelIcon name="hero" className="pixel-hop" />
-          <p className="text-[13.5px] text-paper-2">还没有角色</p>
+          <p className="text-[13.5px] text-paper-2">{tx("还没有角色")}</p>
           <Btn
             ref={addBtn}
             variant="primary"
@@ -629,7 +634,7 @@ function NoCharacters() {
             onClick={() => setAdding(true)}
             icon={<Plus className="h-4 w-4" />}
           >
-            添加角色
+            {tx("添加角色")}
           </Btn>
         </div>
       )}
@@ -642,7 +647,7 @@ function PanelSkeleton() {
     <div
       className="flex flex-1 flex-col"
       aria-busy="true"
-      aria-label="正在加载"
+      aria-label={tx("正在加载")}
     >
       <div className="flex h-12 items-center gap-2 px-3">
         <span className="skeleton h-7 w-7" />

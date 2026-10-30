@@ -12,6 +12,7 @@ import {
   sameAvatar,
 } from "./AvatarPicker";
 import { Field, inputCls } from "./shared";
+import { tx } from "@/lib/i18n";
 
 const NAME_MAX = 12;
 
@@ -53,10 +54,10 @@ export function ProfileDialog({
   const changed = n !== self.name || !sameAvatar(avatar, current);
 
   const validate = () => {
-    if (!n) return "填一下昵称";
-    if (n.length > NAME_MAX) return `昵称最多 ${NAME_MAX} 个字`;
+    if (!n) return tx("填一下昵称");
+    if (n.length > NAME_MAX) return tx("昵称最多 {0} 个字", NAME_MAX);
     if (state.members.some(m => m.id !== self.id && m.name === n))
-      return `亲友团里已经有人叫「${n}」了`;
+      return tx("亲友团里已经有人叫「{0}」了", n);
     return "";
   };
 
@@ -67,7 +68,7 @@ export function ProfileDialog({
       return;
     }
     actions.updateMe({ name: n, avatar });
-    actions.toast("manager", "success", "已更新个人资料");
+    actions.toast("manager", "success", tx("已更新个人资料"));
     onClose();
   };
 
@@ -75,18 +76,18 @@ export function ProfileDialog({
     <InlineModal
       open
       onClose={onClose}
-      title="个人资料"
+      title={tx("个人资料")}
       width={460}
       bodyMaxHeight={540}
       footer={
         <>
           {!online && (
             <span className="mr-auto text-[12px] text-gold">
-              离线时不能保存
+              {tx("离线时不能保存")}
             </span>
           )}
           <Btn variant="ghost" size="md" onClick={onClose}>
-            取消
+            {tx("取消")}
           </Btn>
           <Btn
             variant="primary"
@@ -94,7 +95,7 @@ export function ProfileDialog({
             onClick={save}
             disabled={!changed || busy || !online}
           >
-            保存
+            {tx("保存")}
           </Btn>
         </>
       }
@@ -115,7 +116,7 @@ export function ProfileDialog({
             />
           </EditableAvatar>
           <div className="min-w-0 flex-1">
-            <Field label="昵称" htmlFor="me-name" error={error}>
+            <Field label={tx("昵称")} htmlFor="me-name" error={error}>
               <input
                 id="me-name"
                 data-autofocus
@@ -132,7 +133,7 @@ export function ProfileDialog({
               />
             </Field>
             <p className="mt-1.5 text-[12px] text-paper-3">
-              {ROLE_LABEL[self.role]} · 亲友团成员都能看到
+              {tx("{0} · 亲友团成员都能看到", ROLE_LABEL[self.role])}
             </p>
           </div>
         </div>

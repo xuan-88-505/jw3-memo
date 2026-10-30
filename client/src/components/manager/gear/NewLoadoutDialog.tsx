@@ -16,6 +16,7 @@ import { Field, SelectBox, inputCls } from "../shared";
 import { XinfaPairSelect } from "../SchoolPicker";
 import { EnchantEditor } from "./EnchantEditor";
 import { ImportField, OfflineHint, useImportInput } from "./ImportCard";
+import { tx } from "@/lib/i18n";
 
 const sameConfig = (a: GearConfig, b: GearConfig) =>
   JSON.stringify(a) === JSON.stringify(b);
@@ -26,8 +27,8 @@ const NAME_MAX = 12;
 export function autoLoadoutName(all: Loadout[], xinfa: string) {
   const names = new Set(all.filter(l => l.xinfa === xinfa).map(l => l.name));
   let n = names.size + 1;
-  while (names.has(`配装 ${n}`)) n++;
-  return `配装 ${n}`;
+  while (names.has(tx("配装 {0}", n))) n++;
+  return tx("配装 {0}", n);
 }
 
 function loadoutNameError(
@@ -36,12 +37,12 @@ function loadoutNameError(
   name: string,
   selfId?: string
 ) {
-  if (name.length > NAME_MAX) return `名字最多 ${NAME_MAX} 个字`;
+  if (name.length > NAME_MAX) return tx("名字最多 {0} 个字", NAME_MAX);
   if (
     name &&
     all.some(l => l.xinfa === xinfa && l.name === name && l.id !== selfId)
   )
-    return `${xinfa}里已经有「${name}」了`;
+    return tx("{0}里已经有「{1}」了", xinfa, name);
   return "";
 }
 
@@ -60,7 +61,7 @@ function CharLinkSelect({
   const chars = myCharacters(state).filter(c => xinfasOf(c).includes(xinfa));
   if (chars.length === 0) return null;
   return (
-    <Field label="关联角色（可选）" htmlFor={id}>
+    <Field label={tx("关联角色（可选）")} htmlFor={id}>
       <SelectBox
         id={id}
         value={value}
@@ -68,7 +69,7 @@ function CharLinkSelect({
         wrapClassName="w-full"
         className={inputCls()}
       >
-        <option value="">不关联</option>
+        <option value="">{tx("不关联")}</option>
         {chars.map(c => (
           <option key={c.id} value={c.id}>
             {c.name} · {c.server}
@@ -177,14 +178,14 @@ export function NewLoadoutDialog({
     <InlineModal
       open={open}
       onClose={onClose}
-      title="新建配装"
+      title={tx("新建配装")}
       width={520}
       bodyMaxHeight={500}
       footer={
         <>
           {offline && <OfflineHint />}
           <Btn variant="ghost" size="md" onClick={onClose}>
-            取消
+            {tx("取消")}
           </Btn>
           <Btn
             variant="primary"
@@ -199,14 +200,14 @@ export function NewLoadoutDialog({
             disabled={offline || (!manual && !input.canSubmit)}
             onClick={submit}
           >
-            {manual ? "手动配装" : "导入并计算"}
+            {manual ? tx("手动配装") : tx("导入并计算")}
           </Btn>
         </>
       }
     >
       <div className="space-y-5 pb-1">
         <div className="grid grid-cols-[minmax(0,5fr)_minmax(0,4fr)] gap-3">
-          <Field label="心法" htmlFor={xinfaId}>
+          <Field label={tx("心法")} htmlFor={xinfaId}>
             <XinfaPairSelect
               id={xinfaId}
               value={xinfa}
@@ -230,7 +231,7 @@ export function NewLoadoutDialog({
               }}
             />
           </Field>
-          <Field label="名称" htmlFor={nameId} error={error}>
+          <Field label={tx("名称")} htmlFor={nameId} error={error}>
             <input
               id={nameId}
               value={name}
@@ -251,7 +252,7 @@ export function NewLoadoutDialog({
 
         <ImportField
           input={input}
-          label="导入（可选）"
+          label={tx("导入（可选）")}
           labelClassName="text-[12.5px] font-medium text-paper"
           charName={linked?.name}
           xinfa={xinfa}
@@ -273,9 +274,9 @@ export function NewLoadoutDialog({
               )}
               aria-hidden="true"
             />
-            附魔与五彩石
+            {tx("附魔与五彩石")}
             <span className="ml-auto text-[12px] font-normal text-paper-3">
-              {customized ? "已调整" : manual ? "默认" : "跟随导入"}
+              {customized ? tx("已调整") : manual ? tx("默认") : tx("跟随导入")}
             </span>
           </button>
           {enchantOpen && (
@@ -325,14 +326,14 @@ export function EditLoadoutDialog({
     const n = name.trim();
     const err = n
       ? loadoutNameError(all, loadout.xinfa, n, loadout.id)
-      : "名字不能为空";
+      : tx("名字不能为空");
     setError(err);
     if (err) return;
     actions.updateLoadout(loadout.id, { name: n, charId: charId || null });
     if (!sameConfig(config, configOf(loadout)))
       actions.configureLoadout(loadout.id, config);
     onClose();
-    actions.toast("manager", "success", "已保存");
+    actions.toast("manager", "success", tx("已保存"));
   };
 
   const remove = () => {
@@ -342,14 +343,14 @@ export function EditLoadoutDialog({
     }
     actions.removeLoadout(loadout.id);
     onClose();
-    actions.toast("manager", "success", `已删除「${loadout.name}」`);
+    actions.toast("manager", "success", tx("已删除「{0}」", loadout.name));
   };
 
   return (
     <InlineModal
       open={open}
       onClose={onClose}
-      title="编辑配装"
+      title={tx("编辑配装")}
       width={560}
       bodyMaxHeight={520}
       footer={
@@ -361,20 +362,20 @@ export function EditLoadoutDialog({
             onClick={remove}
             className="mr-auto"
           >
-            {confirmDelete ? "确认删除" : "删除"}
+            {confirmDelete ? tx("确认删除") : tx("删除")}
           </Btn>
           <Btn variant="ghost" size="md" onClick={onClose}>
-            取消
+            {tx("取消")}
           </Btn>
           <Btn variant="primary" size="md" onClick={save}>
-            保存
+            {tx("保存")}
           </Btn>
         </>
       }
     >
       <div className="space-y-5 pb-1">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="名称" htmlFor={nameId} error={error}>
+          <Field label={tx("名称")} htmlFor={nameId} error={error}>
             <input
               id={nameId}
               value={name}

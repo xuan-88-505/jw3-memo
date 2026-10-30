@@ -278,21 +278,51 @@ fn open_manager(app: AppHandle, req: serde_json::Value) {
     );
 }
 
-/// 托盘提示：Windows 显示在悬停提示里，Mac 显示在菜单栏图标旁边
+/// 托盘提示：Windows 显示在悬停提示里，Mac 显示在菜单栏图标旁边。
+/// `tip` 由页面按界面语言给出；旧页面没传时用中文。
 #[tauri::command]
-fn set_tray_badge(app: AppHandle, count: u32) {
+fn set_tray_badge(app: AppHandle, count: u32, tip: Option<String>) {
     let Some(tray) = app.tray_by_id(TRAY_ID) else { return };
-    let tip = if count > 0 {
-        format!("备忘录 · {count} 条更新")
-    } else {
-        "备忘录".to_string()
-    };
+    let tip = tip.unwrap_or_else(|| {
+        if count > 0 {
+            format!("备忘录 · {count} 条更新")
+        } else {
+            "备忘录".to_string()
+        }
+    });
     let _ = tray.set_tooltip(Some(tip));
     #[cfg(target_os = "macos")]
     {
         let title = (count > 0).then(|| count.to_string());
         let _ = tray.set_title(title);
     }
+}
+
+/// 托盘右键菜单。菜单项 id 不变，换语言时只换文字
+fn tray_menu<M: Manager<tauri::Wry>>(
+    app: &M,
+    open: &str,
+    quit: &str,
+) -> tauri::Result<Menu<tauri::Wry>> {
+    let open = MenuItem::with_id(app, "open", open, true, None::<&str>)?;
+    let sep = PredefinedMenuItem::separator(app)?;
+    let quit = MenuItem::with_id(app, "quit", quit, true, None::<&str>)?;
+    Menu::with_items(app, &[&open, &sep, &quit])
+}
+
+/// 界面语言变了：托盘菜单和窗口标题跟着换
+#[tauri::command]
+fn set_ui_texts(app: AppHandle, title: String, open: String, quit: String) -> Result<(), String> {
+    if let Some(tray) = app.tray_by_id(TRAY_ID) {
+        let menu = tray_menu(&app, &open, &quit).map_err(|e| e.to_string())?;
+        tray.set_menu(Some(menu)).map_err(|e| e.to_string())?;
+    }
+    for label in [MANAGER, PANEL] {
+        if let Some(w) = app.get_webview_window(label) {
+            let _ = w.set_title(&title);
+        }
+    }
+    Ok(())
 }
 
 // ---------- 启动 ----------
@@ -328,10 +358,7 @@ fn create_windows(app: &tauri::App) -> tauri::Result<()> {
 }
 
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "打开备忘录", true, None::<&str>)?;
-    let sep = PredefinedMenuItem::separator(app)?;
-    let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &sep, &quit])?;
+    let menu = tray_menu(app, "打开备忘录", "退出")?;
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(Image::from_bytes(include_bytes!("../icons/tray.png"))?)
         .tooltip("备忘录")
@@ -426,6 +453,7 @@ pub fn run() {
             reset_panel_position,
             open_manager,
             set_tray_badge,
+            set_ui_texts,
         ])
         .on_window_event(on_window_event)
         .setup(|app| {

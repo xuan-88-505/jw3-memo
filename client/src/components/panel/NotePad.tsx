@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { relativeTime } from "@/lib/format";
 import { NOTE_MAX, isOnline, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
+import { tx } from "@/lib/i18n";
 
 /** 停止输入多久后保存 */
 const SAVE_DELAY = 400;
@@ -47,17 +48,17 @@ export function NotePad({ charId }: { charId: string }) {
   const len = text.length;
   const nearLimit = len > NOTE_MAX * 0.9;
   const status = pending
-    ? "正在保存…"
+    ? tx("正在保存…")
     : !note
       ? ""
       : !online
-        ? "已存在本机，联网后同步"
-        : `已保存 · ${relativeTime(note.at)}`;
+        ? tx("已存在本机，联网后同步")
+        : tx("已保存 · {0}", relativeTime(note.at));
 
   return (
     <div
       role="tabpanel"
-      aria-label="便签"
+      aria-label={tx("便签")}
       className="flex min-h-0 flex-1 animate-fade flex-col"
     >
       <textarea
@@ -66,9 +67,11 @@ export function NotePad({ charId }: { charId: string }) {
         onBlur={flush}
         maxLength={NOTE_MAX}
         spellCheck={false}
-        aria-label="这个角色的便签"
-        title="便签只有你能看到，不会共享给亲友团"
-        placeholder={"记点这个角色的事，比如团长 YY、副本时间\n只有你能看到"}
+        aria-label={tx("这个角色的便签")}
+        title={tx("便签只有你能看到，不会共享给亲友团")}
+        placeholder={tx(
+          "记点这个角色的事，比如团长 YY、副本时间\n只有你能看到"
+        )}
         className="scroll-thin min-h-0 flex-1 resize-none bg-transparent px-4 py-3 text-[13px] leading-[1.75] text-paper placeholder:text-paper-3/70 focus:outline-none"
       />
       {(status || nearLimit) && (

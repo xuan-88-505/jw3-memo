@@ -10,6 +10,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Platform } from "@/data/types";
 import type { Hotkey } from "@/lib/hotkey";
+import { tx } from "@/lib/i18n";
 
 export const IS_DESKTOP =
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -67,7 +68,7 @@ export async function exportFile(name: string, contents: string) {
   const { save } = await import("@tauri-apps/plugin-dialog");
   const path = await save({
     defaultPath: name,
-    filters: [{ name: "备忘录数据", extensions: ["json"] }],
+    filters: [{ name: tx("备忘录数据"), extensions: ["json"] }],
   });
   if (!path) return false;
   await invoke("write_text_file", { path, contents });
@@ -82,8 +83,14 @@ export const setPinned = (pinned: boolean) =>
   invoke<void>("set_pinned", { pinned });
 export const resetPanelPosition = () => invoke<void>("reset_panel_position");
 export const startDragging = () => getCurrentWindow().startDragging();
-export const setTrayBadge = (count: number) =>
-  invoke<void>("set_tray_badge", { count });
+export const setTrayBadge = (count: number, tip: string) =>
+  invoke<void>("set_tray_badge", { count, tip });
+/** 托盘菜单和窗口标题，按界面语言 */
+export const setUiTexts = (texts: {
+  title: string;
+  open: string;
+  quit: string;
+}) => invoke<void>("set_ui_texts", texts);
 
 export function onPanelShown(cb: () => void): Promise<UnlistenFn> {
   return listen(EVT_SHOWN, () => cb());

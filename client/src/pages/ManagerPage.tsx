@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { ManagerApp } from "@/components/manager/ManagerApp";
+import { tx } from "@/lib/i18n";
 
 export default function ManagerPage() {
   return (
@@ -11,10 +12,10 @@ export default function ManagerPage() {
           className="inline-flex items-center gap-1.5 text-paper-2 hover:text-paper"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-          回到演示台
+          {tx("回到演示台")}
         </Link>
         <span className="text-paper-3">
-          管理窗口 · 正式版是一个独立窗口，最小 960 × 640
+          {tx("管理窗口 · 正式版是一个独立窗口，最小 960 × 640")}
         </span>
       </div>
       <div className="min-h-0 flex-1">

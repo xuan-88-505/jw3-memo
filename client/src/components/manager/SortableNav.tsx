@@ -8,6 +8,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { ManagerSection } from "@/data/types";
 import { cn } from "@/lib/utils";
+import { tx } from "@/lib/i18n";
 
 export interface NavItem {
   key: ManagerSection;
@@ -82,7 +83,7 @@ export function SortableNav({
 
   const keys = items.map(i => i.key);
   const labelOf = (k: ManagerSection) =>
-    items.find(i => i.key === k)?.label ?? "";
+    tx(items.find(i => i.key === k)?.label ?? "");
 
   const clearPress = () => {
     if (press.current) window.clearTimeout(press.current.timer);
@@ -120,7 +121,7 @@ export function SortableNav({
   const commit = (from: number, to: number) => {
     if (from === to) return;
     onReorder(moveItem(keys, from, to));
-    setAnnounce(`已把「${labelOf(keys[from])}」移到第 ${to + 1} 位`);
+    setAnnounce(tx("已把「{0}」移到第 {1} 位", labelOf(keys[from]), to + 1));
   };
 
   // 拖动中按 Esc：放回原位
@@ -261,7 +262,7 @@ export function SortableNav({
                 onKeyDown={e => onKeyDown(e, i)}
                 aria-current={active ? "page" : undefined}
                 aria-describedby="nav-sort-hint"
-                title={collapsed ? n.label : undefined}
+                title={collapsed ? tx(n.label) : undefined}
                 className={cn(
                   "relative flex h-9 w-full select-none items-center gap-2.5 rounded-md px-2.5 text-[13.5px] transition-[background-color,color,box-shadow,transform] duration-150",
                   active
@@ -284,7 +285,7 @@ export function SortableNav({
                     collapsed && "sr-only"
                   )}
                 >
-                  <span className="truncate">{n.label}</span>
+                  <span className="truncate">{tx(n.label)}</span>
                   {n.tag && (
                     <span className="shrink-0 rounded px-1 text-[10px] font-medium leading-4 text-paper-3 ring-1 ring-inset ring-paper/15">
                       {n.tag}
@@ -297,7 +298,7 @@ export function SortableNav({
         })}
       </ul>
       <p id="nav-sort-hint" className="sr-only">
-        按住拖动可以调整顺序，也可以按 Alt 加上下方向键移动
+        {tx("按住拖动可以调整顺序，也可以按 Alt 加上下方向键移动")}
       </p>
       <p className="sr-only" aria-live="polite">
         {announce}

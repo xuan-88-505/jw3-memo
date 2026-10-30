@@ -1,6 +1,7 @@
 import type { PanelStats } from "@/data/gear";
 import { cn } from "@/lib/utils";
 import { panelRows, showPanelValue } from "./panelRows";
+import { tx } from "@/lib/i18n";
 
 /** 两两一行的属性：数值短，放得下 */
 const PAIRED = ["score", "hp", "primary", "attack"];
@@ -26,9 +27,9 @@ export function PanelList({
   const paired = rows.filter(r => PAIRED.includes(r.key));
   const single = rows.filter(r => !PAIRED.includes(r.key));
   return (
-    <section aria-label="面板属性" className={className}>
+    <section aria-label={tx("面板属性")} className={className}>
       <div className="flex items-baseline justify-between gap-2">
-        <h3 className="text-[12.5px] font-medium text-paper-2">面板</h3>
+        <h3 className="text-[12.5px] font-medium text-paper-2">{tx("面板")}</h3>
         {note && <span className="text-[11px] text-paper-3">{note}</span>}
       </div>
       <dl className="mt-1.5 grid grid-cols-2 gap-x-4 border-b border-paper/[0.07] pb-1.5">
