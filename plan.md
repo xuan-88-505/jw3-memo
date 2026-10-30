@@ -784,3 +784,8 @@ client/src/
   - 悬停时：托盘的 `Enter` / `Leave` 事件控制，Windows 和 macOS 才有这两个事件。更新条数比上次多时也动 3 秒；启动时第一次读到的条数只当基准。
   - 一直动：一直换帧。不动：不换帧，也清掉没动完的 3 秒提醒。
 - 前端：面板窗口（`DesktopPanel`）把设置传给 Rust（命令 `set_tray_motion`，值为 `hover` / `always` / `off`）。系统开了「减少动态效果」时一律传 `off`。管理窗口改设置后写数据文件，面板重新读取后再传。
+
+## Windows 应用图标（2026-10-31）
+- 用户要求：「这里不用白色的底，黄鸡放大些」。
+- Windows `icon.ico`：没有底板，黄鸡铺满，15 档尺寸，由 `tools/icons/make_ico.py` 从 `client/public/huangji/hj-101.png` 生成。Tauri 在 Windows 上按系统大图标尺寸（96 DPI 时 32，随缩放变大）从这个文件取窗口图标，所以每种缩放都要有现成的一档。
+- Mac `icon.icns` 保留米白圆角底，因为 macOS 图标规范要求圆角方形。
