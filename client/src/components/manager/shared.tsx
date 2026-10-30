@@ -77,12 +77,16 @@ export function DiffDetails({
                   <span className="ml-2 text-paper-3">
                     {m.kind === "added" && tx("新增")}
                     {m.kind === "removed" && tx("删除")}
+                    {m.kind === "icon" && tx("换了图标")}
                     {m.kind === "renamed" &&
                       tx("改名，原来叫「{0}」", m.oldName)}
                     {m.kind === "changed" &&
                       (m.oldName !== m.name
                         ? tx("内容有改动，原来叫「{0}」", m.oldName)
                         : tx("内容有改动"))}
+                    {m.kind !== "icon" &&
+                      m.iconFrom !== undefined &&
+                      tx("，换了图标")}
                   </span>
                 </p>
                 {m.ops.length > 0 && (m.kind === "changed" || !compact) && (

@@ -34,14 +34,20 @@ export function ChangeList({ diff }: { diff: SchemeDiff }) {
       ))}
       {diff.macros.map(m => {
         const changed = m.ops.filter(o => o.type !== "same").length;
-        const label =
+        const main =
           m.kind === "added"
             ? tx("新增")
             : m.kind === "removed"
               ? tx("删除")
-              : m.kind === "renamed"
-                ? tx("原名 {0}", m.oldName)
-                : tx("改了 {0} 行", Math.ceil(changed / 2));
+              : m.kind === "icon"
+                ? tx("换了图标")
+                : m.kind === "renamed"
+                  ? tx("原名 {0}", m.oldName)
+                  : tx("改了 {0} 行", Math.ceil(changed / 2));
+        const label =
+          m.kind !== "icon" && m.iconFrom !== undefined
+            ? `${main} · ${tx("换了图标")}`
+            : main;
         return (
           <li key={m.macroId} className="flex items-baseline gap-2">
             <span className="w-11 shrink-0 text-paper-3">{tx("宏")}</span>

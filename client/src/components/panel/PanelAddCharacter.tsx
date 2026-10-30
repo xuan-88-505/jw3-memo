@@ -11,8 +11,18 @@ import { tx } from "@/lib/i18n";
  * 字段和校验与管理窗口的「添加角色」弹窗相同；添加成功后面板直接切到这个角色。
  * Esc 或「取消」回到空状态；下拉菜单开着时 Esc 只关菜单。
  */
-export function PanelAddCharacter({ onCancel }: { onCancel: () => void }) {
+export function PanelAddCharacter({
+  onCancel,
+  onDone,
+}: {
+  onCancel: () => void;
+  /** 添加成功后调用（列表里已有角色时，用它关掉表单） */
+  onDone?: () => void;
+}) {
   const form = useAddCharacterForm("panel");
+  const submit = () => {
+    if (form.submit()) onDone?.();
+  };
   const nameRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     nameRef.current?.focus();
@@ -38,7 +48,7 @@ export function PanelAddCharacter({ onCancel }: { onCancel: () => void }) {
       </h2>
       <AddCharacterFields
         form={form}
-        onSubmit={form.submit}
+        onSubmit={submit}
         idPrefix="panel-char"
         nameRef={nameRef}
       />
@@ -49,7 +59,7 @@ export function PanelAddCharacter({ onCancel }: { onCancel: () => void }) {
         <Btn
           variant="primary"
           size="md"
-          onClick={() => form.submit()}
+          onClick={submit}
           disabled={!form.canSubmit}
         >
           {tx("添加")}

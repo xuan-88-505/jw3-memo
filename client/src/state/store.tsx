@@ -381,7 +381,9 @@ const initialState: ProtoState = {
  * 读到 data.json 后再用文件里的内容覆盖。
  */
 function desktopInitial(): Partial<ProtoState> {
-  const self = SEED_MEMBERS.find(m => m.id === ME_ID) ?? SEED_MEMBERS[0];
+  // 自己的资料从示例复制，但不带作者标记：作者要在设置里输入作者码
+  const { author: _author, ...self } =
+    SEED_MEMBERS.find(m => m.id === ME_ID) ?? SEED_MEMBERS[0];
   return {
     team: null,
     members: [{ ...self, role: "admin", joinedAt: new Date().toISOString() }],
@@ -816,6 +818,57 @@ function useActions(
       );
     };
 
+    /** 把草稿存成新版本。管理窗口保存草稿、面板里直接新建都走这里 */
+    const commitDraft = (draft: Draft, note: string) => {
+      const schemeId = draft.schemeId;
+      const last = latest(
+        stateRef.current.schemes.find(x => x.id === schemeId)
+      );
+      const version: SchemeVersion = {
+        version: (last?.version ?? 0) + 1,
+        macros: draft.macros,
+        talents: draft.talents,
+        note,
+        authorId: ME_ID,
+        at: new Date().toISOString(),
+      };
+      // 只改了备注：游戏里不用动，已同步的角色继续算已同步
+      const noGameChange =
+        !!last &&
+        diffVersions(last, version, layersOf(draft.xinfa)).total === 0;
+      // PVE 方案的奇穴变了：用这个心法、已导入配装的我的角色重算一次
+      const talentChanged =
+        !last || last.talents.some((t, i) => t !== draft.talents[i]);
+      update(st => {
+        const drafts = { ...st.drafts };
+        delete drafts[schemeId];
+        return {
+          schemes: appendVersion(st.schemes, schemeId, version, draft),
+          drafts,
+          loadouts:
+            draft.mode === "PVE" && talentChanged
+              ? recalcAfterPatch(st, draft.xinfa, version.version, version.at)
+              : st.loadouts,
+          characters: noGameChange
+            ? st.characters.map(c =>
+                xinfasOf(c).includes(draft.xinfa) &&
+                c.synced[draft.xinfa]?.[draft.mode] === last!.version
+                  ? {
+                      ...c,
+                      synced: {
+                        ...c.synced,
+                        [draft.xinfa]: {
+                          ...c.synced[draft.xinfa],
+                          [draft.mode]: version.version,
+                        },
+                      },
+                    }
+                  : c
+              )
+            : st.characters,
+        };
+      });
+    };
     return {
       toast,
       dismissToast: (id: number) =>
@@ -1075,52 +1128,49 @@ function useActions(
           });
           return "conflict";
         }
-        const version: SchemeVersion = {
-          version: (last?.version ?? 0) + 1,
-          macros: draft.macros,
-          talents: draft.talents,
-          note,
-          authorId: ME_ID,
-          at: new Date().toISOString(),
-        };
-        // 只改了备注：游戏里不用动，已同步的角色继续算已同步
-        const noGameChange =
-          !!last &&
-          diffVersions(last, version, layersOf(draft.xinfa)).total === 0;
-        // PVE 方案的奇穴变了：用这个心法、已导入配装的我的角色重算一次
-        const talentChanged =
-          !last || last.talents.some((t, i) => t !== draft.talents[i]);
-        update(st => {
-          const drafts = { ...st.drafts };
-          delete drafts[schemeId];
-          return {
-            schemes: appendVersion(st.schemes, schemeId, version, draft),
-            drafts,
-            loadouts:
-              draft.mode === "PVE" && talentChanged
-                ? recalcAfterPatch(st, draft.xinfa, version.version, version.at)
-                : st.loadouts,
-            characters: noGameChange
-              ? st.characters.map(c =>
-                  xinfasOf(c).includes(draft.xinfa) &&
-                  c.synced[draft.xinfa]?.[draft.mode] === last!.version
-                    ? {
-                        ...c,
-                        synced: {
-                          ...c.synced,
-                          [draft.xinfa]: {
-                            ...c.synced[draft.xinfa],
-                            [draft.mode]: version.version,
-                          },
-                        },
-                      }
-                    : c
-                )
-              : st.characters,
-          };
-        });
+        commitDraft(draft, note);
         return "saved";
       },
+      /**
+       * 面板里直接新建：不经过管理窗口，填好的内容直接存成 v1，说明写「新建」。
+       * 已经有方案时返回 "exists"；管理窗口里这个方案有填了内容还没保存的草稿时
+       * 返回 "draft"，不覆盖。
+       */
+      createScheme: (
+        xinfa: string,
+        mode: Mode,
+        init: { macros?: Macro[]; talents?: number[] }
+      ): "created" | "exists" | "draft" => {
+        const s = stateRef.current;
+        if (latest(findScheme(s, xinfa, mode))) return "exists";
+        const schemeId = `${xinfa}-${mode}`;
+        const old = s.drafts[schemeId];
+        const blank = defaultTalents();
+        if (
+          old &&
+          (old.macros.length > 0 || old.talents.some((t, i) => t !== blank[i]))
+        )
+          return "draft";
+        commitDraft(
+          {
+            schemeId,
+            xinfa,
+            mode,
+            baseVersion: 0,
+            macros: init.macros ?? [],
+            talents: init.talents ?? blank,
+          },
+          tx("新建")
+        );
+        return "created";
+      },
+      /** 作者头像框：在设置里输入作者码后开启，也可以关掉 */
+      setAuthor: (on: boolean) =>
+        update(st => ({
+          members: st.members.map(m =>
+            m.id === ME_ID ? { ...m, author: on || undefined } : m
+          ),
+        })),
       resolveConflict: (choice: "mine" | "theirs") => {
         const s = stateRef.current;
         const pc = s.pendingConflict;

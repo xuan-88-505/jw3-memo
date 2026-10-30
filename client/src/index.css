@@ -245,6 +245,45 @@
     opacity: 0;
   }
 }
+/* 作者头像框：金属质感的金色描边，外面一圈淡金光；鼠标移到头像上时流光转一圈 */
+@property --author-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 210deg;
+}
+.author-glow {
+  filter: drop-shadow(0 0 3px rgb(236 178 64 / 0.45));
+}
+.author-ring {
+  background: conic-gradient(
+    from var(--author-angle),
+    #fff3c4,
+    #ecb240 18%,
+    #9a6214 36%,
+    #f7d67c 54%,
+    #b0721c 72%,
+    #ffe9a3 88%,
+    #fff3c4
+  );
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - var(--ring)),
+    #000 calc(100% - var(--ring) + 0.5px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - var(--ring)),
+    #000 calc(100% - var(--ring) + 0.5px)
+  );
+}
+.group:hover .author-ring {
+  animation: author-sheen 2.4s linear infinite;
+}
+@keyframes author-sheen {
+  to {
+    --author-angle: 570deg;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

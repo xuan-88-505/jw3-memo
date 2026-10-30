@@ -44,6 +44,8 @@ export interface Member {
   /** 头像：默认是随机的黄鸡表情，也可以上传图片 */
   avatar?: CharacterAvatar;
   joinedAt: string;
+  /** 软件作者：头像带金色描边和皇冠。在设置里输入作者码开启 */
+  author?: boolean;
 }
 
 export interface Macro {

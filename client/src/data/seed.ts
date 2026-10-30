@@ -112,6 +112,7 @@ export const SEED_MEMBERS: Member[] = [
     role: "admin",
     color: "#D2462F",
     joinedAt: "2026-09-20T20:00:00+08:00",
+    author: true,
   },
   {
     id: "xiaotao",

@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { Inbox } from "./Inbox";
 import { NotePad } from "./NotePad";
 import { PanelAddCharacter } from "./PanelAddCharacter";
+import { PanelNewScheme } from "./PanelNewScheme";
 import { MacroList, TalentList } from "./PanelContent";
 import { tx } from "@/lib/i18n";
 
@@ -130,9 +131,15 @@ function PanelMain({
   const [tab, setTab] = useState<"macro" | "talent" | "note">("macro");
   const [focusXinfa, setFocusXinfa] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(readCollapsed);
+  // 面板里的新建都原地填表，不打开管理窗口：scheme 新建方案，char 添加角色
+  const [creating, setCreating] = useState<null | "scheme" | "char">(null);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
   const mine = myCharacters(state);
   const char = mine.find(c => c.id === state.activeCharId) ?? mine[0];
+  // 换了角色：要新建的心法也变了，收起新建方案的表单
+  useEffect(() => {
+    setCreating(c => (c === "scheme" ? null : c));
+  }, [char.id]);
   // 多心法角色（双心法、学了流派）：列表按心法分段，每段一个小标题
   const xinfas = xinfasOf(char);
   const multi = xinfas.length > 1;
@@ -217,7 +224,7 @@ function PanelMain({
         <CharacterSwitcher
           current={char}
           characters={mine}
-          onManage={() => openManager("characters")}
+          onAdd={() => setCreating("char")}
         />
         <div
           className="ml-auto flex items-center gap-0.5"
@@ -259,123 +266,138 @@ function PanelMain({
         </div>
       </header>
 
-      {/* 页签行：宏 / 奇穴 / 便签平级；没有方案时也显示，便签随时能进 */}
-      <div className="flex h-10 shrink-0 items-stretch gap-2 border-b border-paper/[0.07] pl-4 pr-2">
-        <div
-          role="tablist"
-          aria-label={tx("内容")}
-          className="flex items-stretch gap-4"
-        >
-          {(
-            [
-              ["macro", tx("宏")],
-              ["talent", tx("奇穴")],
-              ["note", tx("便签")],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              role="tab"
-              type="button"
-              aria-selected={tab === key}
-              onClick={() => setTab(key)}
-              className={cn(
-                "relative -mb-px flex items-center border-b-2 text-[13px] font-medium transition-colors",
-                tab === key
-                  ? "border-cinnabar text-paper"
-                  : "border-transparent text-paper-3 hover:text-paper"
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          {/* 便签和 PVE/PVP 无关，不显示切换 */}
-          {modes.length > 1 && tab !== "note" && (
-            <Segmented<Mode>
-              label={tx("方案类型")}
-              size="xs"
-              value={mode}
-              onChange={m => actions.setMode(char.id, m)}
-              options={modes.map(m => ({ value: m, label: m }))}
-            />
-          )}
-        </div>
-      </div>
-
-      <OfflineBar compact />
-
-      {tab === "note" ? (
-        // 每个角色一份：按角色 id 重新挂载，切角色时内容跟着变
-        <NotePad key={char.id} charId={char.id} />
-      ) : missing.length && (!multi || ready.length === 0) ? (
-        <NoScheme
-          xinfa={multi ? undefined : xinfas[0]}
-          onCreate={() =>
-            openManager("schemes", undefined, {
-              newScheme: { xinfa: missing[0].xinfa, mode },
-            })
-          }
-        />
+      {creating === "char" ? (
+        <>
+          <OfflineBar compact />
+          <PanelAddCharacter
+            onCancel={() => setCreating(null)}
+            onDone={() => setCreating(null)}
+          />
+        </>
       ) : (
-        <div
-          key={`${char.id}-${mode}-${tab}`}
-          className="scroll-thin min-h-0 flex-1 animate-fade overflow-y-auto"
-        >
-          {ready.map(sec => {
-            const id = `panel-sec-${char.id}-${sec.xinfa}`;
-            const list =
-              tab === "macro" ? (
-                <MacroList
-                  macros={sec.last!.macros}
-                  base={sec.base}
-                  compact={multi}
+        <>
+          {/* 页签行：宏 / 奇穴 / 便签平级；没有方案时也显示，便签随时能进 */}
+          <div className="flex h-10 shrink-0 items-stretch gap-2 border-b border-paper/[0.07] pl-4 pr-2">
+            <div
+              role="tablist"
+              aria-label={tx("内容")}
+              className="flex items-stretch gap-4"
+            >
+              {(
+                [
+                  ["macro", tx("宏")],
+                  ["talent", tx("奇穴")],
+                  ["note", tx("便签")],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  role="tab"
+                  type="button"
+                  aria-selected={tab === key}
+                  onClick={() => setTab(key)}
+                  className={cn(
+                    "relative -mb-px flex items-center border-b-2 text-[13px] font-medium transition-colors",
+                    tab === key
+                      ? "border-cinnabar text-paper"
+                      : "border-transparent text-paper-3 hover:text-paper"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              {/* 便签和 PVE/PVP 无关，不显示切换 */}
+              {modes.length > 1 && tab !== "note" && (
+                <Segmented<Mode>
+                  label={tx("方案类型")}
+                  size="xs"
+                  value={mode}
+                  onChange={m => actions.setMode(char.id, m)}
+                  options={modes.map(m => ({ value: m, label: m }))}
                 />
-              ) : (
-                <TalentList
-                  xinfa={sec.xinfa}
-                  talents={sec.last!.talents}
-                  compact={multi}
-                />
-              );
-            // 只玩一个心法时不加小标题
-            if (!multi) return <div key={sec.xinfa}>{list}</div>;
-            const key = `${char.id}:${sec.xinfa}`;
-            const isCollapsed = collapsed.has(key);
-            return (
-              <section
-                key={sec.xinfa}
-                aria-labelledby={id}
-                ref={el => {
-                  if (el) sectionRefs.current.set(sec.xinfa, el);
-                  else sectionRefs.current.delete(sec.xinfa);
-                }}
-              >
-                <SectionHeading
-                  id={id}
-                  xinfa={sec.xinfa}
-                  collapsed={isCollapsed}
-                  onToggle={() => setSectionCollapsed(key, !isCollapsed)}
-                />
-                {/* 折叠时只隐藏不卸载：展开的宏、奇穴说明保持原样 */}
-                <div id={`${id}-body`} hidden={isCollapsed}>
-                  {list}
-                </div>
-              </section>
-            );
-          })}
-          {multi && missing.length > 0 && (
-            <NewSchemeRow
-              missing={missing.map(x => x.xinfa)}
-              onCreate={() =>
-                openManager("schemes", undefined, {
-                  newScheme: { xinfa: missing[0].xinfa, mode },
-                })
-              }
+              )}
+            </div>
+          </div>
+
+          <OfflineBar compact />
+
+          {tab === "note" ? (
+            // 每个角色一份：按角色 id 重新挂载，切角色时内容跟着变
+            <NotePad key={char.id} charId={char.id} />
+          ) : creating === "scheme" && missing.length > 0 ? (
+            // 在宏、奇穴之间切页签时表单不重置，已经填的内容还在
+            <PanelNewScheme
+              key={char.id}
+              kind={tab}
+              xinfas={missing.map(x => x.xinfa)}
+              mode={mode}
+              onDone={() => setCreating(null)}
+              onCancel={() => setCreating(null)}
+              onOpenManager={id => openManager("schemes", id)}
             />
+          ) : missing.length && (!multi || ready.length === 0) ? (
+            <NoScheme
+              xinfa={multi ? undefined : xinfas[0]}
+              onCreate={() => setCreating("scheme")}
+            />
+          ) : (
+            <div
+              key={`${char.id}-${mode}-${tab}`}
+              className="scroll-thin min-h-0 flex-1 animate-fade overflow-y-auto"
+            >
+              {ready.map(sec => {
+                const id = `panel-sec-${char.id}-${sec.xinfa}`;
+                const list =
+                  tab === "macro" ? (
+                    <MacroList
+                      macros={sec.last!.macros}
+                      base={sec.base}
+                      compact={multi}
+                    />
+                  ) : (
+                    <TalentList
+                      xinfa={sec.xinfa}
+                      talents={sec.last!.talents}
+                      compact={multi}
+                    />
+                  );
+                // 只玩一个心法时不加小标题
+                if (!multi) return <div key={sec.xinfa}>{list}</div>;
+                const key = `${char.id}:${sec.xinfa}`;
+                const isCollapsed = collapsed.has(key);
+                return (
+                  <section
+                    key={sec.xinfa}
+                    aria-labelledby={id}
+                    ref={el => {
+                      if (el) sectionRefs.current.set(sec.xinfa, el);
+                      else sectionRefs.current.delete(sec.xinfa);
+                    }}
+                  >
+                    <SectionHeading
+                      id={id}
+                      xinfa={sec.xinfa}
+                      collapsed={isCollapsed}
+                      onToggle={() => setSectionCollapsed(key, !isCollapsed)}
+                    />
+                    {/* 折叠时只隐藏不卸载：展开的宏、奇穴说明保持原样 */}
+                    <div id={`${id}-body`} hidden={isCollapsed}>
+                      {list}
+                    </div>
+                  </section>
+                );
+              })}
+              {multi && missing.length > 0 && (
+                <NewSchemeRow
+                  missing={missing.map(x => x.xinfa)}
+                  onCreate={() => setCreating("scheme")}
+                />
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
     </>
   );
@@ -446,11 +468,12 @@ function NewSchemeRow({
 function CharacterSwitcher({
   current,
   characters,
-  onManage,
+  onAdd,
 }: {
   current: Character;
   characters: Character[];
-  onManage: () => void;
+  /** 在面板里原地添加角色 */
+  onAdd: () => void;
 }) {
   const { state, actions } = useProto();
   const [open, setOpen] = useState(false);
@@ -537,12 +560,12 @@ function CharacterSwitcher({
               type="button"
               onClick={() => {
                 setOpen(false);
-                onManage();
+                onAdd();
               }}
               className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[12.5px] text-paper-2 hover:bg-paper/[0.05] hover:text-paper"
             >
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              {tx("管理角色")}
+              {tx("添加角色")}
             </button>
           </div>
         </div>

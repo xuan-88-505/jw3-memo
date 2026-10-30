@@ -2,6 +2,7 @@ import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { Check, Circle } from "lucide-react";
 import type { Member, SyncStatus } from "@/data/types";
 import { Huangji, chickSize, moodFor } from "@/components/brand/Huangji";
+import { CROWN_H, CROWN_W, Crown } from "@/components/brand/Crown";
 import { cn } from "@/lib/utils";
 import { tx } from "@/lib/i18n";
 
@@ -156,9 +157,69 @@ export function Avatar({
   size = 24,
   animated = false,
 }: {
-  member: Pick<Member, "name" | "color" | "avatar">;
+  member: Pick<Member, "name" | "color" | "avatar" | "author">;
   size?: number;
   animated?: boolean;
+}) {
+  const face = <AvatarFace member={member} size={size} animated={animated} />;
+  return member.author ? <AuthorFrame size={size}>{face}</AuthorFrame> : face;
+}
+
+/**
+ * 作者头像框：金色金属描边 + 歪戴的像素皇冠。
+ * 描边和皇冠都画在头像外面，不改变头像占的位置；小于 24 的头像夹在文字里，只留描边。
+ */
+function AuthorFrame({
+  size,
+  children,
+}: {
+  size: number;
+  children: ReactNode;
+}) {
+  const ring = size >= 24 ? 2 : 1.5;
+  const gap = size >= 24 ? 1.5 : 1;
+  const cell = size >= 48 ? 2 : 1;
+  const cw = CROWN_W * cell;
+  const ch = CROWN_H * cell;
+  return (
+    <span
+      className="relative inline-grid shrink-0"
+      style={{ width: size, height: size }}
+    >
+      {children}
+      <span
+        aria-hidden="true"
+        className="author-glow pointer-events-none absolute"
+        style={{ inset: -(ring + gap) }}
+      >
+        <span
+          className="author-ring absolute inset-0 rounded-full"
+          style={{ ["--ring" as string]: `${ring}px` }}
+        />
+      </span>
+      {size >= 24 && (
+        <Crown
+          cell={cell}
+          className="pointer-events-none absolute drop-shadow-[0_1px_1px_rgb(0_0_0/0.45)]"
+          style={{
+            left: Math.round(size * 0.72 - cw / 2),
+            top: -Math.round(ch * 0.66),
+            transform: "rotate(18deg)",
+          }}
+        />
+      )}
+    </span>
+  );
+}
+
+function AvatarFace({
+  member,
+  size,
+  animated,
+}: {
+  member: Pick<Member, "name" | "color" | "avatar">;
+  size: number;
+  animated: boolean;
 }) {
   const av = member.avatar ?? { kind: "preset", mood: moodFor(member.name) };
   if (av.kind === "upload") {

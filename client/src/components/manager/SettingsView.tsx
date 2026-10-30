@@ -28,7 +28,9 @@ import {
   type TrayMotion,
 } from "@/state/store";
 import { cn } from "@/lib/utils";
-import { SectionHeader, SelectBox } from "./shared";
+import { SectionHeader, SelectBox, inputCls } from "./shared";
+import { ME_ID } from "@/data/seed";
+import { checkAuthorCode } from "@/lib/author";
 import { LANGS, setLang, tx, useLang, type Lang } from "@/lib/i18n";
 
 const APP_VERSION = IS_DESKTOP ? "1.0.3" : "v0.1.0";
@@ -47,6 +49,19 @@ export function SettingsView() {
   const lang = useLang();
   const offline = state.dataState === "offline";
   const [checking, setChecking] = useState(false);
+  // 连点 5 下版本号：展开作者码（没有入口提示，只给作者自己用）
+  const [authorOpen, setAuthorOpen] = useState(false);
+  const taps = useRef({ n: 0, at: 0 });
+  const tapVersion = () => {
+    const now = Date.now();
+    const t = taps.current;
+    t.n = now - t.at < 600 ? t.n + 1 : 1;
+    t.at = now;
+    if (t.n >= 5) {
+      t.n = 0;
+      setAuthorOpen(true);
+    }
+  };
 
   const checkUpdate = () => {
     // 桌面版：打开发布页，看有没有新的安装包
@@ -159,7 +174,11 @@ export function SettingsView() {
           </SettingRow>
           <SettingRow
             title={tx("版本")}
-            desc={IS_DESKTOP ? APP_VERSION : tx("{0} · 交互原型", APP_VERSION)}
+            desc={
+              <span onClick={tapVersion} className="cursor-default select-none">
+                {IS_DESKTOP ? APP_VERSION : tx("{0} · 交互原型", APP_VERSION)}
+              </span>
+            }
           >
             <Btn
               size="sm"
@@ -181,6 +200,7 @@ export function SettingsView() {
               {checking ? tx("正在检查") : tx("检查更新")}
             </Btn>
           </SettingRow>
+          {authorOpen && <AuthorRow onClose={() => setAuthorOpen(false)} />}
         </SettingGroup>
 
         {IS_DESKTOP && (
@@ -498,6 +518,86 @@ function SettingGroup({
     <section aria-label={title} className="divide-y divide-paper/[0.07]">
       {children}
     </section>
+  );
+}
+
+/** 作者码：输入正确后自己的头像戴上皇冠；已经戴着时可以摘下 */
+function AuthorRow({ onClose }: { onClose: () => void }) {
+  const { state, actions } = useProto();
+  const on = !!state.members.find(m => m.id === ME_ID)?.author;
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!code.trim() || busy) return;
+    setBusy(true);
+    const ok = await checkAuthorCode(code);
+    setBusy(false);
+    if (!ok) {
+      setError(tx("作者码不对"));
+      return;
+    }
+    actions.setAuthor(true);
+    actions.toast("manager", "success", tx("已戴上皇冠"));
+    onClose();
+  };
+  return (
+    <SettingRow
+      title={tx("作者")}
+      desc={
+        on ? (
+          tx("头像戴着皇冠")
+        ) : error ? (
+          <span role="alert" className="text-cinnabar-text">
+            {error}
+          </span>
+        ) : (
+          tx("输入作者码，头像戴上皇冠")
+        )
+      }
+    >
+      {on ? (
+        <Btn
+          size="sm"
+          onClick={() => {
+            actions.setAuthor(false);
+            actions.toast("manager", "success", tx("已摘下皇冠"));
+            onClose();
+          }}
+        >
+          {tx("摘下皇冠")}
+        </Btn>
+      ) : (
+        <div className="flex items-center gap-2">
+          <input
+            type="password"
+            autoFocus
+            value={code}
+            onChange={e => {
+              setCode(e.target.value);
+              setError("");
+            }}
+            onKeyDown={e => {
+              if (e.key === "Enter") void submit();
+              if (e.key === "Escape") onClose();
+            }}
+            aria-label={tx("作者码")}
+            aria-invalid={!!error}
+            autoComplete="off"
+            spellCheck={false}
+            className={cn(inputCls(!!error), "w-[180px] font-mono")}
+          />
+          <Btn
+            size="sm"
+            variant="primary"
+            onClick={() => void submit()}
+            disabled={!code.trim() || busy}
+          >
+            {tx("确认")}
+          </Btn>
+        </div>
+      )}
+    </SettingRow>
   );
 }
 

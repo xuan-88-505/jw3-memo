@@ -43,8 +43,11 @@ export function lineDiff(oldText: string, newText: string): DiffOp[] {
 export interface MacroChange {
   macroId: string;
   name: string;
-  kind: "added" | "removed" | "changed" | "renamed";
+  /** icon：只换了图标，内容和名称都没变 */
+  kind: "added" | "removed" | "changed" | "renamed" | "icon";
   oldName?: string;
+  /** 换了图标时，原来的图标编号（游戏里也要跟着换） */
+  iconFrom?: number;
   ops: DiffOp[];
 }
 
@@ -91,12 +94,14 @@ export function diffVersions(
     }
     const ops = lineDiff(prev.content, m.content);
     const contentChanged = ops.some(o => o.type !== "same");
+    const iconFrom = prev.icon !== m.icon ? prev.icon : undefined;
     if (contentChanged) {
       macros.push({
         macroId: m.id,
         name: m.name,
         kind: "changed",
         oldName: prev.name,
+        iconFrom,
         ops,
       });
     } else if (prev.name !== m.name) {
@@ -105,6 +110,15 @@ export function diffVersions(
         name: m.name,
         kind: "renamed",
         oldName: prev.name,
+        iconFrom,
+        ops: [],
+      });
+    } else if (iconFrom !== undefined) {
+      macros.push({
+        macroId: m.id,
+        name: m.name,
+        kind: "icon",
+        iconFrom,
         ops: [],
       });
     }

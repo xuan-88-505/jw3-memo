@@ -9,7 +9,8 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { Jx3Icon, XinfaMark } from "@/components/brand/Marks";
+import { XinfaMark } from "@/components/brand/Marks";
+import { IconPickerButton } from "@/components/common/IconPicker";
 import { InlineModal } from "@/components/common/overlay";
 import {
   Avatar,
@@ -361,6 +362,7 @@ function sameContent(
       o &&
       o.id === m.id &&
       o.name === m.name &&
+      o.icon === m.icon &&
       o.content === m.content &&
       (o.note ?? "") === (m.note ?? "")
     );
@@ -645,6 +647,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
             {view.macros.map(m => (
               <MacroEditor
                 key={m.id}
+                xinfa={xinfa}
                 macro={m}
                 base={baseMacros.get(m.id)}
                 hasBase={!!last}
@@ -724,6 +727,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
 }
 
 function MacroEditor({
+  xinfa,
   macro,
   base,
   hasBase,
@@ -731,6 +735,7 @@ function MacroEditor({
   onChange,
   onRemove,
 }: {
+  xinfa: string;
   macro: Macro;
   base?: Macro;
   hasBase: boolean;
@@ -749,13 +754,21 @@ function MacroEditor({
     (!base ||
       base.content !== macro.content ||
       base.name !== macro.name ||
+      base.icon !== macro.icon ||
       (base.note ?? "") !== (macro.note ?? ""));
   const over = cleaned.length > MACRO_LIMIT;
 
   return (
     <div className="py-3.5">
       <div className="flex items-center gap-2.5">
-        <Jx3Icon id={macro.icon} name={macro.name || tx("宏")} size={30} />
+        <IconPickerButton
+          xinfa={xinfa}
+          value={macro.icon}
+          name={macro.name || tx("宏")}
+          onChange={icon => onChange({ icon })}
+          size={30}
+          disabled={!editable}
+        />
         <input
           value={macro.name}
           readOnly={!editable}

@@ -20,12 +20,15 @@ export function TalentPicker({
   baseline,
   onChange,
   disabled,
+  compact = false,
 }: {
   xinfa: string;
   value: number[];
   baseline?: number[];
   onChange: (next: number[]) => void;
   disabled?: boolean;
+  /** 面板里用：九重的图标缩到 24，最窄 300 宽也能一排放下 */
+  compact?: boolean;
 }) {
   const uid = useId();
   const layers = layersOf(xinfa);
@@ -82,7 +85,11 @@ export function TalentPicker({
   return (
     <div className="@container">
       {/* 九重一排 */}
-      <div role="tablist" aria-label={tx("奇穴")} className="flex gap-1.5">
+      <div
+        role="tablist"
+        aria-label={tx("奇穴")}
+        className={cn("flex", compact ? "gap-[3px]" : "gap-1.5")}
+      >
         {layers.map((L, i) => {
           const o = pickedAt(i);
           const active = slot === i;
@@ -103,8 +110,9 @@ export function TalentPicker({
               onKeyDown={e => onTabKey(e, i)}
               title={tx("第{0}重 · {1}", layerLabel(i), o?.name ?? tx("未选"))}
               className={cn(
-                "relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1 rounded-lg px-1 pb-1.5 pt-1.5 ring-1 ring-inset transition-colors",
-                i === 6 && "ml-2",
+                "relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1 rounded-lg pb-1.5 pt-1.5 ring-1 ring-inset transition-colors",
+                compact ? "px-px" : "px-1",
+                i === 6 && (compact ? "ml-1" : "ml-2"),
                 active
                   ? "bg-cinnabar/[0.10] ring-cinnabar/70"
                   : "bg-paper/[0.04] ring-paper/10 hover:ring-paper/[0.22]"
@@ -119,11 +127,14 @@ export function TalentPicker({
                 {layerLabel(i)}
               </span>
               {o ? (
-                <Jx3Icon id={o.icon} name={o.name} size={32} />
+                <Jx3Icon id={o.icon} name={o.name} size={compact ? 24 : 32} />
               ) : (
                 <span
                   aria-hidden="true"
-                  className="h-8 w-8 rounded-md bg-paper/[0.06]"
+                  className={cn(
+                    "rounded-md bg-paper/[0.06]",
+                    compact ? "h-6 w-6" : "h-8 w-8"
+                  )}
                 />
               )}
               <span
@@ -170,7 +181,12 @@ export function TalentPicker({
           aria-label={tx("第{0}重", layerLabel(slot))}
           className={cn(
             "grid gap-1.5",
-            pool ? "grid-cols-4 @[480px]:grid-cols-6" : "grid-cols-4"
+            pool
+              ? "grid-cols-4 @[480px]:grid-cols-6"
+              : // 面板太窄，四个一排名字只剩一个字；两个一排名字能看全
+                compact
+                ? "grid-cols-2"
+                : "grid-cols-4"
           )}
         >
           {optionsOf(slot).map(o => {
