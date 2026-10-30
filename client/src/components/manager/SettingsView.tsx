@@ -584,7 +584,9 @@ function Toggle({
       aria-labelledby={labelledBy}
       onClick={() => onChange(!checked)}
       className={cn(
-        "relative inline-flex h-[22px] w-[38px] shrink-0 items-center rounded-full transition-colors duration-150",
+        // 滑块用 padding + margin 定位，和底座一起排版：
+        // 用 transform 时，Windows 125%/150% 缩放下滑块会单独对齐像素，和底座差半个到一个像素，看着歪
+        "relative inline-flex h-[22px] w-[38px] shrink-0 items-center rounded-full p-[3px] transition-colors duration-150",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cinnabar-text/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-2",
         checked
           ? "bg-cinnabar-fill"
@@ -594,8 +596,9 @@ function Toggle({
       <span
         aria-hidden="true"
         className={cn(
-          "h-4 w-4 rounded-full bg-paper shadow-sm transition-transform duration-150",
-          checked ? "translate-x-[19px]" : "translate-x-[3px]"
+          // 阴影四周一样，不往下偏，否则下边显得更厚
+          "h-4 w-4 shrink-0 rounded-full bg-paper shadow-[0_0_2px_rgb(0_0_0/0.3)] transition-[margin-left] duration-150",
+          checked ? "ml-4" : "ml-0"
         )}
       />
     </button>
