@@ -379,6 +379,7 @@ function PanelMain({
                     <SectionHeading
                       id={id}
                       xinfa={sec.xinfa}
+                      title={sec.scheme?.title}
                       collapsed={isCollapsed}
                       onToggle={() => setSectionCollapsed(key, !isCollapsed)}
                     />
@@ -407,11 +408,14 @@ function PanelMain({
 function SectionHeading({
   id,
   xinfa,
+  title,
   collapsed,
   onToggle,
 }: {
   id: string;
   xinfa: string;
+  /** 方案自定义的标题；有就显示它，心法靠图标和悬停提示认 */
+  title?: string;
   collapsed: boolean;
   onToggle: () => void;
 }) {
@@ -422,12 +426,15 @@ function SectionHeading({
         onClick={onToggle}
         aria-expanded={!collapsed}
         aria-controls={`${id}-body`}
-        className="group flex h-8 w-full items-center gap-2 px-4 text-left text-[12px] font-medium text-paper-2 transition-colors hover:text-paper"
+        title={title ? xinfa : undefined}
+        className="group flex min-h-8 w-full items-center gap-2 px-4 py-1.5 text-left text-[12px] font-medium leading-[18px] text-paper-2 transition-colors hover:text-paper"
       >
         <span aria-hidden="true" className="inline-flex shrink-0">
           <XinfaMark xinfa={xinfa} size={16} />
         </span>
-        <span className="truncate">{xinfa}</span>
+        <span className="min-w-0 [overflow-wrap:anywhere]">
+          {title || xinfa}
+        </span>
         <ChevronDown
           aria-hidden="true"
           className={cn(

@@ -144,9 +144,12 @@ function SchemeList() {
                 <ul>
                   {modes.map(m => {
                     const id = `${x}-${m}`;
-                    const last = latest(findScheme(state, x, m));
+                    const scheme = findScheme(state, x, m);
+                    const last = latest(scheme);
                     const draft = state.drafts[id];
                     const active = activeId === id;
+                    // 自定义了标题就在行里显示，和右边标题一致；没改过就只靠上面的心法名
+                    const title = scheme?.title ?? draft?.title;
                     // 列表不显示版本号，只写谁、什么时候改的
                     const meta = last
                       ? isSolo(state)
@@ -159,7 +162,7 @@ function SchemeList() {
                           type="button"
                           onClick={() => actions.selectScheme(id)}
                           aria-current={active ? "page" : undefined}
-                          aria-label={`${x} ${m} · ${meta}${draft ? tx(" · 有未保存的修改") : ""}`}
+                          aria-label={`${title ? `${title} · ` : ""}${x} ${m} · ${meta}${draft ? tx(" · 有未保存的修改") : ""}`}
                           className={cn(
                             "flex w-full items-center gap-2 rounded-md py-1.5 pl-[36px] pr-2 text-left text-[12.5px] transition-colors",
                             active
@@ -167,13 +170,20 @@ function SchemeList() {
                               : "text-paper-2 hover:bg-paper/[0.04] hover:text-paper"
                           )}
                         >
-                          <span
-                            className={cn(
-                              "min-w-0 flex-1 truncate text-[11.5px]",
-                              active ? "text-paper-2" : "text-paper-3"
+                          <span className="min-w-0 flex-1">
+                            {title && (
+                              <span className="block text-[13px] font-medium leading-5 [overflow-wrap:anywhere]">
+                                {title}
+                              </span>
                             )}
-                          >
-                            {meta}
+                            <span
+                              className={cn(
+                                "block truncate text-[11.5px]",
+                                active ? "text-paper-2" : "text-paper-3"
+                              )}
+                            >
+                              {meta}
+                            </span>
                           </span>
                           <span
                             className={cn(
