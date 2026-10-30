@@ -587,26 +587,44 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
               tx("新方案，还没保存")
             )}
           </p>
-          {last && editable && !otherExists && (
-            <Btn
-              variant="ghost"
-              size="sm"
-              icon={<Plus className="h-3.5 w-3.5" />}
-              onClick={() => actions.startDraft(xinfa, other)}
-            >
-              {tx("添加 {0}", other)}
-            </Btn>
-          )}
-          {last && (
-            <Btn
-              variant="ghost"
-              size="sm"
-              icon={<History className="h-3.5 w-3.5" />}
-              onClick={() => actions.openChangelog(xinfa)}
-            >
-              {tx("历史版本")}
-            </Btn>
-          )}
+          {/* 操作放在一起：加宏、加另一个模式、历史版本（只用图标） */}
+          <div className="flex shrink-0 items-center gap-0.5">
+            {editable && (
+              <Btn
+                variant="ghost"
+                size="sm"
+                aria-label={tx("添加宏")}
+                title={tx("添加宏")}
+                icon={<Plus className="h-3.5 w-3.5" />}
+                onClick={addMacro}
+              >
+                {tx("宏")}
+              </Btn>
+            )}
+            {last && editable && !otherExists && (
+              <Btn
+                variant="ghost"
+                size="sm"
+                aria-label={tx("添加 {0} 方案", other)}
+                title={tx("添加 {0} 方案", other)}
+                icon={<Plus className="h-3.5 w-3.5" />}
+                onClick={() => actions.startDraft(xinfa, other)}
+              >
+                {other}
+              </Btn>
+            )}
+            {last && (
+              <Btn
+                variant="ghost"
+                size="sm"
+                aria-label={tx("历史版本")}
+                title={tx("历史版本")}
+                className="w-7 px-0"
+                icon={<History className="h-3.5 w-3.5" />}
+                onClick={() => actions.openChangelog(xinfa)}
+              />
+            )}
+          </div>
         </div>
 
         {!editable && (
@@ -617,22 +635,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
         )}
 
         <div className="mt-7">
-          <SectionLabel
-            right={
-              editable && (
-                <Btn
-                  variant="ghost"
-                  size="xs"
-                  icon={<Plus className="h-3.5 w-3.5" />}
-                  onClick={addMacro}
-                >
-                  {tx("添加宏")}
-                </Btn>
-              )
-            }
-          >
-            {tx("宏 · {0}", view.macros.length)}
-          </SectionLabel>
+          <SectionLabel>{tx("宏 · {0}", view.macros.length)}</SectionLabel>
           <div className="mt-1 divide-y divide-paper/[0.07]">
             {view.macros.length === 0 && (
               <p className="py-6 text-center text-[12.5px] text-paper-3">
@@ -767,15 +770,6 @@ function MacroEditor({
             {base ? tx("已修改") : tx("新增")}
           </span>
         )}
-        <span
-          className={cn(
-            "font-mono text-[12px] tabular-nums",
-            over ? "font-semibold text-cinnabar-text" : "text-paper-3"
-          )}
-          title={tx("去掉注释和空行后的字符数（含换行）")}
-        >
-          {cleaned.length}/{MACRO_LIMIT}
-        </span>
         {editable && (
           <IconBtn label={tx("删除宏 {0}", macro.name)} onClick={onRemove}>
             <Trash2 className="h-3.5 w-3.5" />
@@ -801,8 +795,9 @@ function MacroEditor({
           aria-label={tx("{0} 的宏内容", macro.name)}
           className="scroll-thin block w-full resize-y rounded-md bg-paper/[0.04] px-3 py-2 font-mono text-[12.5px] leading-[1.7] text-paper ring-1 ring-inset ring-paper/10 hover:ring-paper/[0.18] focus:outline-none focus:ring-2 focus:ring-cinnabar-text/50"
         />
-        {lints.length > 0 && (
-          <ul className="mt-2 space-y-1">
+        {/* 输入框下面一行：左边是提示，右边是字数（弱化，超出时变红） */}
+        <div className="mt-1.5 flex items-start gap-3">
+          <ul className="min-w-0 flex-1 space-y-1">
             {lints.map((l, i) => (
               <li
                 key={i}
@@ -830,7 +825,16 @@ function MacroEditor({
               </li>
             ))}
           </ul>
-        )}
+          <span
+            className={cn(
+              "shrink-0 font-mono text-[11px] leading-[18px] tabular-nums",
+              over ? "font-semibold text-cinnabar-text" : "text-paper-3/60"
+            )}
+            title={tx("去掉注释和空行后的字符数（含换行）")}
+          >
+            {cleaned.length}/{MACRO_LIMIT}
+          </span>
+        </div>
       </div>
     </div>
   );
