@@ -60,6 +60,7 @@ import {
   backupData,
   loadData,
   onDataChanged,
+  onPanelShown,
   saveData,
 } from "@/lib/desktop";
 import { HUANGJI_MOODS, type HuangjiMood } from "@/components/brand/Huangji";
@@ -1639,8 +1640,10 @@ function useDesktopData(
     const pull = async () => {
       try {
         const raw = await loadData();
-        const data = raw ? parseData(raw) : null;
         if (!alive) return;
+        // 文件没变（比如弹出面板时补读一次）：不刷新界面
+        if (!first && raw && raw === lastJson.current) return;
+        const data = raw ? parseData(raw) : null;
         if (raw && data) {
           lastJson.current = raw;
           dispatch({ type: "patch", patch: data });
@@ -1665,11 +1668,30 @@ function useDesktopData(
       first = false;
       if (alive) setReady(true);
     };
+    /**
+     * 补读一次文件。窗口隐藏时系统可能推迟处理「另一个窗口保存了」的通知，
+     * 所以面板弹出、窗口重新获得焦点或变成可见时再读一次。
+     * 本窗口还有没写进文件的改动时不读，免得盖掉刚改的内容。
+     */
+    const refresh = () => {
+      if (first) return;
+      if (serializeData(stateRef.current) !== lastJson.current) return;
+      void pull();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
     void pull();
     const off = onDataChanged(() => void pull());
+    const offShown = WINDOW_LABEL === "panel" ? onPanelShown(refresh) : null;
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
       void off.then(f => f());
+      void offShown?.then(f => f());
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);

@@ -43,6 +43,7 @@ function moveItem<T>(list: T[], from: number, to: number): T[] {
  * 侧栏导航。按住一项拖动排序，松手生效，拖动中按 Esc 取消。
  * 鼠标、触控板按下后一移动就开始拖；触摸屏要长按，避免和滑动冲突。
  * 不显示拖动图标；键盘用 Alt + ↑/↓ 移动当前项。
+ * 侧栏折叠时只显示图标：名称留给读屏，鼠标悬停时用 title 显示。
  */
 export function SortableNav({
   items,
@@ -50,12 +51,14 @@ export function SortableNav({
   disabled,
   onSelect,
   onReorder,
+  collapsed = false,
 }: {
   items: NavItem[];
   activeKey: ManagerSection;
   disabled: boolean;
   onSelect: (key: ManagerSection) => void;
   onReorder: (keys: ManagerSection[]) => void;
+  collapsed?: boolean;
 }) {
   const listRef = useRef<HTMLUListElement>(null);
   const press = useRef<{
@@ -258,6 +261,7 @@ export function SortableNav({
                 onKeyDown={e => onKeyDown(e, i)}
                 aria-current={active ? "page" : undefined}
                 aria-describedby="nav-sort-hint"
+                title={collapsed ? n.label : undefined}
                 className={cn(
                   "relative flex h-9 w-full select-none items-center gap-2.5 rounded-md px-2.5 text-[13.5px] transition-[background-color,color,box-shadow,transform] duration-150",
                   active
@@ -274,7 +278,12 @@ export function SortableNav({
                   />
                 )}
                 <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
+                <span
+                  className={cn(
+                    "flex min-w-0 flex-1 items-center gap-1.5 whitespace-nowrap text-left",
+                    collapsed && "sr-only"
+                  )}
+                >
                   <span className="truncate">{n.label}</span>
                   {n.tag && (
                     <span className="shrink-0 rounded px-1 text-[10px] font-medium leading-4 text-paper-3 ring-1 ring-inset ring-paper/15">
