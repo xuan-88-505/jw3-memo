@@ -35,7 +35,9 @@ git -C "$SRC" reset -q --hard "$COMMIT"
 git -C "$SRC" clean -fdq -e node_modules
 
 echo "[2/4] 安装上游依赖"
-(cd "$SRC" && pnpm install --frozen-lockfile --ignore-scripts)
+# --ignore-workspace：源码默认放在本仓库里的 .cache/src。不加这个参数，pnpm 会往上找到
+# 本仓库的 pnpm-workspace.yaml，只装本仓库的依赖，上游依赖一个都不装。
+(cd "$SRC" && pnpm install --frozen-lockfile --ignore-scripts --ignore-workspace)
 
 echo "[3/4] 打补丁并构建（约 3 分钟）"
 node "$HERE/apply-patches.mjs" "$SRC"
