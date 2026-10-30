@@ -1,4 +1,5 @@
 import type { BuffSelection } from "@/lib/buffs";
+import type { CalcInput } from "./calcTypes";
 import {
   ALL_HERO,
   addDelta,
@@ -185,6 +186,15 @@ export interface Loadout {
     pct?: CalcPct;
     /** 计算器里的小附魔简写，按部位 */
     enchants?: Record<string, string>;
+    /**
+     * 在备忘录自己的配装器里编辑过：原版计算器的原样输入（当季装备 id、附魔 id、五彩石、战斗配置）。
+     * 下次打开配装器照它恢复；没有这项的是旧赛季配装或旧版本带回的结果
+     */
+    input?: CalcInput;
+    /** 算这次秒伤用的循环和战斗时间（秒） */
+    loop?: { name: string; title: string; time: number };
+    /** 所选循环的默认奇穴 */
+    talents?: string[];
   };
 }
 

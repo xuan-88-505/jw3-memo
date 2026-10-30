@@ -102,13 +102,18 @@ export function panelRows(
       calc?.strain ?? panelPct.strain(p),
       p.strainLv
     ),
-    {
-      key: "surplus",
-      label: "破招",
-      value: p.surplus,
-      unit: "int",
-      core: true,
-    },
+    // 原版计算器的角色面板没有破招：用原版结果时不显示这一行
+    ...(!calc || p.surplus
+      ? [
+          {
+            key: "surplus",
+            label: "破招",
+            value: p.surplus,
+            unit: "int" as const,
+            core: true,
+          },
+        ]
+      : []),
     ...(p.versatility
       ? [
           {

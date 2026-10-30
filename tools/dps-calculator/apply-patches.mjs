@@ -22,6 +22,15 @@ const patches = [
     replace: "import './备忘录桥接'\nimport React, { Suspense, useEffect } from 'react'\n",
   },
   {
+    file: "src/index.tsx",
+    why: "计算引擎模式（?engine=1）不渲染界面，只给备忘录算",
+    find: "if (isLocalBuild) {\n",
+    replace:
+      "if (new URLSearchParams(window.location.search).has('engine')) {\n" +
+      "  // 备忘录计算引擎：只加载数据和计算，不渲染界面（见 src/备忘录引擎.ts）\n" +
+      "} else if (isLocalBuild) {\n",
+  },
+  {
     file: "public/index.html",
     why: "去掉百度统计",
     find: `    <!-- 百度埋点 -->
@@ -85,6 +94,8 @@ for (const p of patches) {
 
 copyFileSync(join(here, "bridge.ts"), join(root, "src/备忘录桥接.ts"));
 console.log("已复制桥接：src/备忘录桥接.ts");
+copyFileSync(join(here, "engine.ts"), join(root, "src/备忘录引擎.ts"));
+console.log("已复制引擎：src/备忘录引擎.ts");
 
 if (failed) {
   console.error(`${failed} 处补丁没对上，上游代码可能改了，请对照 tools/dps-calculator/README.md 更新补丁。`);

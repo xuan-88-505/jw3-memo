@@ -12,8 +12,8 @@ SRC="${DPS_CALC_SRC:-$HERE/.cache/src}"
 OUT="$ROOT/client/public/dps-calculator"
 
 sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
-# 上游提交、补丁、桥接、本脚本任何一个变了都要重新构建
-PATCH_HASH="$( (echo "$COMMIT"; cat "$HERE/bridge.ts" "$HERE/apply-patches.mjs" "$HERE/build.sh") | sha | cut -c1-16)"
+# 上游提交、补丁、桥接、引擎、本脚本任何一个变了都要重新构建
+PATCH_HASH="$( (echo "$COMMIT"; cat "$HERE/bridge.ts" "$HERE/engine.ts" "$HERE/apply-patches.mjs" "$HERE/build.sh") | sha | cut -c1-16)"
 
 if [ "${1:-}" != "--force" ] && [ -f "$OUT/VERSION.json" ] && grep -q "\"patch\": \"$PATCH_HASH\"" "$OUT/VERSION.json"; then
   echo "内置计算器已是最新（$PATCH_HASH），跳过。要重新构建请加 --force。"

@@ -48,8 +48,13 @@ export function calcSupported(xinfa: string) {
   return xinfa in XF_CODE;
 }
 
+/** 心法在计算器里的简写，例如紫霞功是 zxg；不支持的心法是空串 */
+export function calcCode(xinfa: string) {
+  return XF_CODE[xinfa] ?? "";
+}
+
 /** 计算器的部位索引和备忘录部位 key 的对应 */
-const INDEX_KEY: Record<string, string> = {
+export const INDEX_KEY: Record<string, string> = {
   _1: "hat",
   _2: "coat",
   _3: "belt",
@@ -63,7 +68,7 @@ const INDEX_KEY: Record<string, string> = {
   _11: "hidden",
   _12: "weapon",
 };
-const KEY_INDEX = Object.fromEntries(
+export const KEY_INDEX: Record<string, string> = Object.fromEntries(
   Object.entries(INDEX_KEY).map(([i, k]) => [k, i])
 );
 

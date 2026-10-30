@@ -19,6 +19,7 @@ import type { Attr } from "@/data/gear";
 import { cn } from "@/lib/utils";
 import { inputCls } from "../shared";
 import { tx, paren } from "@/lib/i18n";
+import type { StoneSource } from "@/lib/calcEngine";
 
 /** 换成这颗石头（null 是不镶），秒伤相对当前选择变化多少（0.01 = 1%） */
 export type StoneGain = (name: string | null) => number;
@@ -85,6 +86,10 @@ function attrText(s: StoneDef) {
 
 type Path = [string | null, string | null, string | null];
 
+/** 这一组里指定等级的石头；没有这个等级（原版只有伍、陆两级）就用最高级 */
+const atLevel = (f: StoneFamily, lv: StoneLevel) =>
+  f.levels.find(s => s.level === lv) ?? f.levels[f.levels.length - 1];
+
 /**
  * 五彩石选择：参考交易行，按属性 1 → 属性 2 → 属性 3 一层一层选，最后选等级。
  * 在弹窗里展开（不浮出），避免被弹窗的滚动区裁掉。
@@ -94,20 +99,24 @@ export function StonePicker({
   main,
   value,
   gain,
+  source,
   onChange,
 }: {
   id?: string;
   main: Attr;
   value: string | null;
   gain: StoneGain;
+  /** 原版计算器的当季五彩石；不传用旧赛季的五彩石表 */
+  source?: StoneSource;
   onChange: (name: string | null) => void;
 }) {
   const uid = useId();
-  const families = stoneFamilies(main);
-  const current = stoneDef(main, value);
+  const families = source?.families ?? stoneFamilies(main);
+  const current = source ? source.find(value) : stoneDef(main, value);
+  const maxLevel = source?.levels[source.levels.length - 1] ?? 6;
   const [open, setOpen] = useState(false);
   const [path, setPath] = useState<Path>([null, null, null]);
-  const [level, setLevel] = useState<StoneLevel>(6);
+  const [level, setLevel] = useState<StoneLevel>(maxLevel);
   const [hoverLv, setHoverLv] = useState<StoneLevel | null>(null);
   const [query, setQuery] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -129,7 +138,7 @@ export function StonePicker({
     setPath(
       fam ? [keyOf(fam, 0), keyOf(fam, 1), keyOf(fam, 2)] : [null, null, null]
     );
-    setLevel(current?.level ?? 6);
+    setLevel(current?.level ?? maxLevel);
     setHoverLv(null);
     setQuery("");
     setOpen(true);
@@ -163,7 +172,7 @@ export function StonePicker({
     const m = new Map<string, number>();
     if (!open) return m;
     for (const f of families)
-      m.set(f.short, gain(f.levels[shownLevel - 1].name));
+      m.set(f.short, gain(atLevel(f, shownLevel).name));
     return m;
   }, [open, families, gain, shownLevel]);
 
@@ -281,7 +290,7 @@ export function StonePicker({
   };
 
   const previewLv = hoverLv ?? level;
-  const preview = family ? family.levels[previewLv - 1] : null;
+  const preview = family ? atLevel(family, previewLv) : null;
 
   const optionCls = (on: boolean) =>
     cn(
@@ -393,7 +402,7 @@ export function StonePicker({
             >
               {results.length ? (
                 results.map(f => {
-                  const s = f.levels[shownLevel - 1];
+                  const s = atLevel(f, shownLevel);
                   return (
                     <button
                       key={f.short}

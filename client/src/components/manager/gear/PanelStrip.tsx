@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import type { PanelStats } from "@/data/gear";
+import type { CalcPct, PanelStats } from "@/data/gear";
 import { cn } from "@/lib/utils";
 import {
   panelRows,
@@ -23,6 +23,7 @@ export function PanelStrip({
   panel,
   hasteValue,
   base,
+  pct,
   footer,
   note,
   className,
@@ -30,14 +31,18 @@ export function PanelStrip({
   xinfa: string;
   panel: PanelStats;
   hasteValue: number;
-  base?: { panel: PanelStats; hasteValue: number };
+  base?: { panel: PanelStats; hasteValue: number; pct?: CalcPct };
+  /** 原版计算器算好的百分比；有就直接显示 */
+  pct?: CalcPct;
   footer?: ReactNode;
   /** 显示在装分、气血下面的小字，例如开了增益时提示"不含增益" */
   note?: string;
   className?: string;
 }) {
-  const rows = panelRows(xinfa, panel, hasteValue);
-  const before = base ? panelRows(xinfa, base.panel, base.hasteValue) : null;
+  const rows = panelRows(xinfa, panel, hasteValue, pct);
+  const before = base
+    ? panelRows(xinfa, base.panel, base.hasteValue, base.pct)
+    : null;
   const diffOf = (r: PanelRow) => {
     const b = before?.find(x => x.key === r.key);
     if (!b) return null;

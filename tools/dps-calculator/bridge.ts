@@ -12,6 +12,7 @@
  *    关联的角色从没保存过时，用种子生成装备信息并保存，然后触发一次秒伤计算。
  * 3. 回写结果：角色保存过以后，秒伤、装分、面板、12 件装备每次变化都写进
  *    jw3memo:calc-result:v1:<配装id>，并 postMessage 给父窗口（同源）。
+ * 4. 计算引擎：地址带 ?engine=1 时只加载 备忘录引擎（页面不渲染），见 engine.ts。
  */
 import { 简写转心法名 } from '@/心法模块/模块工具/获取心法数据'
 import { 读取角色注册表, 新建角色, 设为当前角色 } from '@/角色/注册表'
@@ -57,6 +58,10 @@ const 参数 = new URLSearchParams(window.location.search)
 const 配装id = 参数.get('memo') || ''
 const 心法 = 简写转心法名(参数.get('xf') || '') || ''
 let 角色id = ''
+
+if (参数.has('engine')) {
+  void import('./备忘录引擎')
+}
 
 const 读JSON = <T,>(键: string): T | undefined => {
   try {

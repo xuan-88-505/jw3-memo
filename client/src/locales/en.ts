@@ -966,5 +966,18 @@ const dict: Record<string, string> = {
   "内容格式不对，改一下再试": "Something's wrong with the content. Edit it and try again.",
   "服务器出错了，稍后再试": "Server error. Try again later.",
   "没发出去，检查网络后再试": "Couldn't send. Check your connection and try again.",
+  "{0} 件装备是旧赛季的，当季装备库里没有，先换成了原版默认装备。保存后按当季计算。": "{0} items are from an earlier season and aren't in the current library. They were swapped for the original calculator's defaults. Save to use the current season.",
+  "1 件装备是旧赛季的，当季装备库里没有，先换成了原版默认装备。保存后按当季计算。": "1 item is from an earlier season and isn't in the current library. It was swapped for the original calculator's default. Save to use the current season.",
+  "{0} 秒": "{0}s",
+  "五彩石是旧赛季的，先换成了原版默认五彩石。保存后按当季计算。": "The colored gem is from an earlier season. It was swapped for the original calculator's default. Save to use the current season.",
+  "名称、词条或品级": "Name, stats or item level",
+  "循环和战斗时间来自原版计算器": "Rotation and fight length come from the original calculator",
+  "换成当季装备库和算法保存「{0}」": "Save “{0}” with the current-season library and formulas",
+  "收益：换上这件、其他不变，秒伤的变化": "Gain: DPS change if you equip this and keep everything else",
+  "正在加载当季装备库": "Loading current-season library",
+  "装备类型": "Item type",
+  "计算器加载失败": "Failed to load the calculator",
+  "还没保存过当季结果": "No current-season result saved yet",
+  "这套配装算不出来，换一件装备试试": "Can't calculate this set. Try swapping an item.",
 };
 export default dict;

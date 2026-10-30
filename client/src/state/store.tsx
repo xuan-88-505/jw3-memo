@@ -1455,6 +1455,60 @@ function useActions(
         }));
         return id;
       },
+      /**
+       * 保存备忘录配装器里用原版计算核心算好的配装（next 由 lib/calcEngine.ts loadoutFromEngine 生成）。
+       * 第一次用原版算的配装记一笔「换成原版计算器」，之后的秒伤涨跌只和这笔以后的比
+       */
+      saveEngineGear: (loId: string, next: Loadout, changes: string[]) => {
+        const lo = stateRef.current.loadouts[loId];
+        if (!lo) return;
+        const label = !lo.calc
+          ? CALC_SWITCH_LABEL
+          : changes.length === 1
+            ? tx("改{0}", changes[0])
+            : tx("改 {0} 处", changes.length);
+        const saved: Loadout = {
+          ...next,
+          history: [
+            ...lo.history,
+            {
+              at: new Date().toISOString(),
+              dps: next.dps,
+              label,
+              kind: "gear",
+              ...(changes.length ? { detail: changes.join("、") } : {}),
+            },
+          ],
+        };
+        update(st => ({ loadouts: { ...st.loadouts, [loId]: saved } }));
+      },
+      /** 另存为一套新配装（同心法、不关联角色），原配装不变。返回新配装 id */
+      saveEngineGearAs: (loId: string, next: Loadout, name: string) => {
+        const lo = stateRef.current.loadouts[loId];
+        if (!lo) return null;
+        const id = `lo${Date.now()}`;
+        const at = new Date().toISOString();
+        const made: Loadout = {
+          ...next,
+          id,
+          name,
+          charId: null,
+          importedAt: at,
+          history: [
+            {
+              at,
+              dps: next.dps,
+              label: tx("从「{0}」另存", lo.name),
+              kind: "import",
+            },
+          ],
+        };
+        update(st => ({
+          loadouts: { ...st.loadouts, [id]: made },
+          activeLoadoutId: id,
+        }));
+        return id;
+      },
       /** 改配装的增益（小药、团队增益、阵眼）。只影响本人看到的估算 */
       setLoadoutBuffs: (loId: string, buffs: BuffSelection) =>
         update(st => {

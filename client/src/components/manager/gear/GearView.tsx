@@ -14,7 +14,8 @@ import { buffFactor } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
 import { EmptyState, SectionHeader, inputCls } from "../shared";
 import { BuffsView } from "./BuffsView";
-import { CalcOverlay } from "./CalcOverlay";
+import { NativeGearDialog } from "./native/NativeGearDialog";
+import type { CalcInput } from "@/data/calcTypes";
 import { fmt } from "./Dashboard";
 import { GearEditorDialog } from "./GearEditorDialog";
 import { GearOverview } from "./GearOverview";
@@ -51,8 +52,13 @@ export function GearView() {
   const [newOpen, setNewOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
-  // 计算器支持的心法用内置原版计算器，其余用备忘录自己的配装器
-  const [calcOpen, setCalcOpen] = useState(false);
+  // 计算器支持的心法：备忘录自己的界面 + 内置原版计算核心（当季装备库）；其余用旧配装器
+  const [nativeOpen, setNativeOpen] = useState(false);
+  // 当季配装器的草稿：按配装存，关掉不丢。base 是建草稿时配装里存的输入，配装在外面变了就作废
+  const [nativeDrafts, setNativeDrafts] = useState<
+    Record<string, { base: CalcInput | undefined; input: CalcInput }>
+  >({});
+  const [nativeSaveAs, setNativeSaveAs] = useState<Loadout | null>(null);
   const [buffsOpen, setBuffsOpen] = useState(false);
   const [reimport, setReimport] = useState(false);
   // 正在算的新配装：算完之前也显示在列表里
@@ -85,7 +91,7 @@ export function GearView() {
     const want = !!lo && openEditorFor.current === lo.id;
     const calc = !!lo && calcSupported(lo.xinfa);
     setEditorOpen(want && !calc);
-    setCalcOpen(want && calc);
+    setNativeOpen(want && calc);
     openEditorFor.current = null;
     setBuffsOpen(false);
   }, [lo?.id]);
@@ -117,6 +123,22 @@ export function GearView() {
     if (!lo) return;
     const base = lo;
     setDrafts(m => ({ ...m, [base.id]: { base, d } }));
+  };
+  const nativeEntry = lo ? nativeDrafts[lo.id] : undefined;
+  const nativeInput =
+    nativeEntry && lo && nativeEntry.base === lo.calc?.input
+      ? nativeEntry.input
+      : null;
+  const setNativeInput = (input: CalcInput | null) => {
+    if (!lo) return;
+    const id = lo.id;
+    const base = lo.calc?.input;
+    setNativeDrafts(m => {
+      const next = { ...m };
+      if (input) next[id] = { base, input };
+      else delete next[id];
+      return next;
+    });
   };
   const clearDraft = (id: string) =>
     setDrafts(m => {
@@ -227,15 +249,14 @@ export function GearView() {
           <GearOverview
             lo={lo!}
             charName={linked?.name}
-            dirty={!calcSupported(lo!.xinfa) && dirty}
+            dirty={calcSupported(lo!.xinfa) ? !!nativeInput : dirty}
             offline={offline}
             onEdit={() => setEditOpen(true)}
             onReimport={() => setReimport(true)}
             onOpenEditor={slotKey => {
-              // 原版计算器没有按部位跳转的入口，直接打开
-              if (calcSupported(lo!.xinfa)) return setCalcOpen(true);
               setFlash(slotKey ? { slotKey, n: Date.now() } : null);
-              setEditorOpen(true);
+              if (calcSupported(lo!.xinfa)) setNativeOpen(true);
+              else setEditorOpen(true);
             }}
             onOpenBuffs={() => setBuffsOpen(true)}
             onOpenChangelog={() => actions.openChangelog(lo!.xinfa)}
@@ -244,8 +265,46 @@ export function GearView() {
       </div>
 
       {newDialog}
-      {lo && calcOpen && (
-        <CalcOverlay key={lo.id} lo={lo} onClose={() => setCalcOpen(false)} />
+      {lo && calcSupported(lo.xinfa) && (
+        <NativeGearDialog
+          key={lo.id}
+          open={nativeOpen}
+          onClose={() => setNativeOpen(false)}
+          lo={lo}
+          input={nativeInput}
+          onInput={setNativeInput}
+          flash={flash}
+          onSave={(next, changes) => {
+            actions.saveEngineGear(lo.id, next, changes);
+            setNativeInput(null);
+            setNativeOpen(false);
+            actions.toast("manager", "success", tx("已保存，秒伤 {0}", fmt(next.dps)));
+          }}
+          onSaveAs={next => setNativeSaveAs(next)}
+        />
+      )}
+      {lo && nativeSaveAs && (
+        <SaveAsDialog
+          open
+          defaultName={tx("{0} 改", lo.name)}
+          onClose={() => setNativeSaveAs(null)}
+          onSave={name => {
+            const from = lo.id;
+            actions.saveEngineGearAs(from, nativeSaveAs, name);
+            setNativeDrafts(m => {
+              const next = { ...m };
+              delete next[from];
+              return next;
+            });
+            setNativeSaveAs(null);
+            setNativeOpen(false);
+            actions.toast(
+              "manager",
+              "success",
+              tx("已另存为「{0}」，「{1}」没有改", name, lo.name)
+            );
+          }}
+        />
       )}
       {lo && draft && (
         <GearEditorDialog

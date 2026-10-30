@@ -966,5 +966,18 @@ const dict: Record<string, string> = {
   "内容格式不对，改一下再试": "El contenido no es válido. Corrígelo e inténtalo de nuevo.",
   "服务器出错了，稍后再试": "Error del servidor. Inténtalo más tarde.",
   "没发出去，检查网络后再试": "No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.",
+  "{0} 件装备是旧赛季的，当季装备库里没有，先换成了原版默认装备。保存后按当季计算。": "{0} piezas son de una temporada anterior y no están en el catálogo actual. Se cambiaron por las predeterminadas de la calculadora original. Guarda para usar la temporada actual.",
+  "1 件装备是旧赛季的，当季装备库里没有，先换成了原版默认装备。保存后按当季计算。": "1 pieza es de una temporada anterior y no está en el catálogo actual. Se cambió por la predeterminada de la calculadora original. Guarda para usar la temporada actual.",
+  "{0} 秒": "{0} s",
+  "五彩石是旧赛季的，先换成了原版默认五彩石。保存后按当季计算。": "La gema de colores es de una temporada anterior. Se cambió por la predeterminada de la calculadora original. Guarda para usar la temporada actual.",
+  "名称、词条或品级": "Nombre, atributos o nivel",
+  "循环和战斗时间来自原版计算器": "La rotación y la duración del combate vienen de la calculadora original",
+  "换成当季装备库和算法保存「{0}」": "Guardar «{0}» con el catálogo y las fórmulas de la temporada actual",
+  "收益：换上这件、其他不变，秒伤的变化": "Beneficio: cambio de DPS al equipar esta pieza sin tocar el resto",
+  "正在加载当季装备库": "Cargando catálogo de la temporada actual",
+  "装备类型": "Tipo de pieza",
+  "计算器加载失败": "Error al cargar la calculadora",
+  "还没保存过当季结果": "Aún no hay un resultado de esta temporada guardado",
+  "这套配装算不出来，换一件装备试试": "No se puede calcular este equipo. Prueba a cambiar una pieza.",
 };
 export default dict;
