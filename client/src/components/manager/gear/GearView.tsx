@@ -26,6 +26,7 @@ import type { GearConfig } from "@/data/enchants";
 import { tx } from "@/lib/i18n";
 import {
   calcSupported,
+  hasBundledCalc,
   isNewer,
   preloadEquipDb,
   readResult,
@@ -54,6 +55,18 @@ export function GearView() {
   const [editorOpen, setEditorOpen] = useState(false);
   // 计算器支持的心法：备忘录自己的界面 + 内置原版计算核心（当季装备库）；其余用旧配装器
   const [nativeOpen, setNativeOpen] = useState(false);
+  // 内置计算器在不在：桌面版都在；网页版的部署里没有，这时所有心法都用旧配装器
+  const [bundled, setBundled] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void hasBundledCalc().then(ok => alive && setBundled(ok));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  /** 用备忘录自己的配装器（原版在后台算）。还没查完时先当作在，桌面版一定在 */
+  const nativeFor = (xinfa: string) =>
+    calcSupported(xinfa) && bundled !== false;
   // 当季配装器的草稿：按配装存，关掉不丢。base 是建草稿时配装里存的输入，配装在外面变了就作废
   const [nativeDrafts, setNativeDrafts] = useState<
     Record<string, { base: CalcInput | undefined; input: CalcInput }>
@@ -89,7 +102,7 @@ export function GearView() {
     setReimport(false);
     setFlash(null);
     const want = !!lo && openEditorFor.current === lo.id;
-    const calc = !!lo && calcSupported(lo.xinfa);
+    const calc = !!lo && nativeFor(lo.xinfa);
     setEditorOpen(want && !calc);
     setNativeOpen(want && calc);
     openEditorFor.current = null;
@@ -249,13 +262,13 @@ export function GearView() {
           <GearOverview
             lo={lo!}
             charName={linked?.name}
-            dirty={calcSupported(lo!.xinfa) ? !!nativeInput : dirty}
+            dirty={nativeFor(lo!.xinfa) ? !!nativeInput : dirty}
             offline={offline}
             onEdit={() => setEditOpen(true)}
             onReimport={() => setReimport(true)}
             onOpenEditor={slotKey => {
               setFlash(slotKey ? { slotKey, n: Date.now() } : null);
-              if (calcSupported(lo!.xinfa)) setNativeOpen(true);
+              if (nativeFor(lo!.xinfa)) setNativeOpen(true);
               else setEditorOpen(true);
             }}
             onOpenBuffs={() => setBuffsOpen(true)}
@@ -265,7 +278,7 @@ export function GearView() {
       </div>
 
       {newDialog}
-      {lo && calcSupported(lo.xinfa) && (
+      {lo && nativeFor(lo.xinfa) && (
         <NativeGearDialog
           key={lo.id}
           open={nativeOpen}
@@ -278,7 +291,11 @@ export function GearView() {
             actions.saveEngineGear(lo.id, next, changes);
             setNativeInput(null);
             setNativeOpen(false);
-            actions.toast("manager", "success", tx("已保存，秒伤 {0}", fmt(next.dps)));
+            actions.toast(
+              "manager",
+              "success",
+              tx("已保存，秒伤 {0}", fmt(next.dps))
+            );
           }}
           onSaveAs={next => setNativeSaveAs(next)}
         />

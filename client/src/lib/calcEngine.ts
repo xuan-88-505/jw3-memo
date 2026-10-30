@@ -7,11 +7,7 @@
  * - computeSync：按配装和战斗配置算装分、面板、秒伤，一次约 4 ms，可以每改一下就算。
  */
 import { useCallback, useEffect, useState } from "react";
-import type {
-  CalcBigKey,
-  CalcInput,
-  CalcSlotInput,
-} from "@/data/calcTypes";
+import type { CalcBigKey, CalcInput, CalcSlotInput } from "@/data/calcTypes";
 import {
   hasteOf,
   type Attr,
@@ -25,7 +21,14 @@ import {
   type StoneFamily,
   type StoneLevel,
 } from "@/data/enchants";
-import { CALC_BASE, calcCode, gearSig, INDEX_KEY, KEY_INDEX } from "./dpsCalc";
+import {
+  CALC_BASE,
+  calcCode,
+  gearSig,
+  hasBundledCalc,
+  INDEX_KEY,
+  KEY_INDEX,
+} from "./dpsCalc";
 
 /* ---------------- 目录：原版计算器的数据，字段名照原版 ---------------- */
 
@@ -200,13 +203,19 @@ function mount(): Promise<EngineApi> {
 }
 
 function getEngine() {
-  engine ??= mount().then(
-    a => (api = a),
-    e => {
-      engine = null;
-      throw e;
-    }
-  );
+  // 先确认内置计算器在：网页版的部署里没有，这时去开 iframe 只会开出备忘录自己的首页
+  engine ??= hasBundledCalc()
+    .then(ok => {
+      if (!ok) throw new Error("engine-unavailable");
+      return mount();
+    })
+    .then(
+      a => (api = a),
+      e => {
+        engine = null;
+        throw e;
+      }
+    );
   return engine;
 }
 
@@ -423,7 +432,9 @@ export function calcStoneSource(cat: CalcCatalog): StoneSource {
         fam = {
           short,
           words,
-          labels: words.map((_, i) => attrs[Math.min(i, attrs.length - 1)].label),
+          labels: words.map(
+            (_, i) => attrs[Math.min(i, attrs.length - 1)].label
+          ),
           levels: [],
         };
         byShort.set(short, fam);
@@ -524,7 +535,10 @@ export function seedInput(lo: Loadout, cat: CalcCatalog): Seed {
 export function inputChanges(lo: Loadout, a: CalcInput, b: CalcInput) {
   const out: string[] = [];
   for (const idx of SLOT_INDEXES) {
-    if (JSON.stringify(a.slots[idx] ?? null) !== JSON.stringify(b.slots[idx] ?? null))
+    if (
+      JSON.stringify(a.slots[idx] ?? null) !==
+      JSON.stringify(b.slots[idx] ?? null)
+    )
       out.push(lo.slots.find(s => s.key === INDEX_KEY[idx])?.label ?? idx);
   }
   if ((a.stone ?? null) !== (b.stone ?? null)) out.push("五彩石");
@@ -532,7 +546,8 @@ export function inputChanges(lo: Loadout, a: CalcInput, b: CalcInput) {
     const k = big.key as CalcBigKey;
     if ((a.big[k] ?? 0) !== (b.big[k] ?? 0)) out.push(big.label);
   }
-  if (JSON.stringify(a.battle) !== JSON.stringify(b.battle)) out.push("战斗配置");
+  if (JSON.stringify(a.battle) !== JSON.stringify(b.battle))
+    out.push("战斗配置");
   return out;
 }
 
