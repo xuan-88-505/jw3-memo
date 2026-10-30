@@ -188,7 +188,7 @@ function PanelMain({
       <header
         onPointerDown={onHeaderPointerDown}
         className={cn(
-          "flex h-12 shrink-0 select-none items-center gap-1 border-b border-paper/[0.07] pl-1.5 pr-2",
+          "flex h-12 shrink-0 select-none items-center gap-1 pl-1.5 pr-2",
           draggable && "cursor-grab active:cursor-grabbing"
         )}
       >
@@ -201,9 +201,6 @@ function PanelMain({
           className="ml-auto flex items-center gap-0.5"
           onPointerDown={e => e.stopPropagation()}
         >
-          <IconBtn label="便签" onClick={() => setView("note")}>
-            <StickyNote className="h-4 w-4" />
-          </IconBtn>
           <IconBtn
             label={inboxCount ? `通知，${inboxCount} 条有更新` : "通知"}
             onClick={() => setView("inbox")}
@@ -237,6 +234,52 @@ function PanelMain({
           </IconBtn>
         </div>
       </header>
+
+      {/* 页签行：宏 / 奇穴在左，便签在右；没有方案时也显示，便签随时能进 */}
+      <div className="flex h-10 shrink-0 items-stretch gap-2 border-b border-paper/[0.07] pl-4 pr-2">
+        <div
+          role="tablist"
+          aria-label="内容"
+          className="flex items-stretch gap-4"
+        >
+          {(
+            [
+              ["macro", "宏"],
+              ["talent", "奇穴"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              role="tab"
+              type="button"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              className={cn(
+                "relative -mb-px flex items-center border-b-2 text-[13px] font-medium transition-colors",
+                tab === key
+                  ? "border-cinnabar text-paper"
+                  : "border-transparent text-paper-3 hover:text-paper"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          {modes.length > 1 && (
+            <Segmented<Mode>
+              label="方案类型"
+              size="xs"
+              value={mode}
+              onChange={m => actions.setMode(char.id, m)}
+              options={modes.map(m => ({ value: m, label: m }))}
+            />
+          )}
+          <IconBtn label="便签" onClick={() => setView("note")}>
+            <StickyNote className="h-4 w-4" />
+          </IconBtn>
+        </div>
+      </div>
 
       <OfflineBar compact />
 
@@ -300,49 +343,6 @@ function PanelMain({
           )}
         </div>
       )}
-
-      {/* 底栏：宏 / 奇穴，离托盘图标近 */}
-      <div className="flex h-11 shrink-0 items-center gap-4 border-t border-paper/[0.07] px-4">
-        <div
-          role="tablist"
-          aria-label="内容"
-          className="flex h-full items-stretch gap-4"
-        >
-          {(
-            [
-              ["macro", "宏"],
-              ["talent", "奇穴"],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              role="tab"
-              type="button"
-              aria-selected={tab === key}
-              onClick={() => setTab(key)}
-              className={cn(
-                "relative -mt-px flex items-center gap-1.5 border-t-2 text-[13px] font-medium transition-colors",
-                tab === key
-                  ? "border-cinnabar text-paper"
-                  : "border-transparent text-paper-3 hover:text-paper"
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {modes.length > 1 && (
-          <div className="ml-auto">
-            <Segmented<Mode>
-              label="方案类型"
-              size="xs"
-              value={mode}
-              onChange={m => actions.setMode(char.id, m)}
-              options={modes.map(m => ({ value: m, label: m }))}
-            />
-          </div>
-        )}
-      </div>
     </>
   );
 }
@@ -587,7 +587,7 @@ function PanelSkeleton() {
       aria-busy="true"
       aria-label="正在加载"
     >
-      <div className="flex h-12 items-center gap-2 border-b border-paper/[0.07] px-3">
+      <div className="flex h-12 items-center gap-2 px-3">
         <span className="skeleton h-7 w-7" />
         <span className="skeleton h-3.5 w-20" />
         <span className="ml-auto flex gap-1.5">
@@ -596,10 +596,10 @@ function PanelSkeleton() {
           <span className="skeleton h-6 w-6" />
         </span>
       </div>
-      <div className="flex h-10 items-center gap-4 border-b border-paper/[0.07] px-4">
+      <div className="flex h-10 items-center gap-4 border-b border-paper/[0.07] pl-4 pr-3">
         <span className="skeleton h-3 w-6" />
         <span className="skeleton h-3 w-8" />
-        <span className="skeleton ml-auto h-5 w-[86px]" />
+        <span className="skeleton ml-auto h-6 w-6" />
       </div>
       <div className="space-y-3 px-4 pt-4">
         {[0, 1, 2].map(i => (
