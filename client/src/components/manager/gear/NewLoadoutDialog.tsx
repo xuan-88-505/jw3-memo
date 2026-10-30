@@ -1,4 +1,4 @@
-import { ChevronRight, Download, Trash2 } from "lucide-react";
+import { ChevronRight, Download, Shirt, Trash2 } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { InlineModal } from "@/components/common/overlay";
 import { Btn } from "@/components/common/ui";
@@ -81,6 +81,7 @@ function CharLinkSelect({
 
 /**
  * 新建配装：按心法建，大多数人只是想看某个心法不同配装的属性。
+ * 导入是选填的：不填就手动配，先放一套当前品级的推荐装备，再到配装器里逐件换。
  * 关联角色放在最后，默认不关联。取消时什么都不会创建。
  */
 export function NewLoadoutDialog({
@@ -152,20 +153,22 @@ export function NewLoadoutDialog({
   const v = latest(findScheme(state, xinfa, "PVE"));
   const talentSource = v ? `${xinfa} PVE v${v.version}` : null;
   const placeholder = autoLoadoutName(all, xinfa);
+  // 导入框是空的：手动配
+  const manual = !input.text.trim();
 
   const submit = () => {
-    const r = input.submit();
+    const r = manual ? null : input.submit();
     const n = name.trim();
     const err = loadoutNameError(all, xinfa, n);
     setError(err);
-    if (err || !r || offline) return;
+    if (err || offline || (!manual && !r)) return;
     onClose();
     onStart({
       xinfa,
       name: n || placeholder,
       charId: linked ? linked.id : null,
-      source: r.source,
-      sourceId: r.sourceId,
+      source: r ? r.source : "manual",
+      sourceId: r ? r.sourceId : null,
       config: customized ? config : undefined,
     });
   };
@@ -186,11 +189,17 @@ export function NewLoadoutDialog({
           <Btn
             variant="primary"
             size="md"
-            icon={<Download className="h-4 w-4" />}
-            disabled={offline || !input.canSubmit}
+            icon={
+              manual ? (
+                <Shirt className="h-4 w-4" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )
+            }
+            disabled={offline || (!manual && !input.canSubmit)}
             onClick={submit}
           >
-            导入并计算
+            {manual ? "手动配装" : "导入并计算"}
           </Btn>
         </>
       }
@@ -242,7 +251,7 @@ export function NewLoadoutDialog({
 
         <ImportField
           input={input}
-          label="配装"
+          label="导入（可选）"
           labelClassName="text-[12.5px] font-medium text-paper"
           charName={linked?.name}
           xinfa={xinfa}
@@ -266,7 +275,7 @@ export function NewLoadoutDialog({
             />
             附魔与五彩石
             <span className="ml-auto text-[12px] font-normal text-paper-3">
-              {customized ? "已调整" : "跟随导入"}
+              {customized ? "已调整" : manual ? "默认" : "跟随导入"}
             </span>
           </button>
           {enchantOpen && (

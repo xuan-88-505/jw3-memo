@@ -99,6 +99,8 @@ export function GearView() {
   const timer = useRef<number | null>(null);
   // 在对比页里交换 A/B、新建配装时，留在对比页
   const keepTab = useRef(false);
+  // 手动新建的配装：切过去以后直接打开配装器
+  const openEditorFor = useRef<string | null>(null);
 
   useEffect(
     () => () => {
@@ -107,11 +109,12 @@ export function GearView() {
     []
   );
 
-  // 换配装时回到秒伤变化，收起导入框和弹窗
+  // 换配装时回到秒伤变化，收起导入框和弹窗；手动新建的打开配装器
   useEffect(() => {
     setReimport(false);
     setFlash(null);
-    setEditorOpen(false);
+    setEditorOpen(!!lo && openEditorFor.current === lo.id);
+    openEditorFor.current = null;
     setBuffsOpen(false);
     if (keepTab.current) keepTab.current = false;
     else setTab("history");
@@ -145,6 +148,15 @@ export function GearView() {
   const startCreate = (p: NewLoadoutInput) => {
     const prevId = lo?.id ?? null;
     const stay = tab === "compare";
+    // 手动配：不用算，直接建好并打开配装器
+    if (p.source === "manual") {
+      keepTab.current = stay;
+      // 切到新配装时 effect 读这个 id，打开配装器
+      openEditorFor.current = actions.createLoadout(p);
+      if (stay && prevId) setCompareB(prevId);
+      actions.toast("manager", "success", `已新建「${p.name}」`);
+      return;
+    }
     setPending(p);
     timer.current = window.setTimeout(() => {
       keepTab.current = stay;
@@ -186,7 +198,7 @@ export function GearView() {
         <EmptyState
           icon={<Shirt className="h-5 w-5" />}
           title="还没有配装"
-          description="粘贴茗伊装备码或魔盒链接，算出木桩秒伤"
+          description="导入茗伊装备码、魔盒链接，或者手动配"
           action={
             <Btn
               variant="primary"
@@ -336,14 +348,16 @@ export function GearView() {
                       在魔盒里改
                     </Btn>
                   )}
-                  <Btn
-                    icon={<RefreshCw className="h-3.5 w-3.5" />}
-                    disabled={offline}
-                    title={offline ? "离线时不能导入" : undefined}
-                    onClick={() => setReimport(true)}
-                  >
-                    重新导入
-                  </Btn>
+                  {lo!.source !== "manual" && (
+                    <Btn
+                      icon={<RefreshCw className="h-3.5 w-3.5" />}
+                      disabled={offline}
+                      title={offline ? "离线时不能导入" : undefined}
+                      onClick={() => setReimport(true)}
+                    >
+                      重新导入
+                    </Btn>
+                  )}
                   <IconBtn
                     label="编辑配装"
                     onClick={() => setEditOpen(true)}
@@ -355,7 +369,10 @@ export function GearView() {
               }
               meta={
                 <>
-                  {dateLabel(lo!.importedAt)} 从{SOURCE_LABEL[lo!.source]}导入
+                  {dateLabel(lo!.importedAt)}{" "}
+                  {lo!.source === "manual"
+                    ? "手动新建"
+                    : `从${SOURCE_LABEL[lo!.source]}导入`}
                   <span className="mx-1.5" aria-hidden="true">
                     ·
                   </span>

@@ -94,8 +94,8 @@ export interface DpsPoint {
   detail?: string;
 }
 
-/** 配装从哪里导入 */
-export type LoadoutSource = "myplugin" | "jx3box" | "json";
+/** 配装从哪里来：三种导入，或者不导入、手动配 */
+export type LoadoutSource = "myplugin" | "jx3box" | "json" | "manual";
 
 /**
  * 面板属性（不含增益），和魔盒配装器的面板一样按"等级"存，百分比用 LEVEL_COEF 换算。
@@ -749,7 +749,14 @@ export function makeLoadout(opts: {
     stone: cfg.stone,
     gains,
     slots: baseSlots,
-    history: [{ at, dps: baseDps, label: "导入", kind: "import" }],
+    history: [
+      {
+        at,
+        dps: baseDps,
+        label: source === "manual" ? "新建" : "导入",
+        kind: "import",
+      },
+    ],
     sample: true,
   };
   if (!variant || !db) return base;
@@ -959,6 +966,7 @@ export const SOURCE_LABEL: Record<LoadoutSource, string> = {
   myplugin: "茗伊装备码",
   jx3box: "魔盒",
   json: "数据版 JSON",
+  manual: "手动",
 };
 
 /** 示例装备码：装备 ID 取自魔盒导入文档的样例，只用来演示格式 */
