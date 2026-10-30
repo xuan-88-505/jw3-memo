@@ -4,14 +4,17 @@
  */
 
 const PAL: Record<string, string> = {
-  Y: "#e2c27e",
-  y: "#b8924f",
-  z: "#7d5f30",
-  S: "#f1d3b3",
-  s: "#c9a283",
+  // 黄鸡
+  K: "#f7c531",
+  L: "#fde68a",
+  k: "#e3901f",
+  O: "#9a4a14",
+  U: "#4a2a12",
+  M: "#d9281d",
+  m: "#9e1610",
+  T: "#fbf5e6",
   I: "#3b3129",
   R: "#d2462f",
-  r: "#8f2d1e",
   P: "#ece6da",
   p: "#bab2a4",
   q: "#8a8274",
@@ -34,24 +37,24 @@ const PAL: Record<string, string> = {
 };
 
 const BASE = {
-  // 戴斗笠的侠客：还没有角色
+  // 黄鸡大笑双手握剑：还没有角色
   hero: [
     "................",
-    ".......zz.......",
-    "......zYYz......",
-    ".....zYYYyz.....",
-    "....zYYYYyyz....",
-    "..zzyyyyyyyyzz..",
-    ".zyyyyyyyyyyyyz.",
-    "..zzzzzzzzzzzz..",
-    "....ssssssss....",
-    "....SSISSISS....",
-    "....sSSSSSSs....",
-    ".....ssSSss.....",
-    "...rRRRssRRRr...",
-    "..rRRRRrrRRRRr..",
-    "..rRRRRRRRRRRr..",
-    "..rrrrrrrrrrrr..",
+    "......O......E..",
+    ".....OkO....EEe.",
+    "...OOOOOO...EEe.",
+    "..OLLKKKKO..EEe.",
+    ".OLUKKKKUKO.EEe.",
+    ".OUKUKKUKUO.EEe.",
+    "OKKKKKKKKKKOEEe.",
+    "OKmTTTTTTmKhGGGh",
+    "OKMMMMMMMMKOKLKO",
+    "OKMMMMMMMMKOkkkO",
+    ".OkMMMMMMkO.wWw.",
+    ".OkkMTTMkkOOKLKO",
+    "..OkkkkkkOOOkkkO",
+    "...OOOOOO...hGh.",
+    "................",
   ],
   // 卷轴：还没有修改记录
   scroll: [
