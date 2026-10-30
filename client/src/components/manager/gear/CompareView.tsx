@@ -201,19 +201,39 @@ export function CompareView({
   return (
     <div className="space-y-6">
       <div className="-mx-3">
+        <div className="flex justify-end px-3">
+          <Segmented
+            size="xs"
+            label="增益"
+            value={mode}
+            onChange={setMode}
+            options={[
+              {
+                value: "same",
+                label: "同样增益",
+                title: "B 也按 A 的增益算秒伤，比较更公平",
+              },
+              {
+                value: "own",
+                label: "各自增益",
+                title: "各自按自己选的增益算秒伤",
+              },
+            ]}
+          />
+        </div>
         <table className="w-full table-fixed text-[13px]">
           <caption className="sr-only">
             {a.name} 和 {b.name} 的属性对比，差值是 B 减 A
           </caption>
           <colgroup>
-            <col className="w-[104px]" />
+            <col className="w-[72px]" />
             <col />
             <col />
-            <col className="w-[168px]" />
+            <col className="w-[136px]" />
           </colgroup>
           <thead>
             <tr className="border-b border-paper/[0.07] align-top">
-              <th scope="col" className="px-3 pb-3 pt-4 text-left">
+              <th scope="col" className="px-3 pb-3 pt-2 text-left">
                 <span className="sr-only">属性</span>
                 <IconBtn
                   label="交换 A 和 B"
@@ -223,13 +243,13 @@ export function CompareView({
                   <ArrowLeftRight className="h-3.5 w-3.5" />
                 </IconBtn>
               </th>
-              <th scope="col" className="px-3 pb-3 pt-4 text-right font-normal">
-                <div className="flex items-center justify-end gap-2">
+              <th scope="col" className="px-3 pb-3 pt-2 text-right font-normal">
+                <div className="flex min-w-0 items-center justify-end gap-1.5">
                   <span className="text-[11px] font-semibold text-paper-3">
                     A
                   </span>
                   <XinfaMark xinfa={a.xinfa} size={18} />
-                  <span className="truncate text-[14px] font-semibold text-paper">
+                  <span className="min-w-0 truncate text-[14px] font-semibold text-paper">
                     {a.name}
                   </span>
                 </div>
@@ -237,8 +257,8 @@ export function CompareView({
                   {charName(a) ?? "未关联角色"} · {buffLabel(a.buffs)}
                 </p>
               </th>
-              <th scope="col" className="px-3 pb-3 pt-4 text-right font-normal">
-                <div className="flex items-center justify-end gap-2">
+              <th scope="col" className="px-3 pb-3 pt-2 text-right font-normal">
+                <div className="flex min-w-0 items-center justify-end gap-1.5">
                   <span className="text-[11px] font-semibold text-paper-3">
                     B
                   </span>
@@ -247,7 +267,7 @@ export function CompareView({
                     aria-label="选择 B"
                     value={b.id}
                     onChange={e => onPickB(e.target.value)}
-                    wrapClassName="min-w-0 max-w-full"
+                    wrapClassName="min-w-[84px] max-w-full"
                     className="h-7 truncate rounded-md bg-transparent pl-1 text-[14px] font-semibold text-paper ring-1 ring-inset ring-paper/12 hover:ring-paper/20 focus:outline-none focus:ring-2 focus:ring-cinnabar-text/60"
                   >
                     {others.map(l => (
@@ -271,29 +291,9 @@ export function CompareView({
               </th>
               <th
                 scope="col"
-                className="px-3 pb-3 pt-4 text-right text-[11.5px] font-normal text-paper-3"
+                className="px-3 pb-3 pt-2 text-right align-middle text-[11.5px] font-normal text-paper-3"
               >
-                <div className="flex justify-end">
-                  <Segmented
-                    size="xs"
-                    label="增益"
-                    value={mode}
-                    onChange={setMode}
-                    options={[
-                      {
-                        value: "same",
-                        label: "同样增益",
-                        title: "B 也按 A 的增益算秒伤，比较更公平",
-                      },
-                      {
-                        value: "own",
-                        label: "各自增益",
-                        title: "各自按自己选的增益算秒伤",
-                      },
-                    ]}
-                  />
-                </div>
-                <p className="mt-1.5">B − A</p>
+                B − A
               </th>
             </tr>
           </thead>

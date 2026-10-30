@@ -1,10 +1,10 @@
-import { ArrowRight, Info } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { bestUpgrade, primaryAttr, type Loadout } from "@/data/gear";
 import { Btn } from "@/components/common/ui";
 import { buffLabel, estimateBuffs, hasteWithBuffs } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
-import { PanelStrip } from "./PanelStrip";
 import { DpsChart } from "./DpsChart";
 import { useEquipDb } from "./useEquipDb";
 
@@ -26,28 +26,132 @@ export function Delta({ pct, className }: { pct: number; className?: string }) {
   );
 }
 
-const cardTitle = "text-[12px] font-medium text-paper-3";
+const sectionTitle = "text-[12.5px] font-medium text-paper-2";
 
-export function Dashboard({
-  loadout: lo,
-  onTry,
-  onOpenChangelog,
-  onOpenBuffs,
-}: {
-  loadout: Loadout;
-  /** 把建议的装备放进配装器草稿 */
-  onTry: (slotKey: string, itemId: number) => void;
-  onOpenChangelog: () => void;
-  onOpenBuffs: () => void;
-}) {
-  // 所有秒伤都按当前增益显示，前后可比
+/** 所有秒伤都按当前增益显示，前后可比 */
+function useBuffed(lo: Loadout) {
   const est = estimateBuffs(lo, lo.buffs);
   const f = 1 + est.pct;
-  const D = (n: number) => Math.round(n * f);
-  const haste = hasteWithBuffs(lo, est.haste);
-  const buffed = est.pct > 0.00005;
+  return {
+    est,
+    buffed: est.pct > 0.00005,
+    D: (n: number) => Math.round(n * f),
+  };
+}
+
+/** 右侧顶部：木桩秒伤大号数字，和参考站的「伤害计算」一样放在最上面 */
+export function DpsSummary({
+  lo,
+  meta,
+  actions,
+  onOpenBuffs,
+}: {
+  lo: Loadout;
+  /** 数字下面的一行小字：导入时间、来源 */
+  meta: ReactNode;
+  /** 标题行右边的按钮 */
+  actions?: ReactNode;
+  onOpenBuffs: () => void;
+}) {
+  const { buffed, D } = useBuffed(lo);
   const prev = lo.history.length > 1 ? lo.history[lo.history.length - 2] : null;
   const deltaPct = prev ? ((lo.dps - prev.dps) / prev.dps) * 100 : 0;
+  return (
+    <section aria-label="木桩秒伤">
+      <div className="flex min-h-8 items-center justify-between gap-3">
+        <h2 className="text-[13px] text-paper-3">木桩秒伤</h2>
+        <div className="flex items-center gap-1.5">{actions}</div>
+      </div>
+      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
+        <p className="text-[38px] font-semibold leading-none tabular-nums text-paper">
+          {buffed && <span className="mr-1 text-[26px] text-paper-3">≈</span>}
+          {fmt(D(lo.dps))}
+        </p>
+        <p className="text-[12.5px] text-paper-3">
+          {prev ? (
+            <>
+              <Delta pct={deltaPct} className="font-medium" />
+              <span className="ml-1.5">较上次 {fmt(D(prev.dps))}</span>
+            </>
+          ) : (
+            "第一次计算"
+          )}
+        </p>
+        {buffed && (
+          <button
+            type="button"
+            onClick={onOpenBuffs}
+            className="rounded px-1.5 py-0.5 text-[12px] text-jade transition-colors hover:bg-jade/10"
+          >
+            {buffLabel(lo.buffs)}
+          </button>
+        )}
+      </div>
+      <p className="mt-3 text-[12px] text-paper-3">{meta}</p>
+    </section>
+  );
+}
+
+/** 秒伤变化：折线图 + 最近一次技改 */
+export function HistoryPanel({
+  lo,
+  onOpenChangelog,
+}: {
+  lo: Loadout;
+  onOpenChangelog: () => void;
+}) {
+  const { D } = useBuffed(lo);
+  const patchIdx = lo.history.map(p => p.kind).lastIndexOf("patch");
+  const patch = patchIdx > 0 ? lo.history[patchIdx] : null;
+  const patchDelta = patch
+    ? ((patch.dps - lo.history[patchIdx - 1].dps) /
+        lo.history[patchIdx - 1].dps) *
+      100
+    : 0;
+  return (
+    <section aria-label="秒伤变化">
+      <div className="relative h-[260px]">
+        <div className="absolute inset-0">
+          <DpsChart history={lo.history.map(p => ({ ...p, dps: D(p.dps) }))} />
+        </div>
+      </div>
+      {patch && (
+        <button
+          type="button"
+          onClick={onOpenChangelog}
+          className="group -mx-1.5 mt-3 flex w-[calc(100%+12px)] items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-[12.5px] text-paper-3 transition-colors hover:bg-paper/[0.04]"
+        >
+          <span
+            className="h-2 w-2 shrink-0 rounded-full bg-gold"
+            aria-hidden="true"
+          />
+          <span className="min-w-0 flex-1 truncate">
+            <span className="text-paper-2">{patch.label}</span>
+            {patch.detail && <span>（{patch.detail}）</span>}
+            <span className="mx-1">·</span>
+            <Delta pct={patchDelta} />
+          </span>
+          <span className="shrink-0 transition-colors group-hover:text-paper-2">
+            修改记录
+          </span>
+          <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        </button>
+      )}
+    </section>
+  );
+}
+
+/** 属性收益：收益条 + 加速段位 + 下一步建议 */
+export function GainsPanel({
+  lo,
+  onTry,
+}: {
+  lo: Loadout;
+  /** 把建议的装备放进配装器草稿 */
+  onTry: (slotKey: string, itemId: number) => void;
+}) {
+  const { est, D } = useBuffed(lo);
+  const haste = hasteWithBuffs(lo, est.haste);
   const from = haste.from;
   const hastePct = haste.nextValue
     ? Math.min(
@@ -59,58 +163,52 @@ export function Dashboard({
   const best = useMemo(() => (db ? bestUpgrade(lo, db) : null), [db, lo]);
   const maxGain = Math.max(...lo.gains.map(g => g.pct));
 
-  // 最近一次技改，以及它带来的变化
-  const patchIdx = lo.history.map(p => p.kind).lastIndexOf("patch");
-  const patch = patchIdx > 0 ? lo.history[patchIdx] : null;
-  const patchDelta = patch
-    ? ((patch.dps - lo.history[patchIdx - 1].dps) /
-        lo.history[patchIdx - 1].dps) *
-      100
-    : 0;
-
   return (
-    <div>
-      {/* 不套卡片：同一行的几块用竖分隔线隔开，行之间用横分隔线 */}
-      <div className="grid grid-cols-3 divide-x divide-paper/[0.07] border-b border-paper/[0.07] pb-5">
-        <section className="pr-6" aria-label="木桩秒伤">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className={cardTitle}>木桩秒伤</h3>
-            <button
-              type="button"
-              onClick={onOpenBuffs}
-              className={cn(
-                "-my-1 rounded px-1.5 py-0.5 text-[11.5px] transition-colors",
-                buffed
-                  ? "bg-jade/10 text-jade hover:bg-jade/15"
-                  : "text-paper-3 hover:bg-paper/[0.05] hover:text-paper-2"
-              )}
+    <div className="max-w-[620px] divide-y divide-paper/[0.07]">
+      <section aria-label="属性收益" className="pb-5">
+        <p className="text-[12px] text-paper-3">
+          每多一个该属性的附魔，秒伤增加多少
+        </p>
+        <ul className="mt-3 space-y-2.5">
+          {lo.gains.map((g, i) => (
+            <li
+              key={g.attr}
+              className="grid grid-cols-[64px_1fr_72px_48px] items-center gap-3"
             >
-              {buffed ? buffLabel(lo.buffs) : "+ 增益"}
-            </button>
-          </div>
-          <p className="mt-2 text-[28px] font-semibold leading-none tabular-nums text-paper">
-            {buffed && <span className="mr-1 text-[20px] text-paper-3">≈</span>}
-            {fmt(D(lo.dps))}
-          </p>
-          <p className="mt-2.5 text-[12px] text-paper-3">
-            {prev ? (
-              <>
-                <Delta pct={deltaPct} className="font-medium" />
-                <span className="ml-1.5">较上次 {fmt(D(prev.dps))}</span>
-              </>
-            ) : (
-              "第一次计算"
-            )}
-          </p>
-        </section>
+              <span
+                className={cn(
+                  "text-[13px]",
+                  i === 0 ? "font-medium text-paper" : "text-paper-2"
+                )}
+              >
+                {g.attr}
+              </span>
+              <span className="h-2 overflow-hidden rounded-full bg-paper/[0.05]">
+                <span
+                  className="block h-full rounded-full bg-jade"
+                  style={{
+                    width: `${(g.pct / maxGain) * 100}%`,
+                    opacity: 1 - i * 0.09,
+                  }}
+                />
+              </span>
+              <span className="text-right text-[12.5px] tabular-nums text-paper-2">
+                +{fmt(D(g.dps))}
+              </span>
+              <span className="text-right text-[12.5px] tabular-nums text-paper-3">
+                {g.pct.toFixed(2)}%
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
 
-        <section className="px-6" aria-label="加速段位">
-          <h3 className={cardTitle}>加速段位</h3>
-          <p className="mt-2 flex items-baseline gap-2">
-            <span className="text-[24px] font-semibold leading-none text-paper">
-              {haste.tier}
-            </span>
-            <span className="text-[13px] tabular-nums text-paper-2">
+      <section aria-label="加速段位" className="py-5">
+        <div className="flex items-baseline justify-between gap-3">
+          <h3 className={sectionTitle}>加速段位</h3>
+          <p className="flex items-baseline gap-2 text-[12.5px]">
+            <span className="font-medium text-paper">{haste.tier}</span>
+            <span className="tabular-nums text-paper-2">
               {fmt(haste.value)}
             </span>
             {est.haste > 0 && (
@@ -119,154 +217,60 @@ export function Dashboard({
               </span>
             )}
           </p>
+        </div>
+        <div
+          className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-paper/[0.08]"
+          role="progressbar"
+          aria-valuemin={from}
+          aria-valuemax={haste.nextValue ?? haste.value}
+          aria-valuenow={haste.value}
+          aria-label={haste.nextTier ? `距离${haste.nextTier}` : "加速段位"}
+        >
           <div
-            className="mt-3 h-1.5 overflow-hidden rounded-full bg-paper/[0.08]"
-            role="progressbar"
-            aria-valuemin={from}
-            aria-valuemax={haste.nextValue ?? haste.value}
-            aria-valuenow={haste.value}
-            aria-label={haste.nextTier ? `距离${haste.nextTier}` : "加速段位"}
-          >
-            <div
-              className="h-full rounded-full bg-gold/80"
-              style={{ width: `${hastePct}%` }}
-            />
-          </div>
-          <p className="mt-2 text-[12px] text-paper-3">
-            {haste.nextValue ? (
-              <>
-                再加{" "}
-                <span className="tabular-nums text-paper-2">
-                  {fmt(haste.nextValue - haste.value)}
-                </span>{" "}
-                到{haste.nextTier}
-              </>
-            ) : (
-              "已经是最高段"
-            )}
-          </p>
-        </section>
-
-        <section className="flex flex-col pl-6" aria-label="下一步建议">
-          <h3 className={cardTitle}>下一步建议</h3>
-          {best ? (
+            className="h-full rounded-full bg-gold/80"
+            style={{ width: `${hastePct}%` }}
+          />
+        </div>
+        <p className="mt-2 text-[12px] text-paper-3">
+          {haste.nextValue ? (
             <>
-              <p className="mt-2 text-[13.5px] leading-snug text-paper">
-                把「{best.slotLabel}」换成
-                <span className="font-medium"> {best.name}</span>
-              </p>
-              <p className="mt-1.5 text-[12px] text-paper-3">
-                秒伤 <Delta pct={best.pct} className="font-medium" />
-              </p>
-              <div className="mt-auto pt-2">
-                <Btn
-                  size="xs"
-                  variant="ghost"
-                  className="-ml-2"
-                  onClick={() => onTry(best.slotKey, best.itemId)}
-                >
-                  去配装器
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                </Btn>
-              </div>
+              再加{" "}
+              <span className="tabular-nums text-paper-2">
+                {fmt(haste.nextValue - haste.value)}
+              </span>{" "}
+              到{haste.nextTier}。加速按段位生效，不在上面的收益里
             </>
           ) : (
-            <p className="mt-2 text-[13px] leading-relaxed text-paper-2">
-              {db ? "装备库里没有比现在更好的" : "正在从装备库里找…"}
+            "已经是最高段"
+          )}
+        </p>
+      </section>
+
+      <section aria-label="下一步建议" className="pt-5">
+        <h3 className={sectionTitle}>下一步建议</h3>
+        {best ? (
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <p className="text-[13.5px] text-paper">
+              把「{best.slotLabel}」换成
+              <span className="font-medium"> {best.name}</span>
+              <span className="ml-2 text-[12.5px] text-paper-3">
+                秒伤 <Delta pct={best.pct} className="font-medium" />
+              </span>
             </p>
-          )}
-        </section>
-      </div>
-
-      <PanelStrip
-        className="border-b border-paper/[0.07]"
-        xinfa={lo.xinfa}
-        panel={lo.panel}
-        hasteValue={lo.haste.value}
-        note={buffed ? "不含增益" : undefined}
-      />
-
-      <div className="grid grid-cols-[1fr_1.15fr] divide-x divide-paper/[0.07] pt-5">
-        <section className="pr-6" aria-label="属性收益">
-          <div className="flex items-center gap-1.5">
-            <h3 className={cardTitle}>属性收益</h3>
-            <span title="每多一个该属性的附魔，秒伤增加多少。按收益从高到低排列。">
-              <Info
-                className="h-3.5 w-3.5 text-paper-3/70"
-                aria-label="说明：每多一个该属性的附魔，秒伤增加多少"
-              />
-            </span>
-          </div>
-          <ul className="mt-3 space-y-2">
-            {lo.gains.map((g, i) => (
-              <li
-                key={g.attr}
-                className="grid grid-cols-[56px_1fr_64px_44px] items-center gap-2"
-              >
-                <span
-                  className={cn(
-                    "text-[12.5px]",
-                    i === 0 ? "font-medium text-paper" : "text-paper-2"
-                  )}
-                >
-                  {g.attr}
-                </span>
-                <span className="h-2 overflow-hidden rounded-full bg-paper/[0.05]">
-                  <span
-                    className="block h-full rounded-full bg-jade"
-                    style={{
-                      width: `${(g.pct / maxGain) * 100}%`,
-                      opacity: 1 - i * 0.09,
-                    }}
-                  />
-                </span>
-                <span className="text-right text-[12px] tabular-nums text-paper-2">
-                  +{fmt(D(g.dps))}
-                </span>
-                <span className="text-right text-[12px] tabular-nums text-paper-3">
-                  {g.pct.toFixed(2)}%
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-[11.5px] text-paper-3">
-            加速按段位生效，看上面的「加速段位」
-          </p>
-        </section>
-
-        <section className="flex flex-col pl-6" aria-label="秒伤变化">
-          <h3 className={cardTitle}>秒伤变化</h3>
-          <div className="relative mt-1 min-h-[160px] flex-1">
-            <div className="absolute inset-0">
-              <DpsChart
-                history={lo.history.map(p => ({ ...p, dps: D(p.dps) }))}
-              />
-            </div>
-          </div>
-          {patch && (
-            <button
-              type="button"
-              onClick={onOpenChangelog}
-              className="group -mx-1 mt-1 flex items-center gap-2 rounded-md px-1 py-1 text-left text-[12px] text-paper-3 transition-colors hover:bg-paper/[0.04]"
+            <Btn
+              size="xs"
+              variant="secondary"
+              onClick={() => onTry(best.slotKey, best.itemId)}
             >
-              <span
-                className="h-2 w-2 shrink-0 rounded-full bg-gold"
-                aria-hidden="true"
-              />
-              <span className="min-w-0 flex-1 truncate">
-                <span className="text-paper-2">{patch.label}</span>
-                {patch.detail && <span>（{patch.detail}）</span>}
-                <span className="mx-1">·</span>
-                <Delta pct={patchDelta} />
-              </span>
-              <span className="shrink-0 text-paper-3 transition-colors group-hover:text-paper-2">
-                修改记录
-              </span>
-              <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            </button>
-          )}
-        </section>
-      </div>
+              放进配装器
+            </Btn>
+          </div>
+        ) : (
+          <p className="mt-2 text-[13px] text-paper-2">
+            {db ? "装备库里没有比现在更好的" : "正在从装备库里找…"}
+          </p>
+        )}
+      </section>
     </div>
   );
 }

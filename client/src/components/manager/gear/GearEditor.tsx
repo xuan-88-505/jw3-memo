@@ -1,7 +1,7 @@
-import { AlertCircle, Loader2, RotateCcw, Wand2 } from "lucide-react";
+import { RotateCcw, Wand2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Anchored } from "@/components/common/Anchored";
-import { Btn, IconBtn } from "@/components/common/ui";
+import { IconBtn } from "@/components/common/ui";
 import {
   BIG_LEVEL_LABEL,
   BIG_SLOTS,
@@ -16,12 +16,12 @@ import {
   changePct,
   configOf,
   draftChanges,
-  draftOf,
   equipSlot,
   evalDraft,
   gemSlot,
   primaryAttr,
   refineSlot,
+  type DraftEval,
   type GearDraft,
   type GearSlot,
   type Loadout,
@@ -29,12 +29,10 @@ import {
 import { buffFactor } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
 import { SelectBox, inputCls } from "../shared";
-import { Delta, fmt } from "./Dashboard";
 import { EquipPicker } from "./EquipPicker";
-import { GearFilterButton } from "./GearFilterButton";
 import { PanelStrip } from "./PanelStrip";
 import { StonePicker } from "./StonePicker";
-import { useGearFilter } from "./gearFilter";
+import type { GearFilter } from "./gearFilter";
 import { useEquipDb } from "./useEquipDb";
 
 const selectCls = cn(inputCls(), "h-8 pl-2.5 text-[12.5px]");
@@ -52,30 +50,27 @@ function sameSlot(a: GearSlot, b: GearSlot) {
 }
 
 /**
- * 配装器：一张表改全身。所有改动先进草稿，顶部显示改前改后秒伤，保存后才写进配装。
- * 每个选项后面的百分比是"换成它"相对当前草稿的秒伤变化（估算）。
+ * 配装器的部位表：一张表改全身。所有改动先进草稿，保存后才写进配装。
+ * 秒伤、保存按钮、筛选和一键在外面的弹窗里（GearEditorDialog）。
  */
 export function GearEditor({
   lo,
   draft,
+  ev,
+  filter,
   onDraft,
-  onSave,
-  onSaveAs,
   flash,
 }: {
   lo: Loadout;
   draft: GearDraft;
+  ev: DraftEval;
+  filter: GearFilter;
   onDraft: (d: GearDraft) => void;
-  onSave: () => void;
-  onSaveAs: () => void;
-  /** 从看板跳过来时高亮的部位 */
+  /** 从「下一步建议」跳过来时高亮的部位 */
   flash?: { slotKey: string; n: number } | null;
 }) {
   const main = primaryAttr(lo.xinfa);
-  const { db, failed, retry } = useEquipDb(main);
-  const [filter, setFilter] = useGearFilter();
-  const ev = useMemo(() => evalDraft(lo, draft), [lo, draft]);
-  const changes = useMemo(() => draftChanges(lo, draft), [lo, draft]);
+  const { db } = useEquipDb(main);
   const cfg = useMemo(() => configOf(draft), [draft]);
   const factor = buffFactor(lo);
   const cfgPct = (next: GearConfig) =>
@@ -100,140 +95,13 @@ export function GearEditor({
       slots: draft.slots.map(s => (s.key === key ? fn(s) : s)),
     });
 
-  /* ---------- 一键 ---------- */
-  const allGems = (lv: number) =>
-    onDraft({
-      ...draft,
-      slots: draft.slots.map(s =>
-        s.def ? s.gems.reduce((x, _, i) => gemSlot(x, i, lv), s) : s
-      ),
-    });
-  const allRefine = () =>
-    onDraft({
-      ...draft,
-      slots: draft.slots.map(s =>
-        s.def ? refineSlot(s, maxRefine(s.def)) : s
-      ),
-    });
-  const allBig = (lv: BigLevel) =>
-    onDraft({
-      ...draft,
-      big: { hat: lv, coat: lv, belt: lv, wrist: lv, shoes: lv },
-    });
-  const bestEnchants = () => {
-    let d = draft;
-    for (const key of draft.slots.map(s => s.key)) {
-      const opts = enchantOptions(main, key);
-      if (!opts.length) continue;
-      const e = evalDraft(lo, d);
-      const c = configOf(d);
-      const best = opts
-        .map(o => ({
-          id: o.id,
-          p: changePct(
-            lo,
-            e,
-            configDelta(main, c, {
-              ...c,
-              enchants: { ...c.enchants, [key]: o.id },
-            })
-          ),
-        }))
-        .sort((a, b) => b.p - a.p)[0];
-      d = {
-        ...d,
-        slots: d.slots.map(x =>
-          x.key === key ? { ...x, enchant: best.id } : x
-        ),
-      };
-    }
-    const e = evalDraft(lo, d);
-    const c = configOf(d);
-    const stone = stonesFor(main)
-      .map(st => ({
-        name: st.name,
-        p: changePct(lo, e, configDelta(main, c, { ...c, stone: st.name })),
-      }))
-      .sort((a, b) => b.p - a.p)[0];
-    onDraft({ ...d, stone: stone?.name ?? d.stone });
-  };
-
-  const dirty = changes.length > 0;
-  const shownDps = Math.round(ev.dps * factor);
-  const savedDps = Math.round(lo.dps * factor);
+  const dirty = useMemo(() => draftChanges(lo, draft).length > 0, [lo, draft]);
 
   return (
-    <div className="@container pb-8">
-      {/* 吸顶：改前改后秒伤和保存 */}
-      <div className="sticky top-0 z-10 -mx-8 border-b border-paper/[0.07] bg-ink-2/95 px-8 pb-3 pt-4 backdrop-blur">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div
-            className="flex min-w-0 items-baseline gap-2.5"
-            aria-live="polite"
-          >
-            <span className="text-[12px] text-paper-3">秒伤</span>
-            <span className="text-[22px] tabular-nums text-paper">
-              {fmt(shownDps)}
-            </span>
-            {dirty ? (
-              <>
-                <Delta pct={ev.pct * 100} className="text-[13px]" />
-                <span className="truncate text-[12px] text-paper-3">
-                  原 {fmt(savedDps)}
-                </span>
-              </>
-            ) : (
-              <span className="text-[12px] text-paper-3">未改动</span>
-            )}
-            {factor !== 1 && (
-              <span className="text-[11.5px] text-paper-3">含增益</span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {dirty && (
-              <span
-                className="mr-1 text-[12px] text-paper-3"
-                title={changes.join("、")}
-              >
-                改了 {changes.length} 处
-              </span>
-            )}
-            <Btn
-              variant="ghost"
-              disabled={!dirty}
-              onClick={() => onDraft(draftOf(lo))}
-            >
-              撤销
-            </Btn>
-            <Btn disabled={!dirty} onClick={onSaveAs}>
-              另存为新配装
-            </Btn>
-            <Btn variant="primary" disabled={!dirty} onClick={onSave}>
-              保存
-            </Btn>
-          </div>
-        </div>
-        {/* 宽窗口：属性面板跟秒伤一起吸顶 */}
-        <div className="hidden @min-[880px]:block">
-          <PanelStrip
-            className="mt-3 border-t border-paper/[0.07]"
-            xinfa={lo.xinfa}
-            panel={ev.panel}
-            hasteValue={ev.hasteValue}
-            base={
-              dirty
-                ? { panel: lo.panel, hasteValue: lo.haste.value }
-                : undefined
-            }
-            note={factor !== 1 ? "面板不含增益" : undefined}
-          />
-        </div>
-      </div>
-
-      {/* 窄窗口：只吸顶秒伤，属性面板跟着内容滚动 */}
-      <div className="@min-[880px]:hidden">
+    <div className="@container pb-6">
+      {/* 属性面板吸顶，改了哪项标出涨跌 */}
+      <div className="sticky top-0 z-10 -mx-5 border-b border-paper/[0.07] bg-ink-3/95 px-5 backdrop-blur">
         <PanelStrip
-          className="border-b border-paper/[0.07]"
           xinfa={lo.xinfa}
           panel={ev.panel}
           hasteValue={ev.hasteValue}
@@ -244,46 +112,10 @@ export function GearEditor({
         />
       </div>
 
-      {/* 工具行 */}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <GearFilterButton value={filter} onChange={setFilter} />
-        <QuickMenu
-          onGems={allGems}
-          onRefine={allRefine}
-          onBig={allBig}
-          onBest={bestEnchants}
-        />
-        <span className="ml-auto text-[12px] text-paper-3">
-          {failed ? (
-            <span className="inline-flex items-center gap-1.5 text-cinnabar-text">
-              <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
-              装备库加载失败
-              <button
-                type="button"
-                onClick={retry}
-                className="text-paper-2 underline underline-offset-2 hover:text-paper"
-              >
-                重试
-              </button>
-            </span>
-          ) : !db ? (
-            <span className="inline-flex items-center gap-1.5">
-              <Loader2
-                className="h-3.5 w-3.5 animate-spin"
-                aria-hidden="true"
-              />
-              正在加载装备库
-            </span>
-          ) : (
-            "秒伤为估算"
-          )}
-        </span>
-      </div>
-
       {/* 表头：宽窗口才显示 */}
       <div
         aria-hidden="true"
-        className="-mx-3 mt-3 hidden items-center gap-2 px-3 text-[11.5px] text-paper-3 @min-[880px]:flex"
+        className="-mx-3 mt-4 hidden items-center gap-2 px-3 text-[11.5px] text-paper-3 @min-[880px]:flex"
       >
         <span className="w-[64px] shrink-0">部位</span>
         <span className="min-w-0 flex-1">装备</span>
@@ -529,7 +361,72 @@ export function GearEditor({
 }
 
 /** 一键操作：都只改草稿 */
-function QuickMenu({
+export function useQuickActions(
+  lo: Loadout,
+  draft: GearDraft,
+  onDraft: (d: GearDraft) => void
+) {
+  const main = primaryAttr(lo.xinfa);
+  const onGems = (lv: number) =>
+    onDraft({
+      ...draft,
+      slots: draft.slots.map(s =>
+        s.def ? s.gems.reduce((x, _, i) => gemSlot(x, i, lv), s) : s
+      ),
+    });
+  const onRefine = () =>
+    onDraft({
+      ...draft,
+      slots: draft.slots.map(s =>
+        s.def ? refineSlot(s, maxRefine(s.def)) : s
+      ),
+    });
+  const onBig = (lv: BigLevel) =>
+    onDraft({
+      ...draft,
+      big: { hat: lv, coat: lv, belt: lv, wrist: lv, shoes: lv },
+    });
+  const onBest = () => {
+    let d = draft;
+    for (const key of draft.slots.map(s => s.key)) {
+      const opts = enchantOptions(main, key);
+      if (!opts.length) continue;
+      const e = evalDraft(lo, d);
+      const c = configOf(d);
+      const best = opts
+        .map(o => ({
+          id: o.id,
+          p: changePct(
+            lo,
+            e,
+            configDelta(main, c, {
+              ...c,
+              enchants: { ...c.enchants, [key]: o.id },
+            })
+          ),
+        }))
+        .sort((a, b) => b.p - a.p)[0];
+      d = {
+        ...d,
+        slots: d.slots.map(x =>
+          x.key === key ? { ...x, enchant: best.id } : x
+        ),
+      };
+    }
+    const e = evalDraft(lo, d);
+    const c = configOf(d);
+    const stone = stonesFor(main)
+      .map(st => ({
+        name: st.name,
+        p: changePct(lo, e, configDelta(main, c, { ...c, stone: st.name })),
+      }))
+      .sort((a, b) => b.p - a.p)[0];
+    onDraft({ ...d, stone: stone?.name ?? d.stone });
+  };
+  return { onGems, onRefine, onBig, onBest };
+}
+
+export function QuickMenu({
   onGems,
   onRefine,
   onBig,
