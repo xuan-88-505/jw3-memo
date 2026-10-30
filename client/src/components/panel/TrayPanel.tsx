@@ -32,6 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Inbox } from "./Inbox";
 import { NotePad } from "./NotePad";
+import { PanelAddCharacter } from "./PanelAddCharacter";
 import { MacroList, TalentList } from "./PanelContent";
 
 export interface TrayPanelProps {
@@ -58,12 +59,7 @@ export function TrayPanel({
 
   let body: React.ReactNode;
   if (state.dataState === "loading") body = <PanelSkeleton />;
-  else if (!myCharacters(state).length)
-    body = (
-      <NoCharacters
-        onAdd={() => openManager("characters", undefined, "add-character")}
-      />
-    );
+  else if (!myCharacters(state).length) body = <NoCharacters />;
   else
     body = (
       <PanelMain
@@ -76,6 +72,8 @@ export function TrayPanel({
   return (
     <section
       aria-label="备忘录面板"
+      // 下拉菜单挂在面板里：不超出面板，模拟桌面缩放时位置也对
+      data-layer-root
       className={cn(
         "glass-ink relative flex h-[500px] w-[360px] flex-col overflow-hidden rounded-xl text-paper shadow-[0_28px_70px_-16px_rgb(0_0_0/0.8),0_0_0_1px_rgb(236_230_218/0.1)]",
         className
@@ -530,10 +528,21 @@ function NoScheme({
   );
 }
 
-function NoCharacters({ onAdd }: { onAdd: () => void }) {
+/** 还没有角色：点「添加角色」在面板里原地填表，不打开管理窗口 */
+function NoCharacters() {
   const { state } = useProto();
+  const [adding, setAdding] = useState(false);
+  const addBtn = useRef<HTMLButtonElement>(null);
+  const backToButton = useRef(false);
+  // 取消后焦点回到「添加角色」按钮，键盘用户不用重新找
+  useEffect(() => {
+    if (!adding && backToButton.current) {
+      backToButton.current = false;
+      addBtn.current?.focus();
+    }
+  }, [adding]);
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <header className="flex h-12 shrink-0 items-center border-b border-paper/[0.07] px-4">
         <Wordmark size="sm" />
         {state.team && (
@@ -544,18 +553,28 @@ function NoCharacters({ onAdd }: { onAdd: () => void }) {
         )}
       </header>
       <OfflineBar compact />
-      <div className="empty-state flex flex-1 flex-col items-center justify-center gap-3 px-8 pb-6 text-center">
-        <PixelIcon name="hero" className="pixel-hop" />
-        <p className="text-[13.5px] text-paper-2">还没有角色</p>
-        <Btn
-          variant="primary"
-          size="md"
-          onClick={onAdd}
-          icon={<Plus className="h-4 w-4" />}
-        >
-          添加角色
-        </Btn>
-      </div>
+      {adding ? (
+        <PanelAddCharacter
+          onCancel={() => {
+            backToButton.current = true;
+            setAdding(false);
+          }}
+        />
+      ) : (
+        <div className="empty-state flex flex-1 flex-col items-center justify-center gap-3 px-8 pb-6 text-center">
+          <PixelIcon name="hero" className="pixel-hop" />
+          <p className="text-[13.5px] text-paper-2">还没有角色</p>
+          <Btn
+            ref={addBtn}
+            variant="primary"
+            size="md"
+            onClick={() => setAdding(true)}
+            icon={<Plus className="h-4 w-4" />}
+          >
+            添加角色
+          </Btn>
+        </div>
+      )}
     </div>
   );
 }

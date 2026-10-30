@@ -3,7 +3,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { InlineModal } from "@/components/common/overlay";
 import { Btn, IconBtn } from "@/components/common/ui";
-import { SCHOOL_GROUPS, schoolLabel, xinfasOf } from "@/data/seed";
+import { schoolLabel, xinfasOf } from "@/data/seed";
 import type { Character } from "@/data/types";
 import {
   currentLoadout,
@@ -12,17 +12,15 @@ import {
   myCharacters,
   useProto,
 } from "@/state/store";
-import { isServerName } from "@/data/records";
 import { cn } from "@/lib/utils";
 import { AvatarPicker } from "./AvatarPicker";
+import { EmptyState, SectionHeader } from "./shared";
+import { SchoolMenu, type SchoolValue } from "./SchoolPicker";
 import {
-  EmptyState,
-  Field,
-  SectionHeader,
-  SelectBox,
-  inputCls,
-} from "./shared";
-import { SchoolFields, SchoolMenu, type SchoolValue } from "./SchoolPicker";
+  AddCharacterFields,
+  nameError,
+  useAddCharacterForm,
+} from "./AddCharacterForm";
 
 // 表格不裁切内容：门派菜单要浮出来
 const TD = "px-3 py-2.5";
@@ -223,30 +221,6 @@ export function CharactersView() {
   );
 }
 
-/** 角色名校验：添加和改名共用 */
-/** 自己角色里出现最多的服务器；一个角色都没有时为空 */
-function usualServer(mine: Character[]) {
-  const count = new Map<string, number>();
-  for (const c of mine) count.set(c.server, (count.get(c.server) ?? 0) + 1);
-  let best = "";
-  for (const [s, n] of count) if (n > (count.get(best) ?? 0)) best = s;
-  return best;
-}
-export function nameError(
-  mine: Character[],
-  name: string,
-  server: string,
-  exceptId?: string
-) {
-  if (!name) return "填一下角色名";
-  if (name.length > 12) return "角色名最多 12 个字";
-  if (
-    mine.some(c => c.id !== exceptId && c.name === name && c.server === server)
-  )
-    return `${server} 已经有叫「${name}」的角色了`;
-  return "";
-}
-
 /** 角色名：看起来是文字，点击直接编辑。回车保存，Esc 取消，点别处也会保存 */
 function NameInput({ char, disabled }: { char: Character; disabled: boolean }) {
   const { state, actions } = useProto();
@@ -381,12 +355,6 @@ function SchoolCell({
   );
 }
 
-const NEW_SCHOOL: SchoolValue = {
-  school: SCHOOL_GROUPS[0].school,
-  only: null,
-  liupai: [],
-};
-
 function AddCharacterDialog({
   open,
   onClose,
@@ -394,41 +362,15 @@ function AddCharacterDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const { state, actions } = useProto();
-  const [name, setName] = useState("");
-  // 默认填自己角色最常用的服务器，多数号都在同一个服
-  const [server, setServer] = useState(() => usualServer(myCharacters(state)));
-  const [school, setSchool] = useState<SchoolValue>(NEW_SCHOOL);
-  const [error, setError] = useState("");
-  const [serverError, setServerError] = useState("");
+  const form = useAddCharacterForm("manager");
+  const { reset } = form;
   useEffect(() => {
-    if (open) {
-      setName("");
-      setError("");
-      setServerError("");
-    }
+    if (open) reset();
+    // 只在打开时清空
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   const submit = () => {
-    const n = name.trim();
-    const sErr = !server
-      ? "填一下服务器"
-      : !isServerName(server)
-        ? "服务器名是 2–8 个汉字"
-        : "";
-    setServerError(sErr);
-    const err = nameError(myCharacters(state), n, server);
-    setError(err);
-    if (err || sErr) return;
-    actions.addCharacter({ name: n, server, ...school });
-    const hasScheme = xinfasOf(school).some(x => modesOf(state, x).length > 0);
-    actions.toast(
-      "manager",
-      "success",
-      hasScheme
-        ? `已添加「${n}」。去面板里看它要用的宏和奇穴。`
-        : `已添加「${n}」，${schoolLabel(school)}还没有方案`
-    );
-    onClose();
+    if (form.submit()) onClose();
   };
 
   return (
@@ -445,46 +387,15 @@ function AddCharacterDialog({
             variant="primary"
             size="md"
             onClick={submit}
-            disabled={!isOnline(state)}
+            disabled={!form.canSubmit}
           >
             添加
           </Btn>
         </>
       }
     >
-      <div className="grid grid-cols-2 gap-x-3 gap-y-4 pb-1">
-        <Field label="角色名" htmlFor="char-name" error={error}>
-          <input
-            id="char-name"
-            data-autofocus
-            value={name}
-            maxLength={20}
-            onChange={e => {
-              setName(e.target.value);
-              setError("");
-            }}
-            onKeyDown={e => e.key === "Enter" && submit()}
-            placeholder="游戏里的角色名"
-            aria-invalid={!!error}
-            className={inputCls(!!error)}
-          />
-        </Field>
-        <Field label="服务器" htmlFor="char-server" error={serverError}>
-          <input
-            id="char-server"
-            value={server}
-            maxLength={8}
-            onChange={e => {
-              setServer(e.target.value.replace(/\s/g, ""));
-              setServerError("");
-            }}
-            onKeyDown={e => e.key === "Enter" && submit()}
-            placeholder="如 梦江南"
-            aria-invalid={!!serverError}
-            className={inputCls(!!serverError)}
-          />
-        </Field>
-        <SchoolFields value={school} onChange={setSchool} idPrefix="char" />
+      <div className="pb-1">
+        <AddCharacterFields form={form} onSubmit={submit} idPrefix="char" />
       </div>
     </InlineModal>
   );
