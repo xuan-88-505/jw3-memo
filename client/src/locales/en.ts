@@ -870,5 +870,7 @@ const dict: Record<string, string> = {
   "改了 1 处": "1 change",
   "奇穴 1 处": "1 talent change",
   "1 条修改记录": "1 change",
+  "新建 {0}": "New {0}",
+  "添加 {0}": "Add {0}",
 };
 export default dict;

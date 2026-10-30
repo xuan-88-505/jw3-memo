@@ -95,7 +95,7 @@ function SchemeList() {
             icon={<Plus className="h-4 w-4" />}
             onClick={() => setCreating(true)}
           >
-            {tx("新建方案")}
+            {tx("新建")}
           </Btn>
         )}
         {listed.length === 0 && (
@@ -502,7 +502,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
                 icon={<Plus className="h-4 w-4" />}
                 onClick={() => actions.startDraft(xinfa, m)}
               >
-                {tx("新建 {0} 方案", m)}
+                {choices.length > 1 ? tx("新建 {0}", m) : tx("新建")}
               </Btn>
             ))}
           </div>
@@ -594,7 +594,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
               icon={<Plus className="h-3.5 w-3.5" />}
               onClick={() => actions.startDraft(xinfa, other)}
             >
-              {tx("添加 {0} 方案", other)}
+              {tx("添加 {0}", other)}
             </Btn>
           )}
           {last && (

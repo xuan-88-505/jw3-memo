@@ -312,7 +312,6 @@ function PanelMain({
       ) : missing.length && (!multi || ready.length === 0) ? (
         <NoScheme
           xinfa={multi ? undefined : xinfas[0]}
-          mode={mode}
           onCreate={() =>
             openManager("schemes", undefined, {
               newScheme: { xinfa: missing[0].xinfa, mode },
@@ -369,7 +368,6 @@ function PanelMain({
           {multi && missing.length > 0 && (
             <NewSchemeRow
               missing={missing.map(x => x.xinfa)}
-              mode={mode}
               onCreate={() =>
                 openManager("schemes", undefined, {
                   newScheme: { xinfa: missing[0].xinfa, mode },
@@ -420,14 +418,12 @@ function SectionHeading({
   );
 }
 
-/** 多心法角色里有心法还没方案：列表最后一行「新建方案」，不逐个列出 */
+/** 多心法角色里有心法还没方案：列表最后一行「新建」，不逐个列出 */
 function NewSchemeRow({
   missing,
-  mode,
   onCreate,
 }: {
   missing: string[];
-  mode: Mode;
   onCreate: () => void;
 }) {
   const { state } = useProto();
@@ -437,11 +433,11 @@ function NewSchemeRow({
       <button
         type="button"
         onClick={onCreate}
-        title={tx("{0}还没有 {1} 方案", missing.join("、"), mode)}
+        title={tx("{0}还没有方案", missing.join("、"))}
         className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[12.5px] text-paper-3 transition-colors hover:bg-paper/[0.06] hover:text-paper"
       >
         <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-        {tx("新建方案")}
+        {tx("新建")}
       </button>
     </div>
   );
@@ -559,12 +555,10 @@ function CharacterSwitcher({
 
 function NoScheme({
   xinfa,
-  mode,
   onCreate,
 }: {
   /** 只玩一个心法时写心法名；多心法角色一个方案都没有时不写 */
   xinfa?: string;
-  mode: Mode;
   onCreate: () => void;
 }) {
   const { state } = useProto();
@@ -577,7 +571,7 @@ function NoScheme({
         <PixelIcon name="book" className="pixel-hop" />
       )}
       <p className="text-[13.5px] text-paper-2">
-        {tx("{0}还没有 {1} 方案", xinfa ?? "", mode)}
+        {xinfa ? tx("{0}还没有方案", xinfa) : tx("还没有方案")}
       </p>
       {viewer ? (
         <p className="text-[12px] text-paper-3">{tx("只读成员不能新建")}</p>
@@ -588,7 +582,7 @@ function NoScheme({
           onClick={onCreate}
           icon={<Plus className="h-3.5 w-3.5" />}
         >
-          {tx("新建方案")}
+          {tx("新建")}
         </Btn>
       )}
     </div>
