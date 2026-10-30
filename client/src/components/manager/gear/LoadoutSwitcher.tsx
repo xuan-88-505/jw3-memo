@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { XinfaMark } from "@/components/brand/Marks";
@@ -13,27 +13,21 @@ const itemCls =
 
 /**
  * 左栏最上面的配装卡，照参考站的角色卡：心法图标、配装名、关联的角色。
- * 点开是菜单：按心法分组列出所有配装，最后一项新建。
+ * 点开是菜单：按心法分组列出所有配装。新建按钮在卡片上面，不放进菜单。
  */
 export function LoadoutSwitcher({
   list,
   current,
   pending,
   disabled,
-  newDisabled,
-  newTitle,
   onSelect,
-  onNew,
 }: {
   list: Loadout[];
   current: Loadout | null;
   /** 正在算的新配装：算完之前卡片显示它 */
   pending: { xinfa: string; name: string; charId: string | null } | null;
   disabled?: boolean;
-  newDisabled?: boolean;
-  newTitle?: string;
   onSelect: (id: string) => void;
-  onNew: () => void;
 }) {
   const { state } = useProto();
   const btn = useRef<HTMLButtonElement>(null);
@@ -144,21 +138,6 @@ export function LoadoutSwitcher({
               })}
             </div>
           ))}
-          <div className="my-1 h-px bg-paper/[0.07]" role="separator" />
-          <button
-            type="button"
-            role="menuitem"
-            disabled={newDisabled}
-            title={newTitle}
-            onClick={() => {
-              setOpen(false);
-              onNew();
-            }}
-            className={itemCls}
-          >
-            <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            {tx("新建配装")}
-          </button>
         </div>
       </Anchored>
     </>

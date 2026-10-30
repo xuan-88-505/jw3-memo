@@ -1,7 +1,7 @@
 import { ExternalLink, Pencil, Plus, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { Btn, IconBtn } from "@/components/common/ui";
+import { Btn } from "@/components/common/ui";
 import { findScheme, latest, loadoutList, useProto } from "@/state/store";
 import {
   SOURCE_LABEL,
@@ -254,15 +254,23 @@ export function GearView() {
         aria-label={tx("配装")}
         className="scroll-thin w-[264px] shrink-0 overflow-y-auto border-r border-paper/[0.07] px-4 pb-6 pt-5"
       >
+        <Btn
+          variant="secondary"
+          size="md"
+          className="mb-3 w-full"
+          icon={<Plus className="h-4 w-4" />}
+          disabled={offline || computing}
+          title={offline ? tx("离线时不能导入") : undefined}
+          onClick={openNew}
+        >
+          {tx("新建")}
+        </Btn>
         <LoadoutSwitcher
           list={list}
           current={lo}
           pending={pending}
           disabled={computing}
-          newDisabled={offline}
-          newTitle={offline ? tx("离线时不能导入") : undefined}
           onSelect={id => actions.selectLoadout(id)}
-          onNew={openNew}
         />
         {lo && !pending && (
           <>
@@ -356,6 +364,7 @@ export function GearView() {
                   )}
                   {lo!.source !== "manual" && (
                     <Btn
+                      variant="ghost"
                       icon={<RefreshCw className="h-3.5 w-3.5" />}
                       disabled={offline}
                       title={offline ? tx("离线时不能导入") : undefined}
@@ -364,13 +373,14 @@ export function GearView() {
                       {tx("重新导入")}
                     </Btn>
                   )}
-                  <IconBtn
-                    label={tx("编辑配装")}
+                  <Btn
+                    variant="ghost"
+                    aria-label={tx("编辑配装")}
+                    title={tx("编辑配装")}
+                    className="w-7 px-0"
+                    icon={<Pencil className="h-3.5 w-3.5" />}
                     onClick={() => setEditOpen(true)}
-                    className="h-8 w-8"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </IconBtn>
+                  />
                 </>
               }
               meta={
