@@ -30,6 +30,8 @@ export const DESKTOP_PLATFORM: Platform =
 
 /** 发布页：检查更新时打开 */
 export const RELEASES_URL = "https://github.com/xuan-88-505/jw3-memo/releases";
+/** 源代码仓库，设置页「作者」一行链接到这里 */
+export const REPO_URL = "https://github.com/xuan-88-505/jw3-memo";
 
 /** 面板请管理窗口打开某一页 */
 export interface OpenManagerRequest {

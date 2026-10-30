@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, Loader2, RotateCcw } from "lucide-react";
+import { AlertTriangle, ExternalLink, Loader2, RotateCcw } from "lucide-react";
+import { Crown } from "@/components/brand/Crown";
 import { Btn, Segmented } from "@/components/common/ui";
 import {
   IS_DESKTOP,
   RELEASES_URL,
+  REPO_URL,
   exportFile,
   openExternal,
   resetPanelPosition,
@@ -184,6 +186,33 @@ export function SettingsView() {
             >
               {checking ? tx("正在检查") : tx("检查更新")}
             </Btn>
+          </SettingRow>
+          {/* 作者标识：名字前戴像素皇冠，链接到源代码仓库 */}
+          <SettingRow
+            title={tx("作者")}
+            desc={
+              <span className="inline-flex items-center gap-1.5">
+                <span aria-hidden="true" className="inline-flex">
+                  <Crown />
+                </span>
+                <span className="text-paper-2">八八</span>
+              </span>
+            }
+          >
+            {/* 用链接而不是按钮：桌面版由外链拦截交给系统浏览器，网页版直接开新标签 */}
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noreferrer"
+              title={tx("打开 GitHub 仓库")}
+              className="inline-flex h-7 shrink-0 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-paper/[0.06] px-2.5 text-[12.5px] font-medium text-paper shadow-[inset_0_1px_0_rgb(255_255_255/0.05)] ring-1 ring-inset ring-paper/10 transition-colors duration-100 hover:bg-paper/[0.10] focus:outline-none focus-visible:ring-2 focus-visible:ring-cinnabar-text/60 active:bg-paper/[0.08] active:shadow-none"
+            >
+              GitHub
+              <ExternalLink
+                className="h-3.5 w-3.5 text-paper-3"
+                aria-hidden="true"
+              />
+            </a>
           </SettingRow>
         </SettingGroup>
 

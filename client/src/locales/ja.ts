@@ -914,5 +914,6 @@ const dict: Record<string, string> = {
   "取消收藏 {0}": "{0} をお気に入りから外す",
   "说明（选填）": "説明（任意）",
   "{0} 创建": "{0} が作成",
+  "打开 GitHub 仓库": "GitHub リポジトリを開く",
 };
 export default dict;
