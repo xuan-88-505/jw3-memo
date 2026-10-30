@@ -1,6 +1,6 @@
-import { useId, useState } from "react";
-import { LogIn, Plus } from "lucide-react";
+import { useId, useState, type ReactNode } from "react";
 import { Btn } from "@/components/common/ui";
+import { PixelScene } from "@/components/brand/PixelIcon";
 import { SEED_TEAM } from "@/data/seed";
 import { isOnline, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
@@ -9,7 +9,10 @@ import { tx } from "@/lib/i18n";
 
 const NAME_MAX = 12;
 
-/** 还没加入亲友团：创建一个，或用邀请码加入。自己的数据都会保留 */
+/**
+ * 还没加入亲友团：上下排列，居中。
+ * 插图 → 标题和一句说明 → 创建 → 「或」→ 用邀请码加入。自己的数据都会保留
+ */
 export function TeamSetup() {
   const { state, actions } = useProto();
   const online = isOnline(state);
@@ -34,15 +37,34 @@ export function TeamSetup() {
   };
 
   return (
-    <div>
+    <div className="flex min-h-full flex-col">
       <SectionHeader title={tx("亲友团")} />
-      <div className="grid max-w-[760px] grid-cols-1 divide-y divide-paper/[0.07] min-[880px]:grid-cols-2 min-[880px]:divide-x min-[880px]:divide-y-0">
-        <Card
-          icon={<Plus className="h-4 w-4" aria-hidden="true" />}
-          title={tx("创建亲友团")}
-          htmlFor={nameId}
-        >
-          <div className="flex gap-2">
+      {/* 窗口矮于 760 时去掉外围留白，最小窗口 960 × 640 也不用滚动 */}
+      <div className="flex flex-1 flex-col items-center justify-center pb-12 pt-6 [@media(max-height:760px)]:pb-1 [@media(max-height:760px)]:pt-0">
+        <div className="w-full max-w-[400px]">
+          <div className="flex flex-col items-center text-center">
+            {/* 鼠标停在插图上时黄鸡才跳，输入时不分心 */}
+            <div className="empty-state">
+              <PixelScene name="team" className="pixel-hop" />
+            </div>
+            <h2 className="mt-7 text-[17px] font-semibold text-paper">
+              {tx("还没加入亲友团")}
+            </h2>
+            <p className="mt-2 text-balance text-[13px] leading-relaxed text-paper-3">
+              {tx("和亲友共用方案和记录，谁改了什么都看得到")}
+            </p>
+          </div>
+
+          <Step
+            className="mt-10"
+            label={tx("创建亲友团")}
+            htmlFor={nameId}
+            hint={
+              <span className={nameError ? "text-cinnabar-text" : undefined}>
+                {nameError || tx("你的角色和方案会一起带进去")}
+              </span>
+            }
+          >
             <input
               id={nameId}
               value={name}
@@ -56,33 +78,51 @@ export function TeamSetup() {
               disabled={!online}
               aria-invalid={!!nameError}
               aria-describedby={`${nameId}-msg`}
-              className={cn(inputCls(!!nameError), "flex-1")}
+              className={cn(inputCls(!!nameError), "h-9 flex-1")}
             />
             <Btn
               variant="primary"
               size="md"
               onClick={create}
               disabled={!online}
+              className="h-9 min-w-[76px] px-4"
             >
               {tx("创建")}
             </Btn>
-          </div>
-          <p
-            id={`${nameId}-msg`}
-            className={cn(
-              "mt-1.5 min-h-[18px] text-[12px]",
-              nameError ? "text-cinnabar-text" : "text-paper-3"
-            )}
+          </Step>
+
+          <div
+            className="my-7 flex items-center gap-3 text-[12px] text-paper-3"
+            aria-hidden="true"
           >
-            {nameError || tx("你的角色和方案会一起带进去")}
-          </p>
-        </Card>
-        <Card
-          icon={<LogIn className="h-4 w-4" aria-hidden="true" />}
-          title={tx("用邀请码加入")}
-          htmlFor={codeId}
-        >
-          <div className="flex gap-2">
+            <span className="h-px flex-1 bg-paper/[0.08]" />
+            {tx("或")}
+            <span className="h-px flex-1 bg-paper/[0.08]" />
+          </div>
+
+          <Step
+            label={tx("用邀请码加入")}
+            htmlFor={codeId}
+            hint={
+              codeError ? (
+                <span className="text-cinnabar-text">{codeError}</span>
+              ) : (
+                <>
+                  {tx("演示码{0}", " ")}
+                  <button
+                    type="button"
+                    className="font-mono text-paper-2 underline decoration-paper/30 underline-offset-2 hover:text-paper"
+                    onClick={() => {
+                      setCode(SEED_TEAM.inviteCode);
+                      setCodeError("");
+                    }}
+                  >
+                    {SEED_TEAM.inviteCode}
+                  </button>
+                </>
+              )
+            }
+          >
             <input
               id={codeId}
               value={code}
@@ -97,7 +137,7 @@ export function TeamSetup() {
               aria-describedby={`${codeId}-msg`}
               className={cn(
                 inputCls(!!codeError),
-                "flex-1 font-mono uppercase tracking-wider placeholder:tracking-normal"
+                "h-9 flex-1 font-mono uppercase tracking-wider placeholder:tracking-normal"
               )}
             />
             <Btn
@@ -105,62 +145,46 @@ export function TeamSetup() {
               size="md"
               onClick={join}
               disabled={!online}
+              className="h-9 min-w-[76px] px-4"
             >
               {tx("加入")}
             </Btn>
-          </div>
-          <p
-            id={`${codeId}-msg`}
-            className={cn(
-              "mt-1.5 min-h-[18px] text-[12px]",
-              codeError ? "text-cinnabar-text" : "text-paper-3"
-            )}
-          >
-            {codeError || (
-              <>
-                {tx("演示码{0}", " ")}
-                <button
-                  type="button"
-                  className="font-mono text-paper-2 underline decoration-paper/30 underline-offset-2 hover:text-paper"
-                  onClick={() => {
-                    setCode(SEED_TEAM.inviteCode);
-                    setCodeError("");
-                  }}
-                >
-                  {SEED_TEAM.inviteCode}
-                </button>
-              </>
-            )}
-          </p>
-        </Card>
+          </Step>
+        </div>
       </div>
     </div>
   );
 }
 
-function Card({
-  icon,
-  title,
+/** 一步操作：标题、一行输入框 + 按钮、下面一行提示或错误 */
+function Step({
+  label,
   htmlFor,
+  hint,
+  className,
   children,
 }: {
-  icon: React.ReactNode;
-  title: string;
+  label: string;
   htmlFor: string;
-  children: React.ReactNode;
+  hint: ReactNode;
+  className?: string;
+  children: ReactNode;
 }) {
   return (
-    <section className="py-6 first:pt-0 last:pb-0 min-[880px]:px-7 min-[880px]:py-1 min-[880px]:first:pl-0 min-[880px]:last:pr-0">
+    <section className={className}>
       <label
         htmlFor={htmlFor}
-        className="mb-3 flex items-center gap-2 text-[13.5px] font-medium text-paper"
+        className="mb-2 block text-[13.5px] font-medium text-paper"
       >
-        <span className="grid h-7 w-7 place-items-center rounded-md bg-paper/[0.06] text-paper-2">
-          {icon}
-        </span>
-        {title}
+        {label}
       </label>
-      {children}
+      <div className="flex gap-2">{children}</div>
+      <p
+        id={`${htmlFor}-msg`}
+        className="mt-2 min-h-[18px] text-[12px] text-paper-3"
+      >
+        {hint}
+      </p>
     </section>
   );
 }

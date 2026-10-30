@@ -255,3 +255,70 @@ export function PixelIcon({
     </svg>
   );
 }
+
+/**
+ * 空状态插图：比图标大的像素场景，网格尺寸不限，配色和 PixelIcon 相同。
+ * 每格按 scale 放大（默认 4px），像素才能对齐。
+ */
+const SCENES = {
+  // 三只黄鸡大笑，中间那只插着旗：还没加入亲友团
+  team: [
+    "..........................B.............",
+    ".................RRRRRRRRRW.............",
+    ".................RRRRgBRRRW.............",
+    "......L...........RRRBBRRRW.............",
+    ".....LgL...........RRRRRRRW.............",
+    "......L...........RRRRRRRRW.......L.....",
+    ".................mmmmmmmmmW......LgL....",
+    "..........................W.......L.....",
+    "..........................W.............",
+    "....................O.....W.............",
+    ".......O...........OkO....W......O......",
+    "......OkO........OOOOOO...W.....OkO.....",
+    "....OOOOOO......OLLKKKKO..W...OOOOOO....",
+    "...OLLKKKKO....OLUKKKKUKO.W..OLLKKKKO...",
+    "..OLUKKKKUKO...OUKUKKUKUO.W.OLUKKKKUKO..",
+    "..OUKUKKUKUO..OKKKKKKKKKKOW.OUKUKKUKUO..",
+    ".OKRKKKKKKRKO.OKmTTTTTTmKOWOEKKKKKKKKEO.",
+    ".OKmTTTTTTmKO.OKMMMMMMMMKOWOEmTTTTTTmEO.",
+    ".OKMMMMMMMMKO.OKMMMMMMMMKOWOKMMMMMMMMKO.",
+    ".OKMMMMMMMMKO..OkMMMMMMkO.WOKMMMMMMMMKO.",
+    "..OkMMMMMMkO...OkkMTTMkkO.W.OkMMMMMMkO..",
+    "..OkkMTTMkkO....OkkkkkkO....OkkMTTMkkO..",
+    "...OkkkkkkO......OOOOOO......OkkkkkkO...",
+    "....OOOOOO....................OOOOOO....",
+  ],
+} satisfies Record<string, readonly string[]>;
+export type PixelSceneName = keyof typeof SCENES;
+const SCENE_RUNS = Object.fromEntries(
+  Object.entries(SCENES).map(([k, g]) => [k, toRuns(g)])
+) as Record<PixelSceneName, Run[]>;
+
+export function PixelScene({
+  name,
+  scale = 4,
+  className,
+}: {
+  name: PixelSceneName;
+  scale?: number;
+  className?: string;
+}) {
+  const grid = SCENES[name];
+  const w = grid[0].length;
+  const h = grid.length;
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      width={w * scale}
+      height={h * scale}
+      shapeRendering="crispEdges"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+    >
+      {SCENE_RUNS[name].map((r, i) => (
+        <rect key={i} x={r.x} y={r.y} width={r.w} height={1} fill={r.fill} />
+      ))}
+    </svg>
+  );
+}

@@ -874,5 +874,8 @@ const dict: Record<string, string> = {
   "添加 {0}": "Add {0}",
   "按下组合键": "Press keys",
   "可不填": "Optional",
+  "还没加入亲友团": "You're not in a group yet",
+  "和亲友共用方案和记录，谁改了什么都看得到": "Share presets and records with friends, and see who changed what",
+  "或": "or",
 };
 export default dict;
