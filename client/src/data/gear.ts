@@ -171,6 +171,42 @@ export interface Loadout {
   sample: boolean;
   /** 小药、团队增益、阵眼；没有就是不加增益 */
   buffs?: BuffSelection;
+  /**
+   * 最近一次从内置原版计算器带回结果的时间、计算器里的角色 id，
+   * 当时备忘录这边的装备签名（见 lib/dpsCalc.ts gearSig），
+   * 以及计算器装备库里没有、装分和秒伤没算进去的部位
+   */
+  calc?: {
+    at: string;
+    roleId: string;
+    sig: string;
+    missing?: string[];
+    /** 计算器面板上的百分比（新赛季系数），有就直接显示，不用备忘录的系数换算 */
+    pct?: CalcPct;
+    /** 计算器里的小附魔简写，按部位 */
+    enchants?: Record<string, string>;
+  };
+}
+
+/** 原版计算器算好的面板百分比，都是保留两位的百分数 */
+export interface CalcPct {
+  crit: number;
+  critDmg: number;
+  overcome: number;
+  strain: number;
+  haste: number;
+}
+
+/**
+ * 第一次用原版计算器算出来的那一笔秒伤记录的标签。
+ * 这之前的点是备忘录按上赛季估算的，和原版计算器的数量级不同，不放在一起比
+ */
+export const CALC_SWITCH_LABEL = "换成原版计算器";
+
+/** 能放在一起比的秒伤记录：从最近一次换成原版计算器那一笔开始 */
+export function comparableHistory(history: DpsPoint[]): DpsPoint[] {
+  const i = history.map(p => p.label).lastIndexOf(CALC_SWITCH_LABEL);
+  return i > 0 ? history.slice(i) : history;
 }
 
 /** 加速段位阈值（1.5 秒 GCD），取自上游源码 */

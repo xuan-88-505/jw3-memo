@@ -43,6 +43,11 @@ jobs:
       - name: 安装前端依赖
         run: pnpm install --frozen-lockfile
 
+      # 内置配装计算器：原版 jx3dps-online-public 固定提交 + 补丁，产物放进 client/public/dps-calculator/
+      - name: 构建内置配装计算器
+        shell: bash
+        run: bash tools/dps-calculator/build.sh
+
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

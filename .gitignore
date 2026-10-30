@@ -111,3 +111,7 @@ temp/
 
 # Manus version file (auto-generated, not part of source)
 client/public/__manus__/version.json
+
+# 内置配装计算器：产物和上游源码缓存（由 tools/dps-calculator/build.sh 生成）
+client/public/dps-calculator/
+tools/dps-calculator/.cache/

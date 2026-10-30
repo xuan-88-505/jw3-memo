@@ -25,6 +25,7 @@ import {
 import type { GearConfig } from "@/data/enchants";
 import {
   applyConfig,
+  CALC_SWITCH_LABEL,
   hasteOf,
   makeLoadout,
   patchDelta,
@@ -82,6 +83,7 @@ import type {
   CharacterAvatar,
 } from "@/data/types";
 import { tx } from "@/lib/i18n";
+import { isNewer, loadoutFromCalc, type CalcResult } from "@/lib/dpsCalc";
 
 // ---------- 状态 ----------
 
@@ -1353,6 +1355,37 @@ function useActions(
                   },
                 ];
           return { loadouts: { ...st.loadouts, [id]: { ...next, history } } };
+        }),
+      /**
+       * 内置原版计算器带回的结果：装备、面板、装分、秒伤都以计算器为准。
+       * 计算器里每改一次就带回一次，这里不记秒伤变化；关掉计算器时由 recordCalcDps 记一笔。
+       */
+      applyCalcResult: (id: string, r: CalcResult) =>
+        update(st => {
+          const lo = st.loadouts[id];
+          if (!lo || !isNewer(lo, r)) return {};
+          return {
+            loadouts: { ...st.loadouts, [id]: loadoutFromCalc(lo, r) },
+          };
+        }),
+      /**
+       * 关掉计算器时：秒伤和打开时不一样就在秒伤变化里记一笔。
+       * first 是这套配装第一次用原版计算器算，数值从估算换成原版
+       */
+      recordCalcDps: (id: string, fromDps: number, first: boolean) =>
+        update(st => {
+          const lo = st.loadouts[id];
+          if (!lo || lo.dps === fromDps) return {};
+          const history = [
+            ...lo.history,
+            {
+              at: new Date().toISOString(),
+              dps: lo.dps,
+              label: first ? CALC_SWITCH_LABEL : "配装器调整",
+              kind: "gear" as const,
+            },
+          ];
+          return { loadouts: { ...st.loadouts, [id]: { ...lo, history } } };
         }),
       removeLoadout: (id: string) =>
         update(st => {

@@ -1,7 +1,12 @@
 import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
-import { bestUpgrade, primaryAttr, type Loadout } from "@/data/gear";
+import {
+  bestUpgrade,
+  comparableHistory,
+  primaryAttr,
+  type Loadout,
+} from "@/data/gear";
 import { Btn } from "@/components/common/ui";
 import { buffLabel, estimateBuffs, hasteWithBuffs } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
@@ -55,7 +60,8 @@ export function DpsSummary({
   onOpenBuffs: () => void;
 }) {
   const { buffed, D } = useBuffed(lo);
-  const prev = lo.history.length > 1 ? lo.history[lo.history.length - 2] : null;
+  const history = comparableHistory(lo.history);
+  const prev = history.length > 1 ? history[history.length - 2] : null;
   const deltaPct = prev ? ((lo.dps - prev.dps) / prev.dps) * 100 : 0;
   return (
     <section aria-label={tx("木桩秒伤")}>
@@ -104,18 +110,19 @@ export function HistoryPanel({
   onOpenChangelog: () => void;
 }) {
   const { D } = useBuffed(lo);
-  const patchIdx = lo.history.map(p => p.kind).lastIndexOf("patch");
-  const patch = patchIdx > 0 ? lo.history[patchIdx] : null;
+  // 换成原版计算器之前的估算点数量级不同，不画在一起
+  const history = comparableHistory(lo.history);
+  const patchIdx = history.map(p => p.kind).lastIndexOf("patch");
+  const patch = patchIdx > 0 ? history[patchIdx] : null;
   const patchDelta = patch
-    ? ((patch.dps - lo.history[patchIdx - 1].dps) /
-        lo.history[patchIdx - 1].dps) *
+    ? ((patch.dps - history[patchIdx - 1].dps) / history[patchIdx - 1].dps) *
       100
     : 0;
   return (
     <section aria-label={tx("秒伤变化")}>
       <div className="relative h-[260px]">
         <div className="absolute inset-0">
-          <DpsChart history={lo.history.map(p => ({ ...p, dps: D(p.dps) }))} />
+          <DpsChart history={history.map(p => ({ ...p, dps: D(p.dps) }))} />
         </div>
       </div>
       {patch && (

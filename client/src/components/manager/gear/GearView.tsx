@@ -14,6 +14,7 @@ import { buffFactor } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
 import { EmptyState, SectionHeader, inputCls } from "../shared";
 import { BuffsView } from "./BuffsView";
+import { CalcOverlay } from "./CalcOverlay";
 import { fmt } from "./Dashboard";
 import { GearEditorDialog } from "./GearEditorDialog";
 import { GearOverview } from "./GearOverview";
@@ -22,6 +23,12 @@ import { LoadoutList } from "./LoadoutList";
 import { EditLoadoutDialog, NewLoadoutDialog } from "./NewLoadoutDialog";
 import type { GearConfig } from "@/data/enchants";
 import { tx } from "@/lib/i18n";
+import {
+  calcSupported,
+  isNewer,
+  preloadEquipDb,
+  readResult,
+} from "@/lib/dpsCalc";
 
 type NewLoadoutInput = {
   xinfa: string;
@@ -44,6 +51,8 @@ export function GearView() {
   const [newOpen, setNewOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  // 计算器支持的心法用内置原版计算器，其余用备忘录自己的配装器
+  const [calcOpen, setCalcOpen] = useState(false);
   const [buffsOpen, setBuffsOpen] = useState(false);
   const [reimport, setReimport] = useState(false);
   // 正在算的新配装：算完之前也显示在列表里
@@ -73,9 +82,22 @@ export function GearView() {
   useEffect(() => {
     setReimport(false);
     setFlash(null);
-    setEditorOpen(!!lo && openEditorFor.current === lo.id);
+    const want = !!lo && openEditorFor.current === lo.id;
+    const calc = !!lo && calcSupported(lo.xinfa);
+    setEditorOpen(want && !calc);
+    setCalcOpen(want && calc);
     openEditorFor.current = null;
     setBuffsOpen(false);
+  }, [lo?.id]);
+
+  // 计算器写回的结果没来得及合进配装（比如算完直接关了软件）：进配装页时补上
+  useEffect(() => {
+    if (!lo || !calcSupported(lo.xinfa)) return;
+    const r = readResult(lo.id);
+    if (!r || !isNewer(lo, r)) return;
+    const id = lo.id;
+    void preloadEquipDb(lo.xinfa).then(() => actions.applyCalcResult(id, r));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lo?.id]);
 
   const offline = state.dataState === "offline";
@@ -205,11 +227,13 @@ export function GearView() {
           <GearOverview
             lo={lo!}
             charName={linked?.name}
-            dirty={dirty}
+            dirty={!calcSupported(lo!.xinfa) && dirty}
             offline={offline}
             onEdit={() => setEditOpen(true)}
             onReimport={() => setReimport(true)}
             onOpenEditor={slotKey => {
+              // 原版计算器没有按部位跳转的入口，直接打开
+              if (calcSupported(lo!.xinfa)) return setCalcOpen(true);
               setFlash(slotKey ? { slotKey, n: Date.now() } : null);
               setEditorOpen(true);
             }}
@@ -220,6 +244,9 @@ export function GearView() {
       </div>
 
       {newDialog}
+      {lo && calcOpen && (
+        <CalcOverlay key={lo.id} lo={lo} onClose={() => setCalcOpen(false)} />
+      )}
       {lo && draft && (
         <GearEditorDialog
           open={editorOpen}

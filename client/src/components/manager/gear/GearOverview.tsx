@@ -2,10 +2,16 @@ import { ChevronRight, Pencil, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { Btn } from "@/components/common/ui";
 import { XinfaMark } from "@/components/brand/Marks";
-import { SOURCE_LABEL, type GearSlot, type Loadout } from "@/data/gear";
+import {
+  SOURCE_LABEL,
+  comparableHistory,
+  type GearSlot,
+  type Loadout,
+} from "@/data/gear";
 import { buffLabel, estimateBuffs } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
 import { monthDay, tx } from "@/lib/i18n";
+import { fromCalc } from "@/lib/dpsCalc";
 import { Delta, HistoryPanel, fmt } from "./Dashboard";
 import { BigIcon, slotExtras } from "./EnchantBits";
 import { ItemTile, QUALITY_TEXT } from "./ItemTile";
@@ -19,20 +25,31 @@ const blockTitle = "text-[12.5px] font-medium text-paper-2";
 function SlotRow({
   lo,
   slot,
+  missing,
   onOpen,
 }: {
   lo: Loadout;
   slot: GearSlot;
+  /** 原版计算器的装备库里没有这件，装分和秒伤没算它 */
+  missing: boolean;
   onOpen: () => void;
 }) {
   const x = slotExtras(lo, slot);
-  const extras = [x.enchant, x.stone?.label].filter(Boolean).join(" · ");
+  // 数值来自原版计算器时，小附魔用计算器里的简写（备忘录的附魔表是上赛季的数值）
+  const enchant = fromCalc(lo)
+    ? (lo.calc?.enchants?.[slot.key] ?? null)
+    : x.enchant;
+  const extras = [enchant, x.stone?.label].filter(Boolean).join(" · ");
   return (
     <button
       type="button"
       onClick={onOpen}
       title={tx("在配装器里换这件")}
-      aria-label={tx("{0}：{1}，换装备", slot.label, slot.item.name)}
+      aria-label={tx(
+        "{0}：{1}，换装备",
+        slot.label,
+        slot.item.name || tx("未装备")
+      )}
       className="flex w-full items-center gap-3 rounded-lg px-2 py-[7px] text-left transition-colors hover:bg-paper/[0.04]"
     >
       <ItemTile
@@ -49,7 +66,9 @@ function SlotRow({
               QUALITY_TEXT[slot.item.quality]
             )}
           >
-            {slot.item.name}
+            {slot.item.name || (
+              <span className="font-normal text-paper-3">{tx("未装备")}</span>
+            )}
           </span>
           {x.big?.level ? (
             <BigIcon
@@ -65,7 +84,9 @@ function SlotRow({
           <span className="mx-1" aria-hidden="true">
             ·
           </span>
-          <span className="tabular-nums">{slot.item.detail}</span>
+          {slot.item.detail && (
+            <span className="tabular-nums">{slot.item.detail}</span>
+          )}
           {extras && (
             <>
               <span className="mx-1" aria-hidden="true">
@@ -73,6 +94,11 @@ function SlotRow({
               </span>
               {extras}
             </>
+          )}
+          {missing && (
+            <span className="ml-1.5 text-gold">
+              {tx("计算器里没有这件，没算进去")}
+            </span>
           )}
         </span>
       </span>
@@ -119,12 +145,20 @@ export function GearOverview({
   const est = estimateBuffs(lo, lo.buffs);
   const buffed = est.pct > 0.00005;
   const D = (n: number) => Math.round(n * (1 + est.pct));
-  const prev = lo.history.length > 1 ? lo.history[lo.history.length - 2] : null;
-  const last = lo.history[lo.history.length - 1];
+  // 换成原版计算器之前的点是估算的，数量级不同，不拿来算涨跌
+  const history = comparableHistory(lo.history);
+  const prev = history.length > 1 ? history[history.length - 2] : null;
+  const last = history[history.length - 1];
   const deltaPct = prev ? ((lo.dps - prev.dps) / prev.dps) * 100 : 0;
-  const rows = panelRows(lo.xinfa, lo.panel, lo.haste.value).filter(
-    r => r.key !== "score"
-  );
+  // 数值来自原版计算器时：它的面板里没有破招，不显示；百分比用计算器算好的
+  const calc = fromCalc(lo);
+  const missing = new Set(calc ? (lo.calc?.missing ?? []) : []);
+  const rows = panelRows(
+    lo.xinfa,
+    lo.panel,
+    lo.haste.value,
+    calc ? lo.calc?.pct : undefined
+  ).filter(r => r.key !== "score" && !(calc && r.key === "surplus"));
   const armor = lo.slots.filter(s => ARMOR.includes(s.key));
   const others = lo.slots.filter(s => !ARMOR.includes(s.key));
 
@@ -208,7 +242,11 @@ export function GearOverview({
           </div>
           <p
             className="pb-[3px] text-[12.5px] text-paper-3"
-            title={tx("估算值，以游戏内为准")}
+            title={
+              calc
+                ? tx("由内置的原版配装计算器算出")
+                : tx("估算值，以游戏内为准")
+            }
           >
             {tx("木桩秒伤")}{" "}
             <span className="tabular-nums text-paper-2">
@@ -228,7 +266,7 @@ export function GearOverview({
             <span className="mx-1.5" aria-hidden="true">
               ·
             </span>
-            {tx("估算")}
+            {calc ? tx("原版计算器") : tx("估算")}
           </p>
         </div>
         <dl className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-x-4 gap-y-3 rounded-lg bg-paper/[0.03] px-4 py-3">
@@ -263,6 +301,7 @@ export function GearOverview({
                 key={s.key}
                 lo={lo}
                 slot={s}
+                missing={missing.has(s.key)}
                 onOpen={() => onOpenEditor(s.key)}
               />
             ))}
@@ -273,6 +312,7 @@ export function GearOverview({
                 key={s.key}
                 lo={lo}
                 slot={s}
+                missing={missing.has(s.key)}
                 onOpen={() => onOpenEditor(s.key)}
               />
             ))}

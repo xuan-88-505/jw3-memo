@@ -1,4 +1,10 @@
-import { hasteOf, panelPct, primaryAttr, type PanelStats } from "@/data/gear";
+import {
+  hasteOf,
+  panelPct,
+  primaryAttr,
+  type CalcPct,
+  type PanelStats,
+} from "@/data/gear";
 import { tx } from "@/lib/i18n";
 
 export type PanelUnit = "pct" | "int";
@@ -23,14 +29,16 @@ const r2 = (v: number) => Math.round(v * 100) / 100;
 /**
  * 面板属性行，顺序同魔盒配装器：装分、气血、主属性、攻击、会心、会效、破防、无双、破招、全能、加速。
  * 全能只在不为 0 时显示（PVE 配装一般是 0）。
+ * calc 是原版计算器算好的百分比：有就直接用，加速也不显示段数（段数阈值是上赛季的）。
  */
 export function panelRows(
   xinfa: string,
   p: PanelStats,
-  hasteValue: number
+  hasteValue: number,
+  calc?: CalcPct
 ): PanelRow[] {
   const tier = hasteOf(hasteValue).tier;
-  const hastePct = panelPct.haste(hasteValue).toFixed(2);
+  const hastePct = (calc?.haste ?? panelPct.haste(hasteValue)).toFixed(2);
   const pctRow = (
     key: string,
     label: string,
@@ -72,10 +80,28 @@ export function panelRows(
       sub: tx("基础 {0}", n(p.baseAttack)),
       title: tx("基础攻击 {0}，面板攻击 {1}", n(p.baseAttack), n(p.attack)),
     },
-    pctRow("crit", "会心", "会心", panelPct.crit(p), p.critLv),
-    pctRow("critDmg", "会效", "会心效果", panelPct.critDmg(p), p.critDmgLv),
-    pctRow("overcome", "破防", "破防", panelPct.overcome(p), p.overcomeLv),
-    pctRow("strain", "无双", "无双", panelPct.strain(p), p.strainLv),
+    pctRow("crit", "会心", "会心", calc?.crit ?? panelPct.crit(p), p.critLv),
+    pctRow(
+      "critDmg",
+      "会效",
+      "会心效果",
+      calc?.critDmg ?? panelPct.critDmg(p),
+      p.critDmgLv
+    ),
+    pctRow(
+      "overcome",
+      "破防",
+      "破防",
+      calc?.overcome ?? panelPct.overcome(p),
+      p.overcomeLv
+    ),
+    pctRow(
+      "strain",
+      "无双",
+      "无双",
+      calc?.strain ?? panelPct.strain(p),
+      p.strainLv
+    ),
     {
       key: "surplus",
       label: "破招",
@@ -100,8 +126,10 @@ export function panelRows(
       value: hasteValue,
       unit: "int",
       core: true,
-      sub: tier,
-      title: `加速等级 ${n(hasteValue)}，${hastePct}%，${tier}`,
+      sub: calc ? `${hastePct}%` : tier,
+      title: calc
+        ? `加速等级 ${n(hasteValue)}，${hastePct}%`
+        : `加速等级 ${n(hasteValue)}，${hastePct}%，${tier}`,
     },
   ];
 }
