@@ -11,16 +11,9 @@ import {
 import { useState } from "react";
 import { OfflineBar, ToastStack } from "@/components/common/overlay";
 import { Avatar } from "@/components/common/ui";
-import type { ManagerSection } from "@/data/types";
 import { IS_DESKTOP } from "@/lib/desktop";
 import { ROLE_LABEL } from "@/lib/format";
-import {
-  me,
-  myCharacters,
-  navOrder,
-  useProto,
-  type NavSection,
-} from "@/state/store";
+import { me, navOrder, useProto, type NavSection } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { ChangelogView } from "./ChangelogView";
 import { GearView } from "./gear/GearView";
@@ -38,7 +31,7 @@ const NAV_BY_KEY: Record<NavSection, NavItem> = {
   characters: { key: "characters", label: "我的角色", icon: UserRound },
   gear: { key: "gear", label: "配装", icon: Shirt },
   records: { key: "records", label: "记录", icon: NotebookPen },
-  team: { key: "team", label: "亲友团", icon: Users },
+  team: { key: "team", label: "亲友团", icon: Users, tag: "Beta" },
 };
 
 /** 1.0 单机版没有亲友团 */
@@ -50,15 +43,6 @@ export function ManagerApp() {
   const loading = state.dataState === "loading";
   const self = me(state);
   const [profileOpen, setProfileOpen] = useState(false);
-
-  const counts: Record<ManagerSection, number | null> = {
-    schemes: state.schemes.length,
-    characters: myCharacters(state).length,
-    gear: null,
-    records: null,
-    team: state.team ? state.members.length : null,
-    settings: null,
-  };
 
   return (
     <div
@@ -82,13 +66,6 @@ export function ManagerApp() {
             disabled={loading}
             onSelect={actions.setSection}
             onReorder={actions.setNavOrder}
-            trailing={key =>
-              counts[key] ? (
-                <span className="text-[11.5px] text-paper-3">
-                  {counts[key]}
-                </span>
-              ) : null
-            }
           />
         </nav>
         <div className="px-2 pb-2">
@@ -116,7 +93,7 @@ export function ManagerApp() {
             <span className="flex-1 text-left">设置</span>
           </button>
         </div>
-        <div className="p-2 pt-1">
+        <div className="border-t border-paper/[0.07] p-2">
           {/* 整行可点：按钮的 after 层铺满整行；右侧状态不拦截点击，读屏单独读出 */}
           <div className="group relative flex items-center gap-2 rounded-md px-2 py-2 transition-colors has-[button:enabled]:hover:bg-paper/[0.05]">
             <button

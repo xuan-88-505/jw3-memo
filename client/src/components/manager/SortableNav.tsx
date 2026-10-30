@@ -4,7 +4,6 @@ import {
   useState,
   type KeyboardEvent,
   type PointerEvent,
-  type ReactNode,
 } from "react";
 import type { LucideIcon } from "lucide-react";
 import type { ManagerSection } from "@/data/types";
@@ -14,6 +13,8 @@ export interface NavItem {
   key: ManagerSection;
   label: string;
   icon: LucideIcon;
+  /** 名称后面的小标签，例如「Beta」 */
+  tag?: string;
 }
 
 /** 按住多久进入拖动（不移动也会浮起） */
@@ -49,14 +50,12 @@ export function SortableNav({
   disabled,
   onSelect,
   onReorder,
-  trailing,
 }: {
   items: NavItem[];
   activeKey: ManagerSection;
   disabled: boolean;
   onSelect: (key: ManagerSection) => void;
   onReorder: (keys: ManagerSection[]) => void;
-  trailing: (key: ManagerSection) => ReactNode;
 }) {
   const listRef = useRef<HTMLUListElement>(null);
   const press = useRef<{
@@ -275,8 +274,14 @@ export function SortableNav({
                   />
                 )}
                 <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="flex-1 text-left">{n.label}</span>
-                {trailing(n.key)}
+                <span className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
+                  <span className="truncate">{n.label}</span>
+                  {n.tag && (
+                    <span className="shrink-0 rounded px-1 text-[10px] font-medium leading-4 text-paper-3 ring-1 ring-inset ring-paper/15">
+                      {n.tag}
+                    </span>
+                  )}
+                </span>
               </button>
             </li>
           );
