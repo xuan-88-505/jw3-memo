@@ -236,6 +236,15 @@
   }
 }
 
+/* 快捷键录制里的闪烁光标；减少动态时只显示不闪 */
+.caret-blink {
+  animation: caret-blink 1s steps(1, end) infinite;
+}
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

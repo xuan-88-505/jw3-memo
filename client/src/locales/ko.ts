@@ -872,5 +872,6 @@ const dict: Record<string, string> = {
   "1 条修改记录": "변경 기록 1건",
   "新建 {0}": "새 {0}",
   "添加 {0}": "{0} 추가",
+  "按下组合键": "키를 누르세요",
 };
 export default dict;

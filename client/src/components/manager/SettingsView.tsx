@@ -409,6 +409,7 @@ function HotkeyRow() {
       >
         {recording ? (
           <>
+            {/* 录制中：和输入框聚焦一样的中性样式 + 闪烁光标；按住的键实时显示成键帽；只有出错时边框变红 */}
             <div
               ref={recRef}
               tabIndex={-1}
@@ -416,17 +417,19 @@ function HotkeyRow() {
               aria-labelledby="hk-label"
               aria-describedby="hk-msg"
               onBlur={stop}
-              className="flex h-8 min-w-[168px] items-center gap-2 rounded-lg bg-cinnabar/[0.07] pl-2.5 pr-3 outline-none ring-2 ring-inset ring-cinnabar-text/60"
+              className={cn(
+                "flex h-8 min-w-[168px] items-center gap-1.5 rounded-lg bg-paper/[0.06] px-2.5 outline-none ring-1 ring-inset",
+                error ? "ring-cinnabar-text/60" : "ring-paper/30"
+              )}
             >
+              {heldParts.length > 0 && <KeyChips keys={heldParts} />}
               <span
-                className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-cinnabar"
+                className="caret-blink h-4 w-px shrink-0 bg-paper-2"
                 aria-hidden="true"
               />
-              {heldParts.length ? (
-                <KeyChips keys={[...heldParts, "…"]} />
-              ) : (
-                <span className="text-[13px] text-paper-2">
-                  {tx("按下新的组合键")}
+              {heldParts.length === 0 && (
+                <span className="text-[13px] text-paper-3">
+                  {tx("按下组合键")}
                 </span>
               )}
             </div>
@@ -491,9 +494,9 @@ function SettingGroup({
   children: ReactNode;
 }) {
   return (
-    <section className="py-6 first:pt-0">
-      <h2 className="text-[12px] font-medium text-paper-3">{title}</h2>
-      <div className="divide-y divide-paper/[0.07]">{children}</div>
+    // 分组名不显示，只给读屏用；各组连成一个列表，用同样的分隔线隔开
+    <section aria-label={title} className="divide-y divide-paper/[0.07]">
+      {children}
     </section>
   );
 }

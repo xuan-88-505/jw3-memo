@@ -280,3 +280,9 @@
 - 比国内网站慢：每个请求大约 1–2 秒，百度是 0.1 秒左右。原因是服务器在境外（Cloudflare 在大陆没有节点）。
 - 2.0 的同步接口和网站用同一个域名，预计结果一样。但接口还没做，没有实测（未验证）。
 - 没测：大文件的实际下载速度（Globalping 只记录单次请求用时），以及家用宽带上的实际体验。
+
+## 快捷键录制状态的常规做法（2026-10-30 调研）
+
+- Raycast 手册（https://manual.raycast.com/command-aliases-and-hotkeys）：录制时按下的键实时显示成键帽；按 Backspace 清空、回车保存；只有和别的命令冲突时才「highlights in red」并写出冲突的命令名。
+- sindresorhus/KeyboardShortcuts（https://github.com/sindresorhus/keyboardshortcuts）：macOS 原生风格的 Recorder 放在设置窗口里，用来录制快捷键；和系统或菜单冲突时才提示。
+- 结论：录制中是中性的「聚焦」状态（普通输入框聚焦样式 + 占位文字 + 实时键帽），红色只留给冲突和错误。
