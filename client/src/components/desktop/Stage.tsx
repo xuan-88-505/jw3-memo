@@ -112,7 +112,7 @@ export function WindowFrame({
         </div>
       ) : (
         <div className="flex h-8 shrink-0 items-center border-b border-black/40 bg-ink pl-3">
-          <BrandSeal size={14} />
+          <BrandSeal size={20} />
           <span className="ml-2 text-[12px] text-paper-2">{title}</span>
           <div className="ml-auto flex h-full">
             <button

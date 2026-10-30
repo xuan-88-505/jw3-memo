@@ -478,3 +478,10 @@
 - [x] 旧数据迁移：网页原型的全局便签 `tongdiao.note.v2` 和桌面版 1.0.x 数据文件里的 `note`，交给当时选中的角色，不复制给其他角色；更早的按角色便签 `tongdiao.notes.v1` 原样恢复。新键为 `tongdiao.notes.v3`，数据文件字段为 `notes`。
 - 已验证：`/tmp/note_tab.py` 25 项全过；`/tmp/desktop_mock.py` 44 项全过（第 41、42 项为旧数据文件迁移）；`panel_tabs_top.py`、`panel_drag.py`、`side_fold.py` 回归通过；截图 `/tmp/s16/note1-c1.png`、`note3-empty.png`。
 - 未验证：Windows 和 Mac 真机（还没打包）。
+
+## 管理窗口标题栏 logo 放大（2026-10-30 15:18 用户要求：「这里logo放大点」，指管理窗口标题栏左上角的黄鸡）
+
+- [x] 网页原型：模拟的 Windows 标题栏（高 32px）里，黄鸡从 14px 放大到 20px（`Stage.tsx`）。
+- [x] 桌面版：管理窗口用系统标题栏，图标大小由系统决定（100% 缩放时用 16px，200% 时用 32px）。`icon.ico` 里 16/24/32 三张小图去掉米色底板，黄鸡铺满；48/64/256 三张不变，桌面快捷方式和安装包图标不变。
+- 已验证：新 `icon.ico` 仍是 6 张 32 位 PNG，和 `tauri icon` 生成的格式一致；标题栏对比图 `/tmp/logo/titlebar-compare.png`；原型截图 `/tmp/logo/04-titlebar.png`，logo 实测 20×20。
+- 未验证：Windows 真机标题栏和任务栏的显示（还没打包）。
