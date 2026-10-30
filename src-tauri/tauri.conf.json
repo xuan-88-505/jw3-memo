@@ -22,7 +22,7 @@
     "targets": ["nsis", "app", "dmg"],
     "category": "Utility",
     "shortDescription": "剑网3 宏与奇穴管理",
-    "copyright": "© 2026 八八",
+    "copyright": "© 2026 88 by manus",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

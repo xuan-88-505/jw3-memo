@@ -914,7 +914,6 @@ const dict: Record<string, string> = {
   "取消收藏 {0}": "Quitar {0} de favoritos",
   "说明（选填）": "Descripción (opcional)",
   "{0} 创建": "Creado por {0}",
-  "打开 GitHub 仓库": "Abrir repositorio de GitHub",
   "配装列表": "Lista de conjuntos",
   "{0}，装分 {1}": "{0}, puntuación de equipo {1}",
   "打开配装器": "Abrir editor",
