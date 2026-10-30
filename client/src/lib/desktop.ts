@@ -130,6 +130,38 @@ export async function writeClipboard(text: string) {
   await writeText(text);
 }
 
+/**
+ * 读剪贴板里的图片；没有图片或读不了返回 null。
+ * 桌面版用剪贴板插件（返回像素），网页版用浏览器剪贴板接口。
+ */
+export async function readClipboardImage(): Promise<Blob | ImageData | null> {
+  try {
+    if (IS_DESKTOP) {
+      const { readImage } = await import(
+        "@tauri-apps/plugin-clipboard-manager"
+      );
+      const img = await readImage();
+      try {
+        const { width, height } = await img.size();
+        const rgba = await img.rgba();
+        if (!width || !height) return null;
+        return new ImageData(new Uint8ClampedArray(rgba), width, height);
+      } finally {
+        // 图片在 Rust 端占着资源，读完释放
+        void img.close().catch(() => {});
+      }
+    }
+    const items = (await navigator.clipboard?.read?.()) ?? [];
+    for (const it of items) {
+      const type = it.types.find(t => t.startsWith("image/"));
+      if (type) return await it.getType(type);
+    }
+  } catch {
+    // 剪贴板里不是图片、没有权限，都按没有图片处理
+  }
+  return null;
+}
+
 export async function openExternal(url: string) {
   const { openUrl } = await import("@tauri-apps/plugin-opener");
   await openUrl(url);

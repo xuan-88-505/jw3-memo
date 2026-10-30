@@ -980,5 +980,17 @@ const dict: Record<string, string> = {
   "还没保存过当季结果": "Aún no hay un resultado de esta temporada guardado",
   "这套配装算不出来，换一件装备试试": "No se puede calcular este equipo. Prueba a cambiar una pieza.",
   "去魔盒看{0}的宏和奇穴": "Ver macros y talentos de {0} en JX3Box",
+  "识别截图": "Leer captura",
+  "粘贴（{0}）或选择奇穴截图，自动选上": "Pega ({0}) o elige una captura de talentos para rellenarlos",
+  "没认出奇穴。截图要包含奇穴图标，并且是{0}的": "No se reconoció ningún talento. La captura debe mostrar los iconos de talentos de {0}",
+  "奇穴图标下载失败，检查网络后再试": "No se pudieron descargar los iconos de talentos. Revisa la red e inténtalo de nuevo",
+  "{0}还没有奇穴数据": "Aún no hay datos de talentos de {0}",
+  "图片打不开，换一张试试": "No se pudo abrir la imagen. Prueba con otra",
+  "认出 {0} 层，已选上": "Se reconocieron {0} de 9 niveles y se aplicaron",
+  "认出 {0} 层，和现在的一样": "Se reconocieron {0} de 9 niveles, iguales a los actuales",
+  "第 {0} 层没认出，保持原样": "Sin reconocer, se dejan igual: nivel {0}",
+  "；": ". ",
+  "选择图片": "Elegir imagen",
+  "正在识别…": "Reconociendo…",
 };
 export default dict;

@@ -57,6 +57,11 @@ import { cn } from "@/lib/utils";
 import { DiffDetails, Field, diffSummary, inputCls } from "./shared";
 import { XinfaPairSelect } from "./SchoolPicker";
 import { TalentPicker } from "./TalentPicker";
+import {
+  TalentScanButton,
+  TalentScanNotice,
+  useTalentScan,
+} from "./TalentScan";
 import { tx, paren } from "@/lib/i18n";
 
 export function SchemesView() {
@@ -627,8 +632,17 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
   const otherExists =
     !!latest(findScheme(state, xinfa, other)) ||
     !!state.drafts[`${xinfa}-${other}`];
+  const hasContent = !!last || !!draft;
+  // 截图识别奇穴：认出的层直接改进草稿
+  const scan = useTalentScan({
+    xinfa,
+    resetKey: schemeId,
+    talents: draft?.talents ?? last?.talents ?? [],
+    enabled: editable && hasContent,
+    onApply: talents => actions.editDraft(schemeId, d => ({ ...d, talents })),
+  });
 
-  if (!last && !draft) {
+  if (!hasContent) {
     // 这个心法一个方案都没有时，两个模式都可以新建；否则只建当前这个
     const choices: Mode[] = otherExists ? [mode] : MODES;
     return (
@@ -815,8 +829,30 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
         </div>
 
         <div className="mt-8">
-          <SectionLabel>{tx("奇穴 · 9 层")}</SectionLabel>
+          <SectionLabel
+            right={
+              editable && (
+                <TalentScanButton
+                  busy={scan.busy}
+                  platform={state.platform}
+                  onClick={() => void scan.pick()}
+                />
+              )
+            }
+          >
+            {tx("奇穴 · 9 层")}
+          </SectionLabel>
+          {scan.fileInput}
           <div className="mt-3">
+            {(scan.busy || scan.notice) && (
+              <TalentScanNotice
+                busy={scan.busy}
+                notice={scan.notice}
+                onUndo={scan.undo}
+                onChoose={scan.choose}
+                onClose={scan.dismiss}
+              />
+            )}
             <TalentPicker
               xinfa={xinfa}
               value={view.talents}

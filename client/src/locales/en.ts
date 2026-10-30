@@ -980,5 +980,17 @@ const dict: Record<string, string> = {
   "还没保存过当季结果": "No current-season result saved yet",
   "这套配装算不出来，换一件装备试试": "Can't calculate this set. Try swapping an item.",
   "去魔盒看{0}的宏和奇穴": "See {0} macros and talents on JX3Box",
+  "识别截图": "Scan screenshot",
+  "粘贴（{0}）或选择奇穴截图，自动选上": "Paste ({0}) or choose a talent screenshot to fill in the talents",
+  "没认出奇穴。截图要包含奇穴图标，并且是{0}的": "No talents recognized. The screenshot must show the talent icons of {0}",
+  "奇穴图标下载失败，检查网络后再试": "Couldn't download the talent icons. Check your network and try again",
+  "{0}还没有奇穴数据": "No talent data for {0} yet",
+  "图片打不开，换一张试试": "Couldn't open this image. Try another one",
+  "认出 {0} 层，已选上": "Recognized {0} of 9 tiers and applied them",
+  "认出 {0} 层，和现在的一样": "Recognized {0} of 9 tiers, same as now",
+  "第 {0} 层没认出，保持原样": "Not recognized, left as is: tier {0}",
+  "；": ". ",
+  "选择图片": "Choose image",
+  "正在识别…": "Recognizing…",
 };
 export default dict;
