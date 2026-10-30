@@ -992,5 +992,9 @@ const dict: Record<string, string> = {
   "；": ". ",
   "选择图片": "Elegir imagen",
   "正在识别…": "Reconociendo…",
+  "{0} 件导入的装备当季装备库里没有，换成了原版默认装备": "{0} piezas importadas no están en el catálogo actual y se cambiaron por las predeterminadas de la calculadora original",
+  "1 件导入的装备当季装备库里没有，换成了原版默认装备": "1 pieza importada no está en el catálogo actual y se cambió por la predeterminada de la calculadora original",
+  "导入的五彩石当季没有，换成了原版默认五彩石": "La gema de colores importada no existe esta temporada y se cambió por la predeterminada de la calculadora original",
+  "正在换成当季装备库…": "Cambiando al catálogo actual...",
 };
 export default dict;

@@ -26,11 +26,11 @@ import type { GearConfig } from "@/data/enchants";
 import { tx } from "@/lib/i18n";
 import {
   calcSupported,
-  hasBundledCalc,
   isNewer,
   preloadEquipDb,
   readResult,
 } from "@/lib/dpsCalc";
+import { loadCatalog, useBundledCalc } from "@/lib/calcEngine";
 
 type NewLoadoutInput = {
   xinfa: string;
@@ -56,14 +56,7 @@ export function GearView() {
   // 计算器支持的心法：备忘录自己的界面 + 内置原版计算核心（当季装备库）；其余用旧配装器
   const [nativeOpen, setNativeOpen] = useState(false);
   // 内置计算器在不在：桌面版都在；网页版的部署里没有，这时所有心法都用旧配装器
-  const [bundled, setBundled] = useState<boolean | null>(null);
-  useEffect(() => {
-    let alive = true;
-    void hasBundledCalc().then(ok => alive && setBundled(ok));
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const bundled = useBundledCalc();
   /** 用备忘录自己的配装器（原版在后台算）。还没查完时先当作在，桌面版一定在 */
   const nativeFor = (xinfa: string) =>
     calcSupported(xinfa) && bundled !== false;
@@ -161,18 +154,27 @@ export function GearView() {
     });
 
   const startCreate = (p: NewLoadoutInput) => {
+    const native = nativeFor(p.xinfa);
     // 手动配：不用算，直接建好并打开配装器
     if (p.source === "manual") {
+      const id = actions.createLoadout(p);
+      // 当季装备库加载过就马上换成当季；没加载过由 ManagerApp 里的 useSeasonSync 换
+      if (native) actions.syncLoadoutSeason(id);
       // 切到新配装时 effect 读这个 id，打开配装器
-      openEditorFor.current = actions.createLoadout(p);
+      openEditorFor.current = id;
       actions.toast("manager", "success", tx("已新建「{0}」", p.name));
       return;
     }
     setPending(p);
+    // 导入的：等当季装备库加载好再建，建好马上换成当季，外面不会先闪一下上赛季的数值
+    const ready = native ? loadCatalog(p.xinfa).catch(() => null) : null;
     timer.current = window.setTimeout(() => {
-      actions.createLoadout(p);
-      setPending(null);
-      actions.toast("manager", "success", tx("已新建「{0}」", p.name));
+      void Promise.resolve(ready).then(() => {
+        const id = actions.createLoadout(p);
+        if (native) actions.syncLoadoutSeason(id);
+        setPending(null);
+        actions.toast("manager", "success", tx("已新建「{0}」", p.name));
+      });
     }, 1200);
   };
 

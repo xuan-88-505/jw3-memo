@@ -17,6 +17,8 @@ import { XinfaPairSelect } from "../SchoolPicker";
 import { EnchantEditor } from "./EnchantEditor";
 import { ImportField, OfflineHint, useImportInput } from "./ImportCard";
 import { tx } from "@/lib/i18n";
+import { calcSupported } from "@/lib/dpsCalc";
+import { useBundledCalc } from "@/lib/calcEngine";
 
 const sameConfig = (a: GearConfig, b: GearConfig) =>
   JSON.stringify(a) === JSON.stringify(b);
@@ -136,6 +138,9 @@ export function NewLoadoutDialog({
   );
   const [config, setConfig] = useState<GearConfig>(() => configOf(draft));
   const customized = !sameConfig(config, configOf(draft));
+  // 配装器能用的心法：附魔和五彩石在配装器里按当季选，这里的是上赛季的表，不显示
+  const bundled = useBundledCalc();
+  const native = calcSupported(xinfa) && bundled !== false;
 
   useEffect(() => {
     if (!open) return;
@@ -170,7 +175,7 @@ export function NewLoadoutDialog({
       charId: linked ? linked.id : null,
       source: r ? r.source : "manual",
       sourceId: r ? r.sourceId : null,
-      config: customized ? config : undefined,
+      config: customized && !native ? config : undefined,
     });
   };
 
@@ -260,31 +265,41 @@ export function NewLoadoutDialog({
           onSubmitKey={submit}
         />
 
-        <section>
-          <button
-            type="button"
-            onClick={() => setEnchantOpen(v => !v)}
-            aria-expanded={enchantOpen}
-            className="flex w-full items-center gap-1.5 text-left text-[12.5px] font-medium text-paper"
-          >
-            <ChevronRight
-              className={cn(
-                "h-3.5 w-3.5 text-paper-3 transition-transform",
-                enchantOpen && "rotate-90"
-              )}
-              aria-hidden="true"
-            />
-            {tx("附魔与五彩石")}
-            <span className="ml-auto text-[12px] font-normal text-paper-3">
-              {customized ? tx("已调整") : manual ? tx("默认") : tx("跟随导入")}
-            </span>
-          </button>
-          {enchantOpen && (
-            <div className="mt-3">
-              <EnchantEditor base={draft} value={config} onChange={setConfig} />
-            </div>
-          )}
-        </section>
+        {!native && (
+          <section>
+            <button
+              type="button"
+              onClick={() => setEnchantOpen(v => !v)}
+              aria-expanded={enchantOpen}
+              className="flex w-full items-center gap-1.5 text-left text-[12.5px] font-medium text-paper"
+            >
+              <ChevronRight
+                className={cn(
+                  "h-3.5 w-3.5 text-paper-3 transition-transform",
+                  enchantOpen && "rotate-90"
+                )}
+                aria-hidden="true"
+              />
+              {tx("附魔与五彩石")}
+              <span className="ml-auto text-[12px] font-normal text-paper-3">
+                {customized
+                  ? tx("已调整")
+                  : manual
+                    ? tx("默认")
+                    : tx("跟随导入")}
+              </span>
+            </button>
+            {enchantOpen && (
+              <div className="mt-3">
+                <EnchantEditor
+                  base={draft}
+                  value={config}
+                  onChange={setConfig}
+                />
+              </div>
+            )}
+          </section>
+        )}
 
         <CharLinkSelect xinfa={xinfa} value={charId} onChange={setCharId} />
       </div>
@@ -310,6 +325,9 @@ export function EditLoadoutDialog({
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [config, setConfig] = useState<GearConfig>(() => configOf(loadout));
+  // 配装器能用的心法：附魔和五彩石在配装器里按当季选，这里不显示上赛季的表
+  const bundled = useBundledCalc();
+  const native = calcSupported(loadout.xinfa) && bundled !== false;
 
   useEffect(() => {
     if (!open) return;
@@ -330,7 +348,7 @@ export function EditLoadoutDialog({
     setError(err);
     if (err) return;
     actions.updateLoadout(loadout.id, { name: n, charId: charId || null });
-    if (!sameConfig(config, configOf(loadout)))
+    if (!native && !sameConfig(config, configOf(loadout)))
       actions.configureLoadout(loadout.id, config);
     onClose();
     actions.toast("manager", "success", tx("已保存"));
@@ -398,9 +416,11 @@ export function EditLoadoutDialog({
             onChange={setCharId}
           />
         </div>
-        <div className="border-t border-paper/[0.07] pt-5">
-          <EnchantEditor base={loadout} value={config} onChange={setConfig} />
-        </div>
+        {!native && (
+          <div className="border-t border-paper/[0.07] pt-5">
+            <EnchantEditor base={loadout} value={config} onChange={setConfig} />
+          </div>
+        )}
       </div>
     </InlineModal>
   );

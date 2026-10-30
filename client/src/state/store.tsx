@@ -33,6 +33,7 @@ import {
   seedLoadoutZixiaAlt,
   applyDraft,
   draftChanges,
+  type DpsPoint,
   type GearDraft,
   type Loadout,
   type LoadoutSource,
@@ -84,6 +85,7 @@ import type {
 } from "@/data/types";
 import { tx } from "@/lib/i18n";
 import { isNewer, loadoutFromCalc, type CalcResult } from "@/lib/dpsCalc";
+import { needsSeasonSync, seasonSync } from "@/lib/calcEngine";
 
 // ---------- 状态 ----------
 
@@ -1462,7 +1464,8 @@ function useActions(
       saveEngineGear: (loId: string, next: Loadout, changes: string[]) => {
         const lo = stateRef.current.loadouts[loId];
         if (!lo) return;
-        const label = !lo.calc
+        // 旧版本带回过结果的配装也有 calc，但没有当季输入，同样算第一次
+        const label = !lo.calc?.input
           ? CALC_SWITCH_LABEL
           : changes.length === 1
             ? tx("改{0}", changes[0])
@@ -1482,6 +1485,34 @@ function useActions(
         };
         update(st => ({ loadouts: { ...st.loadouts, [loId]: saved } }));
       },
+      /**
+       * 把还没按当季算过的配装换成当季（lib/calcEngine.ts seasonSync），按更新时的最新状态算。
+       * 只有一笔创建记录的（刚导入、刚新建）直接把这笔改成当季秒伤；
+       * 有更早记录的记一笔「换成原版计算器」，秒伤涨跌只和这笔以后的比
+       */
+      syncLoadoutSeason: (loId: string) =>
+        update(st => {
+          const lo = st.loadouts[loId];
+          if (!lo || !needsSeasonSync(lo)) return {};
+          const next = seasonSync(lo);
+          if (!next) return {};
+          const created =
+            lo.history.length === 1 && lo.history[0].kind === "import";
+          const history: DpsPoint[] = created
+            ? [{ ...lo.history[0], dps: next.dps }]
+            : [
+                ...lo.history,
+                {
+                  at: new Date().toISOString(),
+                  dps: next.dps,
+                  label: CALC_SWITCH_LABEL,
+                  kind: "gear",
+                },
+              ];
+          return {
+            loadouts: { ...st.loadouts, [loId]: { ...next, history } },
+          };
+        }),
       /** 另存为一套新配装（同心法、不关联角色），原配装不变。返回新配装 id */
       saveEngineGearAs: (loId: string, next: Loadout, name: string) => {
         const lo = stateRef.current.loadouts[loId];

@@ -1,4 +1,4 @@
-import { ChevronRight, Pencil, RefreshCw } from "lucide-react";
+import { ChevronRight, Loader2, Pencil, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { Btn } from "@/components/common/ui";
 import { XinfaMark } from "@/components/brand/Marks";
@@ -12,10 +12,12 @@ import { buffLabel, estimateBuffs } from "@/lib/buffs";
 import { cn } from "@/lib/utils";
 import { monthDay, tx } from "@/lib/i18n";
 import { fromCalc } from "@/lib/dpsCalc";
+import { needsSeasonSync, useSeasonSyncRunning } from "@/lib/calcEngine";
 import { Delta, HistoryPanel, fmt } from "./Dashboard";
 import { BigIcon, slotExtras } from "./EnchantBits";
 import { ItemTile, QUALITY_TEXT } from "./ItemTile";
 import { panelRows, showPanelValue } from "./panelRows";
+import { seasonNote } from "./seasonNote";
 
 /** 左列放防具，右列放饰品和武器，和游戏里角色界面的排法一样 */
 const ARMOR = ["hat", "coat", "belt", "wrist", "pants", "shoes"];
@@ -161,6 +163,9 @@ export function GearOverview({
   ).filter(r => r.key !== "score" && !(calc && r.key === "surplus"));
   const armor = lo.slots.filter(s => ARMOR.includes(s.key));
   const others = lo.slots.filter(s => !ARMOR.includes(s.key));
+  // 正在换成当季：数值还是上赛季的，淡显，等换完
+  const syncing = useSeasonSyncRunning() && needsSeasonSync(lo);
+  const note = seasonNote(lo);
 
   return (
     <div className="@container">
@@ -232,7 +237,11 @@ export function GearOverview({
       </header>
 
       {/* 面板：装分最显眼，秒伤是估算值，只放一行小字 */}
-      <section aria-label={tx("面板")} className="mt-7">
+      <section
+        aria-label={tx("面板")}
+        aria-busy={syncing || undefined}
+        className={cn("mt-7 transition-opacity", syncing && "opacity-40")}
+      >
         <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
           <div>
             <p className="text-[12.5px] text-paper-3">{tx("装分")}</p>
@@ -240,34 +249,44 @@ export function GearOverview({
               {fmt(lo.panel.score)}
             </p>
           </div>
-          <p
-            className="pb-[3px] text-[12.5px] text-paper-3"
-            title={
-              calc
-                ? tx("由内置的原版配装计算器算出")
-                : tx("估算值，以游戏内为准")
-            }
-          >
-            {tx("木桩秒伤")}{" "}
-            <span className="tabular-nums text-paper-2">
-              {buffed && "≈ "}
-              {fmt(D(lo.dps))}
-            </span>
-            {prev && <Delta pct={deltaPct} className="ml-1.5" />}
-            {buffed && (
-              <button
-                type="button"
-                onClick={onOpenBuffs}
-                className="ml-1.5 rounded px-1 text-jade transition-colors hover:bg-jade/10"
-              >
-                {buffLabel(lo.buffs)}
-              </button>
-            )}
-            <span className="mx-1.5" aria-hidden="true">
-              ·
-            </span>
-            {calc ? tx("原版计算器") : tx("估算")}
-          </p>
+          {syncing ? (
+            <p className="flex items-center gap-1.5 pb-[3px] text-[12.5px] text-paper-3">
+              <Loader2
+                className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none"
+                aria-hidden="true"
+              />
+              {tx("正在换成当季装备库…")}
+            </p>
+          ) : (
+            <p
+              className="pb-[3px] text-[12.5px] text-paper-3"
+              title={
+                calc
+                  ? tx("由内置的原版配装计算器算出")
+                  : tx("估算值，以游戏内为准")
+              }
+            >
+              {tx("木桩秒伤")}{" "}
+              <span className="tabular-nums text-paper-2">
+                {buffed && "≈ "}
+                {fmt(D(lo.dps))}
+              </span>
+              {prev && <Delta pct={deltaPct} className="ml-1.5" />}
+              {buffed && (
+                <button
+                  type="button"
+                  onClick={onOpenBuffs}
+                  className="ml-1.5 rounded px-1 text-jade transition-colors hover:bg-jade/10"
+                >
+                  {buffLabel(lo.buffs)}
+                </button>
+              )}
+              <span className="mx-1.5" aria-hidden="true">
+                ·
+              </span>
+              {calc ? tx("原版计算器") : tx("估算")}
+            </p>
+          )}
         </div>
         <dl className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-x-4 gap-y-3 rounded-lg bg-paper/[0.03] px-4 py-3">
           {rows.map(r => (
@@ -292,8 +311,17 @@ export function GearOverview({
       </section>
 
       {/* 12 件装备：点一件直接到配装器的这个部位 */}
-      <section aria-label={tx("装备")} className="mt-7">
+      <section
+        aria-label={tx("装备")}
+        aria-busy={syncing || undefined}
+        className={cn("mt-7 transition-opacity", syncing && "opacity-40")}
+      >
         <h3 className={blockTitle}>{tx("装备")}</h3>
+        {note && (
+          <p className="mt-1 text-[11.5px] leading-[17px] text-paper-3">
+            {note}
+          </p>
+        )}
         <div className="mt-2 grid grid-cols-1 gap-x-6 @xl:grid-cols-2">
           <div>
             {armor.map(s => (

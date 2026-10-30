@@ -992,5 +992,9 @@ const dict: Record<string, string> = {
   "；": ". ",
   "选择图片": "Choose image",
   "正在识别…": "Recognizing…",
+  "{0} 件导入的装备当季装备库里没有，换成了原版默认装备": "{0} imported items aren't in the current library and were swapped for the original calculator's defaults",
+  "1 件导入的装备当季装备库里没有，换成了原版默认装备": "1 imported item isn't in the current library and was swapped for the original calculator's default",
+  "导入的五彩石当季没有，换成了原版默认五彩石": "The imported colored gem isn't available this season and was swapped for the original calculator's default",
+  "正在换成当季装备库…": "Switching to the current library…",
 };
 export default dict;

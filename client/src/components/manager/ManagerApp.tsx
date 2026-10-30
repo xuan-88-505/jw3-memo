@@ -4,6 +4,7 @@ import { OfflineBar, ToastStack } from "@/components/common/overlay";
 import { NavIcon } from "@/components/brand/NavIcon";
 import { Avatar } from "@/components/common/ui";
 import { IS_DESKTOP } from "@/lib/desktop";
+import { useSeasonSync } from "@/lib/calcEngine";
 import { ROLE_LABEL } from "@/lib/format";
 import { me, navOrder, useProto, type NavSection } from "@/state/store";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,8 @@ export function ManagerApp() {
   const self = me(state);
   const [profileOpen, setProfileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(readSidebarCollapsed);
+  // 配装页、配装列表、我的角色显示的装分和配装器里一致：没按当季算过的配装先换成当季
+  useSeasonSync(state.loadouts, actions.syncLoadoutSeason);
 
   useEffect(() => {
     try {

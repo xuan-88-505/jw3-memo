@@ -195,6 +195,13 @@ export interface Loadout {
     loop?: { name: string; title: string; time: number };
     /** 所选循环的默认奇穴 */
     talents?: string[];
+    /**
+     * 自动换成当季时，导入的装备当季库里没有、换成了原版默认装备的部位 key。
+     * 用户在配装器里保存后就没有了
+     */
+    replaced?: string[];
+    /** 同上：导入的五彩石当季没有，换成了默认的 */
+    stoneReplaced?: boolean;
   };
 }
 

@@ -25,6 +25,7 @@ import { SelectBox, inputCls } from "../../shared";
 import { Delta, fmt } from "../Dashboard";
 import { PanelStrip } from "../PanelStrip";
 import { StonePicker } from "../StonePicker";
+import { seasonNote } from "../seasonNote";
 import { NativeEquipPicker } from "./NativeEquipPicker";
 import { tx, txn } from "@/lib/i18n";
 
@@ -115,7 +116,10 @@ export function NativeGearDialog({
             ) : (
               !cat && (
                 <span className="inline-flex items-center gap-1.5 text-[12px] text-paper-3">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  <Loader2
+                    className="h-3.5 w-3.5 animate-spin"
+                    aria-hidden="true"
+                  />
                   {tx("正在加载当季装备库")}
                 </span>
               )
@@ -253,21 +257,32 @@ function Body({
           </div>
 
           {/* 手动新建的配装原本只有示例装备，不算「旧赛季的」，直接用原版默认装备，不提示 */}
-          {(seed.replaced.length > 0 || seed.stoneReplaced) &&
-            !input &&
-            lo.source !== "manual" && (
-            <p className="mt-3 flex items-start gap-2 rounded-lg bg-amber-500/[0.08] px-3 py-2 text-[12.5px] leading-relaxed text-amber-200/90 ring-1 ring-inset ring-amber-400/20">
-              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span>
-                {seed.replaced.length > 0
+          {(() => {
+            if (input) return null;
+            // 还没换成当季（计算器刚加载好、自动换算还没跑）：按这次打开时的替换说
+            const note =
+              (seed.replaced.length > 0 || seed.stoneReplaced) &&
+              lo.source !== "manual"
+                ? seed.replaced.length > 0
                   ? txn(
                       "{0} 件装备是旧赛季的，当季装备库里没有，先换成了原版默认装备。保存后按当季计算。",
                       seed.replaced.length
                     )
-                  : tx("五彩石是旧赛季的，先换成了原版默认五彩石。保存后按当季计算。")}
-              </span>
-            </p>
-          )}
+                  : tx(
+                      "五彩石是旧赛季的，先换成了原版默认五彩石。保存后按当季计算。"
+                    )
+                : seasonNote(lo);
+            if (!note) return null;
+            return (
+              <p className="mt-3 flex items-start gap-2 rounded-lg bg-amber-500/[0.08] px-3 py-2 text-[12.5px] leading-relaxed text-amber-200/90 ring-1 ring-inset ring-amber-400/20">
+                <AlertCircle
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                  aria-hidden="true"
+                />
+                <span>{note}</span>
+              </p>
+            );
+          })()}
 
           {/* 表头：宽窗口才显示 */}
           <div
@@ -293,7 +308,8 @@ function Body({
               const big = BIG_SLOTS.find(b => b.key === slot.key);
               const bigKey = big?.key as CalcBigKey | undefined;
               const bigChanged =
-                !!bigKey && (draft.big[bigKey] ?? 0) !== (seed.input.big[bigKey] ?? 0);
+                !!bigKey &&
+                (draft.big[bigKey] ?? 0) !== (seed.input.big[bigKey] ?? 0);
               const changed =
                 JSON.stringify(s) !== JSON.stringify(savedSlot) || bigChanged;
               const enchants = enchantsFor(cat, idx);
@@ -306,7 +322,8 @@ function Body({
                   }}
                   className={cn(
                     "group/row relative flex flex-col gap-1.5 rounded-lg px-3 py-2 transition-colors @min-[880px]:flex-row @min-[880px]:items-center @min-[880px]:gap-2",
-                    lit === slot.key && "bg-cinnabar/[0.08] ring-1 ring-inset ring-cinnabar/30"
+                    lit === slot.key &&
+                      "bg-cinnabar/[0.08] ring-1 ring-inset ring-cinnabar/30"
                   )}
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -324,7 +341,9 @@ function Body({
                         aria-hidden="true"
                       />
                       {slot.label}
-                      {changed && <span className="sr-only">{tx("（已改）")}</span>}
+                      {changed && (
+                        <span className="sr-only">{tx("（已改）")}</span>
+                      )}
                     </span>
                     <NativeEquipPicker
                       cat={cat}
@@ -346,12 +365,15 @@ function Body({
                           aria-label={tx("{0}附魔", slot.label)}
                           value={s.enchant ?? ""}
                           title={
-                            enchants.find(f => f.id === s.enchant)?.附魔名称 ?? undefined
+                            enchants.find(f => f.id === s.enchant)?.附魔名称 ??
+                            undefined
                           }
                           onChange={ev =>
                             setSlot(idx, {
                               ...s,
-                              enchant: ev.target.value ? Number(ev.target.value) : null,
+                              enchant: ev.target.value
+                                ? Number(ev.target.value)
+                                : null,
                             })
                           }
                           className={selectCls}
@@ -365,7 +387,9 @@ function Body({
                           ))}
                         </SelectBox>
                       ) : (
-                        <span className="block px-2.5 text-[12px] text-paper-3/60">—</span>
+                        <span className="block px-2.5 text-[12px] text-paper-3/60">
+                          —
+                        </span>
                       )}
                     </div>
 
@@ -376,7 +400,10 @@ function Body({
                           aria-label={tx("{0}精炼", slot.label)}
                           value={s.refine}
                           onChange={ev =>
-                            setSlot(idx, { ...s, refine: Number(ev.target.value) })
+                            setSlot(idx, {
+                              ...s,
+                              refine: Number(ev.target.value),
+                            })
                           }
                           className={selectCls}
                           wrapClassName="w-full"
@@ -391,7 +418,9 @@ function Body({
                           ))}
                         </SelectBox>
                       ) : (
-                        <span className="block px-2.5 text-[12px] text-paper-3/60">—</span>
+                        <span className="block px-2.5 text-[12px] text-paper-3/60">
+                          —
+                        </span>
                       )}
                     </div>
 
@@ -403,30 +432,41 @@ function Body({
                           return (
                             <SelectBox
                               key={i}
-                              aria-label={tx("{0}镶嵌孔 {1}（{2}）", slot.label, i + 1, name)}
+                              aria-label={tx(
+                                "{0}镶嵌孔 {1}（{2}）",
+                                slot.label,
+                                i + 1,
+                                name
+                              )}
                               title={tx("{0} {1} 级", name, s.gems[i] ?? 0)}
                               value={s.gems[i] ?? 0}
                               onChange={ev => {
                                 const gems = [...s.gems];
                                 gems[i] = Number(ev.target.value);
-                                setSlot(idx, normSlot(cat, idx, { ...s, gems }));
+                                setSlot(
+                                  idx,
+                                  normSlot(cat, idx, { ...s, gems })
+                                );
                               }}
                               className={gemCls}
                               wrapClassName="shrink-0"
                               chevron={false}
                             >
-                              {Array.from({ length: GEM_MAX + 1 }, (_, k) => GEM_MAX - k).map(
-                                lv => (
-                                  <option key={lv} value={lv}>
-                                    {lv ? `${name} ${lv}` : tx("{0} 空", name)}
-                                  </option>
-                                )
-                              )}
+                              {Array.from(
+                                { length: GEM_MAX + 1 },
+                                (_, k) => GEM_MAX - k
+                              ).map(lv => (
+                                <option key={lv} value={lv}>
+                                  {lv ? `${name} ${lv}` : tx("{0} 空", name)}
+                                </option>
+                              ))}
                             </SelectBox>
                           );
                         })
                       ) : (
-                        <span className="px-2.5 text-[12px] text-paper-3/60">—</span>
+                        <span className="px-2.5 text-[12px] text-paper-3/60">
+                          —
+                        </span>
                       )}
                     </div>
 
@@ -434,12 +474,19 @@ function Body({
                     <div className="w-[124px] shrink-0">
                       {big && bigKey ? (
                         <SelectBox
-                          aria-label={tx("{0}大附魔（{1}）", slot.label, big.label)}
+                          aria-label={tx(
+                            "{0}大附魔（{1}）",
+                            slot.label,
+                            big.label
+                          )}
                           value={draft.big[bigKey] ?? 0}
                           onChange={ev =>
                             set({
                               ...draft,
-                              big: { ...draft.big, [bigKey]: Number(ev.target.value) },
+                              big: {
+                                ...draft.big,
+                                [bigKey]: Number(ev.target.value),
+                              },
                             })
                           }
                           className={selectCls}
@@ -447,12 +494,16 @@ function Body({
                         >
                           {([2, 1, 0] as const).map(lv => (
                             <option key={lv} value={lv}>
-                              {lv ? `${big.label} ${BIG_LEVEL_LABEL[lv]}` : tx("不附")}
+                              {lv
+                                ? `${big.label} ${BIG_LEVEL_LABEL[lv]}`
+                                : tx("不附")}
                             </option>
                           ))}
                         </SelectBox>
                       ) : (
-                        <span className="block px-2.5 text-[12px] text-paper-3/60">—</span>
+                        <span className="block px-2.5 text-[12px] text-paper-3/60">
+                          —
+                        </span>
                       )}
                     </div>
 
@@ -465,7 +516,10 @@ function Body({
                               ...draft,
                               slots: { ...draft.slots, [idx]: savedSlot },
                               big: bigKey
-                                ? { ...draft.big, [bigKey]: seed.input.big[bigKey] ?? 0 }
+                                ? {
+                                    ...draft.big,
+                                    [bigKey]: seed.input.big[bigKey] ?? 0,
+                                  }
                                 : draft.big,
                             })
                           }
@@ -485,13 +539,17 @@ function Body({
               <span
                 className={cn(
                   "flex w-[64px] shrink-0 items-center gap-1.5 pt-1.5 text-[12.5px]",
-                  draft.stone !== seed.input.stone ? "text-paper" : "text-paper-3"
+                  draft.stone !== seed.input.stone
+                    ? "text-paper"
+                    : "text-paper-3"
                 )}
               >
                 <span
                   className={cn(
                     "h-1.5 w-1.5 shrink-0 rounded-full",
-                    draft.stone !== seed.input.stone ? "bg-cinnabar" : "bg-transparent"
+                    draft.stone !== seed.input.stone
+                      ? "bg-cinnabar"
+                      : "bg-transparent"
                   )}
                   aria-hidden="true"
                 />
@@ -560,13 +618,18 @@ function Footer({
         </span>
         {dirty && ok && baseOk ? (
           <>
-            <Delta pct={(ok.dps / baseOk.dps - 1) * 100} className="text-[13px]" />
+            <Delta
+              pct={(ok.dps / baseOk.dps - 1) * 100}
+              className="text-[13px]"
+            />
             <span className="truncate text-[12px] text-paper-3">
               {tx("原 {0}", fmt(baseOk.dps))}
               <span className="mx-1.5" aria-hidden="true">
                 ·
               </span>
-              <span title={changes.join("、")}>{txn("改了 {0} 处", changes.length)}</span>
+              <span title={changes.join("、")}>
+                {txn("改了 {0} 处", changes.length)}
+              </span>
             </span>
           </>
         ) : (
@@ -599,7 +662,11 @@ function Footer({
           size="md"
           disabled={!canSave}
           onClick={onSave}
-          title={fresh && !dirty ? tx("换成当季装备库和算法保存「{0}」", lo.name) : undefined}
+          title={
+            fresh && !dirty
+              ? tx("换成当季装备库和算法保存「{0}」", lo.name)
+              : undefined
+          }
         >
           {tx("保存")}
         </Btn>

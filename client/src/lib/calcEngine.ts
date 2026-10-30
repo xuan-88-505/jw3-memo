@@ -6,7 +6,13 @@
  * - loadCatalog：当季装备库、附魔、五彩石、循环、增益，按心法缓存。
  * - computeSync：按配装和战斗配置算装分、面板、秒伤，一次约 4 ms，可以每改一下就算。
  */
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { CalcBigKey, CalcInput, CalcSlotInput } from "@/data/calcTypes";
 import {
   hasteOf,
@@ -650,4 +656,120 @@ export function loadoutFromEngine(
     talents: r.talents,
   };
   return next;
+}
+
+/* ---------------- 换成当季 ---------------- */
+
+/** 配装器能用、但还没按当季装备库算过的配装（旧版本建的、刚导入的、手动新建的） */
+export function needsSeasonSync(lo: Loadout) {
+  return !!calcCode(lo.xinfa) && !lo.calc?.input;
+}
+
+/**
+ * 按打开配装器时的样子（seedInput）换成当季装备，用原版算一遍，
+ * 相当于在配装器里不改直接保存。这样配装页、配装列表、我的角色和配装器显示的是同一份数据。
+ * 目录还没加载完、或算不出来时返回 null。
+ */
+export function seasonSync(lo: Loadout): Loadout | null {
+  const cat = loaded.get(calcCode(lo.xinfa));
+  if (!cat) return null;
+  const seed = seedInput(lo, cat);
+  const r = computeSync(lo.xinfa, seed.input);
+  if (!r.ok) return null;
+  const next = loadoutFromEngine(lo, cat, seed.input, r);
+  // 「示例数据」标记留着：导入的装备本来就是示例，换成默认装备后也还不是用户自己配的
+  next.sample = lo.sample;
+  // 导入的装备当季库里没有、被换掉了，配装页要说明；手动新建的本来就是默认装备，不用说
+  if (lo.source !== "manual" && (seed.replaced.length || seed.stoneReplaced))
+    next.calc = {
+      ...next.calc!,
+      replaced: seed.replaced,
+      stoneReplaced: seed.stoneReplaced,
+    };
+  return next;
+}
+
+let bundledKnown: boolean | null = null;
+
+/** 内置计算器在不在：null 是还在查；网页版的部署里没有 */
+export function useBundledCalc() {
+  const [v, setV] = useState<boolean | null>(bundledKnown);
+  useEffect(() => {
+    if (v !== null) return;
+    let alive = true;
+    void hasBundledCalc().then(ok => {
+      bundledKnown = ok;
+      if (alive) setV(ok);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [v]);
+  return v;
+}
+
+let syncRunning = 0;
+const syncListeners = new Set<() => void>();
+function bumpSync(d: number) {
+  syncRunning += d;
+  syncListeners.forEach(f => f());
+}
+
+/** 是否正在把配装换成当季（第一次要加载计算器，约 1–3 秒） */
+export function useSeasonSyncRunning() {
+  return useSyncExternalStore(
+    f => {
+      syncListeners.add(f);
+      return () => {
+        syncListeners.delete(f);
+      };
+    },
+    () => syncRunning > 0
+  );
+}
+
+/**
+ * 管理窗口里用：把还没按当季算过的配装都换成当季。每个配装只换一次，存下后不再算。
+ * 内置计算器不在（网页版）时什么都不做；计算器加载失败时保持原样，配装器里可以重试。
+ */
+export function useSeasonSync(
+  loadouts: Record<string, Loadout>,
+  sync: (id: string) => void
+) {
+  const stale = Object.values(loadouts).filter(needsSeasonSync);
+  const key = stale
+    .map(l => l.id)
+    .sort()
+    .join(",");
+  const staleRef = useRef(stale);
+  staleRef.current = stale;
+  const syncRef = useRef(sync);
+  syncRef.current = sync;
+  useEffect(() => {
+    if (!key) return;
+    let alive = true;
+    const groups = new Map<string, string[]>();
+    for (const l of staleRef.current)
+      groups.set(l.xinfa, [...(groups.get(l.xinfa) ?? []), l.id]);
+    void (async () => {
+      if (!(await hasBundledCalc()) || !alive) return;
+      bumpSync(1);
+      try {
+        for (const [xinfa, ids] of groups) {
+          try {
+            await loadCatalog(xinfa);
+          } catch {
+            continue;
+          }
+          if (!alive) return;
+          for (const id of ids) syncRef.current(id);
+        }
+      } finally {
+        bumpSync(-1);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [key]);
 }
