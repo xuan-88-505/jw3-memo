@@ -1,17 +1,7 @@
-import {
-  BookOpen,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  NotebookPen,
-  Pencil,
-  Settings,
-  Shirt,
-  UserRound,
-  Users,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 import { OfflineBar, ToastStack } from "@/components/common/overlay";
+import { NavIcon } from "@/components/brand/NavIcon";
 import { Avatar } from "@/components/common/ui";
 import { IS_DESKTOP } from "@/lib/desktop";
 import { ROLE_LABEL } from "@/lib/format";
@@ -30,11 +20,11 @@ import { tx } from "@/lib/i18n";
 
 /** 侧栏各项；显示顺序由用户排，见 navOrder */
 const NAV_BY_KEY: Record<NavSection, NavItem> = {
-  schemes: { key: "schemes", label: "方案库", icon: BookOpen },
-  characters: { key: "characters", label: "我的角色", icon: UserRound },
-  gear: { key: "gear", label: "配装", icon: Shirt },
-  records: { key: "records", label: "记录", icon: NotebookPen },
-  team: { key: "team", label: "亲友团", icon: Users, tag: "Beta" },
+  schemes: { key: "schemes", label: "方案库", icon: "schemes" },
+  characters: { key: "characters", label: "我的角色", icon: "characters" },
+  gear: { key: "gear", label: "配装", icon: "gear" },
+  records: { key: "records", label: "记录", icon: "records" },
+  team: { key: "team", label: "亲友团", icon: "team", tag: "Beta" },
 };
 
 /** 侧栏折叠状态只存在本机 */
@@ -132,7 +122,11 @@ export function ManagerApp() {
                   aria-hidden="true"
                 />
               )}
-              <Settings className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <NavIcon
+                name="settings"
+                active={state.managerSection === "settings"}
+                className="h-4 w-4 shrink-0"
+              />
               <span
                 className={cn(
                   "flex-1 whitespace-nowrap text-left",

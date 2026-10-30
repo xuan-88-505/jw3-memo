@@ -5,7 +5,7 @@ import {
   type KeyboardEvent,
   type PointerEvent,
 } from "react";
-import type { LucideIcon } from "lucide-react";
+import { NavIcon, type NavIconName } from "@/components/brand/NavIcon";
 import type { ManagerSection } from "@/data/types";
 import { cn } from "@/lib/utils";
 import { tx } from "@/lib/i18n";
@@ -13,7 +13,7 @@ import { tx } from "@/lib/i18n";
 export interface NavItem {
   key: ManagerSection;
   label: string;
-  icon: LucideIcon;
+  icon: NavIconName;
   /** 名称后面的小标签，例如「Beta」 */
   tag?: string;
 }
@@ -219,7 +219,6 @@ export function SortableNav({
       <ul ref={listRef} className="space-y-0.5">
         {items.map((n, i) => {
           const active = activeKey === n.key;
-          const Icon = n.icon;
           const lifted = drag?.key === n.key;
           let ty = 0;
           if (drag) {
@@ -278,7 +277,11 @@ export function SortableNav({
                     aria-hidden="true"
                   />
                 )}
-                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <NavIcon
+                  name={n.icon}
+                  active={active}
+                  className="h-4 w-4 shrink-0"
+                />
                 <span
                   className={cn(
                     "flex min-w-0 flex-1 items-center gap-1.5 whitespace-nowrap text-left",
