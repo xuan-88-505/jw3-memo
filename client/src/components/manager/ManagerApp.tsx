@@ -170,8 +170,10 @@ export function ManagerApp() {
                   />
                 )}
                 <div className={cn("min-w-0 flex-1", collapsed && "hidden")}>
-                  <p className="flex items-center gap-1 whitespace-nowrap text-[13px] font-medium">
-                    <span className="truncate">{self?.name ?? "八八"}</span>
+                  <p className="flex items-center gap-1 text-[13px] font-medium">
+                    <span className="min-w-0 [overflow-wrap:anywhere]">
+                      {self?.name ?? "八八"}
+                    </span>
                     {self && !loading && (
                       <Pencil
                         className="h-3 w-3 shrink-0 text-paper-3 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
@@ -179,8 +181,9 @@ export function ManagerApp() {
                       />
                     )}
                   </p>
+                  {/* 权限文字放不下就换行，不截断（右边还有在线状态） */}
                   {!IS_DESKTOP && (
-                    <p className="truncate text-[11.5px] text-paper-3">
+                    <p className="text-[11.5px] leading-4 text-paper-3 [overflow-wrap:anywhere]">
                       {self && state.team
                         ? ROLE_LABEL[self.role]
                         : tx("未加入亲友团")}

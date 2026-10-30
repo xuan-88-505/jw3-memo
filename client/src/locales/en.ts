@@ -915,5 +915,12 @@ const dict: Record<string, string> = {
   "说明（选填）": "Description (optional)",
   "{0} 创建": "Created by {0}",
   "打开 GitHub 仓库": "Open GitHub repository",
+  "配装列表": "Gear set list",
+  "{0}，装分 {1}": "{0}, gear score {1}",
+  "打开配装器": "Open editor",
+  "在配装器里换这件": "Change it in the editor",
+  "最近：{0}": "Latest: {0}",
+  "{0} 从{1}导入": "Imported from {1} on {0}",
+  "{0} 手动新建": "Created manually on {0}",
 };
 export default dict;
