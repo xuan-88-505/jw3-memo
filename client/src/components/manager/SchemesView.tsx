@@ -35,7 +35,7 @@ import {
   type SchemeVersion,
 } from "@/data/types";
 import { diffVersions } from "@/lib/diff";
-import { absoluteTime, relativeTime } from "@/lib/format";
+import { relativeTime } from "@/lib/format";
 import { MACRO_LIMIT, cleanMacro, lintMacro } from "@/lib/macro";
 import {
   activeSchemeId,
@@ -487,6 +487,7 @@ function SchemeTitle({
 
 /**
  * 方案标题行：图标 | 标题 | 作者信息 | 操作（加宏、加另一个模式、历史版本）。
+ * 作者信息只在亲友团里显示创建人；自己用时没有这一栏。
  * 实测「标题排一行的宽度 + 作者信息 + 操作」：放得下就排成一行，作者信息靠右；
  * 放不下时作者信息换到第二行，并横跨到操作按钮下面。标题本身也能折行。
  * 这样任何语言、任何窗口宽度下标题都不会被截断。
@@ -511,6 +512,8 @@ function SchemeHeader({
   const metaRef = useRef<HTMLParagraphElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
   const [stack, setStack] = useState(false);
+  // 作者信息可能出现或消失（比如新方案保存后），这时要重新量
+  const hasMeta = meta != null;
   useLayoutEffect(() => {
     const row = rowRef.current;
     if (!row) return;
@@ -522,7 +525,7 @@ function SchemeHeader({
         (probeRef.current?.offsetWidth ?? 0) +
         (metaRef.current?.offsetWidth ?? 0) +
         (actionsRef.current?.offsetWidth ?? 0) +
-        gap * 3;
+        gap * (metaRef.current ? 3 : 2);
       setStack(row.clientWidth + 0.5 < need);
     };
     fit();
@@ -535,7 +538,7 @@ function SchemeHeader({
     ])
       if (el) ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [hasMeta]);
   return (
     <div
       ref={rowRef}
@@ -563,20 +566,22 @@ function SchemeHeader({
       >
         {title}
       </div>
-      <p
-        ref={metaRef}
-        className={cn(
-          "flex w-max max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12.5px] text-paper-3",
-          stack
-            ? "col-start-2 col-end-5 row-start-2 justify-self-start"
-            : "col-start-3 row-start-1 justify-self-end"
-        )}
-      >
-        {meta}
-      </p>
+      {hasMeta && (
+        <p
+          ref={metaRef}
+          className={cn(
+            "flex w-max max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12.5px] text-paper-3",
+            stack
+              ? "col-start-2 col-end-5 row-start-2 justify-self-start"
+              : "col-start-3 row-start-1 justify-self-end"
+          )}
+        >
+          {meta}
+        </p>
+      )}
       <div
         ref={actionsRef}
-        className="col-start-4 row-start-1 flex items-center gap-0.5"
+        className="col-start-4 row-start-1 flex items-center gap-1.5"
       >
         {actions}
       </div>
@@ -712,33 +717,20 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
             />
           }
           meta={
-            last ? (
-              <>
-                {!solo && (
-                  <>
-                    <CreatedBy
-                      member={creator}
-                      name={creator?.name ?? memberName(state, creatorId ?? "")}
-                    />
-                    <span aria-hidden="true">·</span>
-                  </>
-                )}
-                <span
-                  className="whitespace-nowrap"
-                  title={absoluteTime(last.at)}
-                >
-                  {tx("{0}更新", relativeTime(last.at, Date.now(), true))}
-                </span>
-              </>
-            ) : (
+            !last ? (
               tx("新方案，还没保存")
-            )
+            ) : !solo ? (
+              <CreatedBy
+                member={creator}
+                name={creator?.name ?? memberName(state, creatorId ?? "")}
+              />
+            ) : null
           }
           actions={
             <>
               {editable && (
                 <Btn
-                  variant="ghost"
+                  variant="secondary"
                   size="sm"
                   aria-label={tx("添加宏")}
                   title={tx("添加宏")}
@@ -750,7 +742,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
               )}
               {last && editable && !otherExists && (
                 <Btn
-                  variant="ghost"
+                  variant="secondary"
                   size="sm"
                   aria-label={tx("添加 {0} 方案", other)}
                   title={tx("添加 {0} 方案", other)}
@@ -762,7 +754,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
               )}
               {last && (
                 <Btn
-                  variant="ghost"
+                  variant="secondary"
                   size="sm"
                   aria-label={tx("历史版本")}
                   title={tx("历史版本")}
