@@ -193,7 +193,7 @@ export function CharactersView() {
         open={!!removing}
         onClose={() => setRemoving(null)}
         title={`删除「${removing?.name}」？`}
-        description="方案和配装不受影响。"
+        description="这个角色的便签会一起删掉，方案和配装不受影响。"
         footer={
           <>
             <Btn variant="ghost" size="md" onClick={() => setRemoving(null)}>

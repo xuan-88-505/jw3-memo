@@ -11,7 +11,6 @@ import {
   ChevronDown,
   Pin,
   Plus,
-  StickyNote,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -40,7 +39,7 @@ import {
 } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { Inbox } from "./Inbox";
-import { NoteView } from "./NotePad";
+import { NotePad } from "./NotePad";
 import { MacroList, TalentList } from "./PanelContent";
 
 export interface TrayPanelProps {
@@ -108,8 +107,8 @@ function PanelMain({
   showPin: boolean;
 }) {
   const { state, actions } = useProto();
-  const [view, setView] = useState<"main" | "inbox" | "note">("main");
-  const [tab, setTab] = useState<"macro" | "talent">("macro");
+  const [view, setView] = useState<"main" | "inbox">("main");
+  const [tab, setTab] = useState<"macro" | "talent" | "note">("macro");
   const [focusXinfa, setFocusXinfa] = useState<string | null>(null);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
   const mine = myCharacters(state);
@@ -164,19 +163,10 @@ function PanelMain({
           actions.selectCharacter(charId);
           actions.setMode(charId, m);
           setFocusXinfa(x);
+          // 从通知点进来是看方案：在便签页签时切回宏
+          if (tab === "note") setTab("macro");
           setView("main");
         }}
-        onHeaderPointerDown={onHeaderPointerDown}
-        dragging={draggable}
-      />
-    );
-  }
-
-  // 便签全局一份，和角色无关：从标题栏进二级页
-  if (view === "note") {
-    return (
-      <NoteView
-        onBack={() => setView("main")}
         onHeaderPointerDown={onHeaderPointerDown}
         dragging={draggable}
       />
@@ -235,7 +225,7 @@ function PanelMain({
         </div>
       </header>
 
-      {/* 页签行：宏 / 奇穴在左，便签在右；没有方案时也显示，便签随时能进 */}
+      {/* 页签行：宏 / 奇穴 / 便签平级；没有方案时也显示，便签随时能进 */}
       <div className="flex h-10 shrink-0 items-stretch gap-2 border-b border-paper/[0.07] pl-4 pr-2">
         <div
           role="tablist"
@@ -246,6 +236,7 @@ function PanelMain({
             [
               ["macro", "宏"],
               ["talent", "奇穴"],
+              ["note", "便签"],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -266,7 +257,8 @@ function PanelMain({
           ))}
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {modes.length > 1 && (
+          {/* 便签和 PVE/PVP 无关，不显示切换 */}
+          {modes.length > 1 && tab !== "note" && (
             <Segmented<Mode>
               label="方案类型"
               size="xs"
@@ -275,15 +267,15 @@ function PanelMain({
               options={modes.map(m => ({ value: m, label: m }))}
             />
           )}
-          <IconBtn label="便签" onClick={() => setView("note")}>
-            <StickyNote className="h-4 w-4" />
-          </IconBtn>
         </div>
       </div>
 
       <OfflineBar compact />
 
-      {missing.length && (!multi || ready.length === 0) ? (
+      {tab === "note" ? (
+        // 每个角色一份：按角色 id 重新挂载，切角色时内容跟着变
+        <NotePad key={char.id} charId={char.id} />
+      ) : missing.length && (!multi || ready.length === 0) ? (
         <NoScheme
           xinfa={multi ? undefined : xinfas[0]}
           mode={mode}

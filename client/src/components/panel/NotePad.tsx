@@ -1,8 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
-import { ArrowLeft, Lock } from "lucide-react";
-import { OfflineBar } from "@/components/common/overlay";
-import { IconBtn } from "@/components/common/ui";
 import { relativeTime } from "@/lib/format";
 import { NOTE_MAX, isOnline, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
@@ -11,54 +7,13 @@ import { cn } from "@/lib/utils";
 const SAVE_DELAY = 400;
 
 /**
- * 便签二级页：从标题栏的便签按钮进入，写法和通知页一致。
- * 便签全局一份，和角色、心法无关，只有本人能看到。
+ * 面板「便签」页签的正文：每个角色一份，随手记、快速看，只有本人能看到。
+ * 输入后自动保存，没有保存按钮。切页签、切角色、收起面板时先把没保存的内容存掉。
+ * 外层按角色 id 加 key，切角色时重新挂载，读出那个角色的便签。
  */
-export function NoteView({
-  onBack,
-  onHeaderPointerDown,
-  dragging,
-}: {
-  onBack: () => void;
-  onHeaderPointerDown?: (e: ReactPointerEvent) => void;
-  dragging?: boolean;
-}) {
-  return (
-    <>
-      <header
-        onPointerDown={onHeaderPointerDown}
-        className={cn(
-          "flex h-12 shrink-0 select-none items-center gap-1 border-b border-paper/[0.07] pl-2 pr-4",
-          dragging && "cursor-grab active:cursor-grabbing"
-        )}
-      >
-        <span onPointerDown={e => e.stopPropagation()}>
-          <IconBtn label="返回" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
-          </IconBtn>
-        </span>
-        <h2 className="text-[14px] font-medium text-paper">便签</h2>
-        <span
-          className="ml-auto inline-flex items-center gap-1 text-[11.5px] text-paper-3"
-          title="便签不会共享给亲友团"
-        >
-          <Lock className="h-3 w-3" aria-hidden="true" />
-          只有你能看到
-        </span>
-      </header>
-      <OfflineBar compact />
-      <NotePad />
-    </>
-  );
-}
-
-/**
- * 便签正文：随手记、快速看。
- * 输入后自动保存，没有保存按钮；返回或收起面板前会先保存。
- */
-function NotePad() {
+export function NotePad({ charId }: { charId: string }) {
   const { state, actions } = useProto();
-  const note = state.note;
+  const note = state.notes[charId];
   const [text, setText] = useState(note?.text ?? "");
   const [pending, setPending] = useState(false);
   const pendingRef = useRef<string | null>(null);
@@ -68,13 +23,18 @@ function NotePad() {
   const flush = () => {
     window.clearTimeout(timer.current);
     if (pendingRef.current === null) return;
-    actions.setNote(pendingRef.current);
+    actions.setNote(charId, pendingRef.current);
     pendingRef.current = null;
     setPending(false);
   };
 
-  // 返回、关面板时，把还没保存的内容存掉
+  // 切页签、切角色、关面板时，把还没保存的内容存掉
   useEffect(() => flush, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 另一个窗口改了这个角色的便签：自己没在输入时跟着更新
+  useEffect(() => {
+    if (pendingRef.current === null) setText(note?.text ?? "");
+  }, [note?.text]);
 
   const onChange = (v: string) => {
     setText(v);
@@ -95,16 +55,20 @@ function NotePad() {
         : `已保存 · ${relativeTime(note.at)}`;
 
   return (
-    <div className="flex min-h-0 flex-1 animate-fade flex-col">
+    <div
+      role="tabpanel"
+      aria-label="便签"
+      className="flex min-h-0 flex-1 animate-fade flex-col"
+    >
       <textarea
         value={text}
         onChange={e => onChange(e.target.value)}
         onBlur={flush}
         maxLength={NOTE_MAX}
         spellCheck={false}
-        autoFocus
-        aria-label="便签"
-        placeholder="随手记点东西，比如团长 YY、副本时间、还缺的装备"
+        aria-label="这个角色的便签"
+        title="便签只有你能看到，不会共享给亲友团"
+        placeholder={"记点这个角色的事，比如团长 YY、副本时间\n只有你能看到"}
         className="scroll-thin min-h-0 flex-1 resize-none bg-transparent px-4 py-3 text-[13px] leading-[1.75] text-paper placeholder:text-paper-3/70 focus:outline-none"
       />
       {(status || nearLimit) && (

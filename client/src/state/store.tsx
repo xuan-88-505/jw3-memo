@@ -153,10 +153,10 @@ export interface ProtoState {
   navOrder: NavSection[] | null;
   toasts: UiToast[];
   /**
-   * 便签：全局一份，和角色、心法无关。只属于本人，不进亲友团共享的数据。
-   * 原型存在浏览器本地；正式版跟着账号同步到自己的其他电脑。
+   * 便签：每个角色一份（按角色 id 存），和心法、PVE/PVP 无关。
+   * 只属于本人，不进亲友团共享的数据。
    */
-  note: Note | null;
+  notes: Record<string, Note>;
   /**
    * 配装与木桩：按配装 id 存，和便签一样只属于本人。
    * 配装按心法建，关联角色是可选的（Loadout.charId）。
@@ -201,34 +201,51 @@ export interface Note {
 }
 export const NOTE_MAX = 2000;
 /** 便签的本地记录；必须在 initialState 之前定义 */
-const NOTE_KEY = "tongdiao.note.v2";
-/** 旧版：每个角色一份 */
+const NOTES_KEY = "tongdiao.notes.v3";
+/** 上一版：全局一份 */
+const GLOBAL_NOTE_KEY = "tongdiao.note.v2";
+/** 更早一版：也是每个角色一份 */
 const OLD_NOTES_KEY = "tongdiao.notes.v1";
-const SEED_NOTE: Note = {
-  text: "周三、周日 20:00 打 25 人英雄，团长 YY 88123\n还缺：腰坠、暗器\n每周一记得领帮会资源",
-  at: "2026-10-28T21:12:00+08:00",
+const SEED_NOTES: Record<string, Note> = {
+  c1: {
+    text: "周三、周日 20:00 打 25 人英雄，团长 YY 88123\n还缺：腰坠、暗器\n每周一记得领帮会资源",
+    at: "2026-10-28T21:12:00+08:00",
+  },
+  c2: {
+    text: "奶妈位，团长要求进本前报一下装分\n周五 21:00 帮会战",
+    at: "2026-10-27T19:40:00+08:00",
+  },
 };
-function readNote(): Note | null {
-  if (typeof window === "undefined") return SEED_NOTE;
+/** 去掉空便签 */
+function cleanNotes(v: unknown): Record<string, Note> {
+  if (!v || typeof v !== "object") return {};
+  const out: Record<string, Note> = {};
+  for (const [id, n] of Object.entries(v as Record<string, Note | null>))
+    if (n && typeof n.text === "string" && n.text.trim()) out[id] = n;
+  return out;
+}
+/** 旧的全局便签交给当时选中的角色，不复制给所有角色 */
+function adoptGlobalNote(
+  note: unknown,
+  charId: string | undefined
+): Record<string, Note> {
+  const n = note as Note | null;
+  if (!charId || !n || typeof n.text !== "string" || !n.text.trim()) return {};
+  return { [charId]: n };
+}
+function readNotes(activeCharId: string): Record<string, Note> {
+  if (typeof window === "undefined") return SEED_NOTES;
   try {
-    const raw = localStorage.getItem(NOTE_KEY);
-    if (raw !== null) return JSON.parse(raw) as Note | null;
-    // 旧版按角色存：按时间先后合并成一份，不丢内容
+    const raw = localStorage.getItem(NOTES_KEY);
+    if (raw !== null) return cleanNotes(JSON.parse(raw));
+    const global = localStorage.getItem(GLOBAL_NOTE_KEY);
+    if (global !== null)
+      return adoptGlobalNote(JSON.parse(global), activeCharId);
     const old = localStorage.getItem(OLD_NOTES_KEY);
-    if (old === null) return SEED_NOTE;
-    const list = Object.values(JSON.parse(old) as Record<string, Note>)
-      .filter(n => n?.text?.trim())
-      .sort((x, y) => x.at.localeCompare(y.at));
-    if (!list.length) return null;
-    return {
-      text: list
-        .map(n => n.text.trim())
-        .join("\n\n")
-        .slice(0, NOTE_MAX),
-      at: list[list.length - 1].at,
-    };
+    if (old !== null) return cleanNotes(JSON.parse(old));
+    return SEED_NOTES;
   } catch {
-    return SEED_NOTE;
+    return SEED_NOTES;
   }
 }
 /** 侧栏默认顺序；「设置」固定在底部，不参与排序 */
@@ -308,7 +325,7 @@ function readCoachSeen() {
 
 const initialState: ProtoState = {
   ...seedData(),
-  note: readNote(),
+  notes: readNotes("c1"),
   loadouts: { lo1: seedLoadoutZixia(), lo2: seedLoadoutZixiaAlt() },
   activeLoadoutId: "lo1",
   platform: "win",
@@ -357,7 +374,7 @@ function desktopInitial(): Partial<ProtoState> {
     links: [],
     loadouts: {},
     activeLoadoutId: null,
-    note: null,
+    notes: {},
     platform: DESKTOP_PLATFORM,
     scene: "desktop",
     dataState: "normal",
@@ -383,7 +400,7 @@ const PERSIST_KEYS = [
   "links",
   "loadouts",
   "activeLoadoutId",
-  "note",
+  "notes",
   "hotkeys",
   "launchAtLogin",
   "trayMotion",
@@ -431,6 +448,18 @@ export function parseData(raw: string): Partial<ProtoState> | null {
   const out: Record<string, unknown> = {};
   for (const k of PERSIST_KEYS) if (k in data) out[k] = data[k];
   const result = out as Partial<ProtoState>;
+  if ("notes" in out) result.notes = cleanNotes(out.notes);
+  else if ("note" in data) {
+    const chars = Array.isArray(data.characters)
+      ? (data.characters as Character[])
+      : [];
+    const active =
+      typeof data.activeCharId === "string" &&
+      chars.some(c => c.id === data.activeCharId)
+        ? data.activeCharId
+        : chars.find(c => c.ownerId === ME_ID)?.id;
+    result.notes = adoptGlobalNote(data.note, active);
+  }
   if ("navOrder" in out) result.navOrder = normalizeNav(out.navOrder);
   if ("hotkeys" in out)
     result.hotkeys = {
@@ -1329,17 +1358,24 @@ function useActions(
           if (!lo) return {};
           return { loadouts: { ...st.loadouts, [loId]: { ...lo, buffs } } };
         }),
-      /** 写便签。空内容直接清掉 */
-      setNote: (text: string) =>
-        update(() => ({
-          note: text.trim() ? { text, at: new Date().toISOString() } : null,
-        })),
+      /** 写某个角色的便签。空内容直接清掉 */
+      setNote: (charId: string, text: string) =>
+        update(st => {
+          const notes = { ...st.notes };
+          if (text.trim())
+            notes[charId] = { text, at: new Date().toISOString() };
+          else delete notes[charId];
+          return { notes };
+        }),
       removeCharacter: (id: string) =>
         update(s => {
           const characters = s.characters.filter(c => c.id !== id);
           const mine = characters.filter(c => c.ownerId === ME_ID);
-          // 便签是全局的，不受影响；配装不跟着删，只解除关联
+          // 便签跟着角色删；配装不跟着删，只解除关联
+          const notes = { ...s.notes };
+          delete notes[id];
           return {
+            notes,
             loadouts: unlinkLoadouts(s.loadouts, id),
             characters,
             activeCharId:
@@ -1564,12 +1600,13 @@ export function ProtoProvider({
   // 便签存到本地，刷新后还在
   useEffect(() => {
     try {
-      localStorage.setItem(NOTE_KEY, JSON.stringify(state.note));
+      localStorage.setItem(NOTES_KEY, JSON.stringify(state.notes));
+      localStorage.removeItem(GLOBAL_NOTE_KEY);
       localStorage.removeItem(OLD_NOTES_KEY);
     } catch {
       /* 浏览器禁用本地存储时，只在本次打开期间记住 */
     }
-  }, [state.note]);
+  }, [state.notes]);
   // 关注的心法存到本地；没改过时不写，继续用默认值
   useEffect(() => {
     try {
