@@ -381,9 +381,7 @@ const initialState: ProtoState = {
  * 读到 data.json 后再用文件里的内容覆盖。
  */
 function desktopInitial(): Partial<ProtoState> {
-  // 自己的资料从示例复制，但不带作者标记：作者要在设置里输入作者码
-  const { author: _author, ...self } =
-    SEED_MEMBERS.find(m => m.id === ME_ID) ?? SEED_MEMBERS[0];
+  const self = SEED_MEMBERS.find(m => m.id === ME_ID) ?? SEED_MEMBERS[0];
   return {
     team: null,
     members: [{ ...self, role: "admin", joinedAt: new Date().toISOString() }],
@@ -1164,13 +1162,6 @@ function useActions(
         );
         return "created";
       },
-      /** 作者头像框：在设置里输入作者码后开启，也可以关掉 */
-      setAuthor: (on: boolean) =>
-        update(st => ({
-          members: st.members.map(m =>
-            m.id === ME_ID ? { ...m, author: on || undefined } : m
-          ),
-        })),
       resolveConflict: (choice: "mine" | "theirs") => {
         const s = stateRef.current;
         const pc = s.pendingConflict;
@@ -1856,6 +1847,13 @@ function useDesktopData(
   return ready;
 }
 
+/**
+ * 是否在亲友团里。头像等通用组件用它判断要不要显示管理员皇冠；
+ * 不在 ProtoProvider 里时返回 false，不报错。
+ */
+export function useInTeam() {
+  return !!useContext(Ctx)?.state.team;
+}
 export function useProto() {
   const v = useContext(Ctx);
   if (!v) throw new Error("useProto must be used inside ProtoProvider");

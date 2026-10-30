@@ -1,6 +1,7 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { Check, Circle } from "lucide-react";
-import type { Member, SyncStatus } from "@/data/types";
+import type { Member, Role, SyncStatus } from "@/data/types";
+import { useInTeam } from "@/state/store";
 import { Huangji, chickSize, moodFor } from "@/components/brand/Huangji";
 import { CROWN_H, CROWN_W, Crown } from "@/components/brand/Crown";
 import { cn } from "@/lib/utils";
@@ -151,31 +152,31 @@ export function Kbd({
 /**
  * 成员头像：圆形（角色头像是圆角方形，一眼分清人和角色）。
  * 默认是黄鸡表情，没设置时按名字稳定取一个；上传了图片就显示图片。
+ * 亲友团里的管理员戴皇冠。没加入亲友团时不戴：那时自己默认就是管理员，人人都有就没意义了。
  */
 export function Avatar({
   member,
   size = 24,
   animated = false,
 }: {
-  member: Pick<Member, "name" | "color" | "avatar" | "author">;
+  member: Pick<Member, "name" | "color" | "avatar"> & { role?: Role };
   size?: number;
   animated?: boolean;
 }) {
+  const inTeam = useInTeam();
   const face = <AvatarFace member={member} size={size} animated={animated} />;
-  return member.author ? <AuthorFrame size={size}>{face}</AuthorFrame> : face;
+  return inTeam && member.role === "admin" ? (
+    <AdminFrame size={size}>{face}</AdminFrame>
+  ) : (
+    face
+  );
 }
 
 /**
- * 作者头像框：金色金属描边 + 歪戴的像素皇冠。
+ * 管理员头像框：金色金属描边 + 歪戴的像素皇冠。
  * 描边和皇冠都画在头像外面，不改变头像占的位置；小于 24 的头像夹在文字里，只留描边。
  */
-function AuthorFrame({
-  size,
-  children,
-}: {
-  size: number;
-  children: ReactNode;
-}) {
+function AdminFrame({ size, children }: { size: number; children: ReactNode }) {
   const ring = size >= 24 ? 2 : 1.5;
   const gap = size >= 24 ? 1.5 : 1;
   const cell = size >= 48 ? 2 : 1;
@@ -189,11 +190,11 @@ function AuthorFrame({
       {children}
       <span
         aria-hidden="true"
-        className="author-glow pointer-events-none absolute"
+        className="admin-glow pointer-events-none absolute"
         style={{ inset: -(ring + gap) }}
       >
         <span
-          className="author-ring absolute inset-0 rounded-full"
+          className="admin-ring absolute inset-0 rounded-full"
           style={{ ["--ring" as string]: `${ring}px` }}
         />
       </span>
