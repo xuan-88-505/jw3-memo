@@ -30,6 +30,7 @@ import {
 } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { SectionHeader, SelectBox, inputCls } from "./shared";
+import { FeedbackDialog } from "./FeedbackDialog";
 import { ME_ID } from "@/data/seed";
 import { LANGS, setLang, tx, useLang, type Lang } from "@/lib/i18n";
 
@@ -49,6 +50,7 @@ export function SettingsView() {
   const lang = useLang();
   const offline = state.dataState === "offline";
   const [checking, setChecking] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const checkUpdate = () => {
     // 桌面版：打开发布页，看有没有新的安装包
     if (IS_DESKTOP) {
@@ -186,18 +188,14 @@ export function SettingsView() {
               {checking ? tx("正在检查") : tx("检查更新")}
             </Btn>
           </SettingRow>
-          {/* 作者标识：名字前戴像素皇冠。名字五种语言都不翻译 */}
           <SettingRow
-            title={tx("作者")}
-            desc={
-              <span className="inline-flex items-center gap-1.5">
-                <span aria-hidden="true" className="inline-flex">
-                  <Crown />
-                </span>
-                <span className="text-paper-2">88 by manus</span>
-              </span>
-            }
-          />
+            title={tx("意见反馈")}
+            desc={tx("问题和建议直接发给作者")}
+          >
+            <Btn size="sm" onClick={() => setFeedbackOpen(true)}>
+              {tx("写反馈")}
+            </Btn>
+          </SettingRow>
         </SettingGroup>
 
         {IS_DESKTOP && (
@@ -205,7 +203,31 @@ export function SettingsView() {
             <DataRows />
           </SettingGroup>
         )}
+        <AuthorRow />
       </div>
+      <FeedbackDialog
+        open={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+        appVersion={APP_VERSION}
+      />
+    </div>
+  );
+}
+
+/**
+ * 作者标识：放在设置页最下面，比其他设置行弱一级（字小、灰色、行矮）。
+ * 名字前戴像素皇冠，放在右边。名字五种语言都不翻译。
+ */
+function AuthorRow() {
+  return (
+    <div className="flex min-h-[48px] items-center justify-between gap-6 py-2.5">
+      <h3 className="text-[13px] text-paper-3">{tx("作者")}</h3>
+      <p className="inline-flex shrink-0 items-center gap-1.5 text-[12.5px] text-paper-3">
+        <span aria-hidden="true" className="inline-flex opacity-80">
+          <Crown />
+        </span>
+        88 by manus
+      </p>
     </div>
   );
 }
@@ -527,7 +549,7 @@ function SettingRow({
   title: string;
   desc?: ReactNode;
   titleId?: string;
-  /** 右侧操作；纯信息行（如作者）不传 */
+  /** 右侧操作；纯信息行不传 */
   children?: ReactNode;
 }) {
   return (

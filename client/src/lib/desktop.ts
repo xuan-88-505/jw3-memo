@@ -30,6 +30,8 @@ export const DESKTOP_PLATFORM: Platform =
 
 /** 发布页：检查更新时打开 */
 export const RELEASES_URL = "https://github.com/xuan-88-505/jw3-memo/releases";
+/** 已发布的网站。桌面版页面不在网站上，调用服务器接口（如意见反馈）时用这个地址 */
+export const SITE_ORIGIN = "https://tongdiao-k5ujnxu8.manus.space";
 
 /** 面板请管理窗口打开某一页 */
 export interface OpenManagerRequest {
