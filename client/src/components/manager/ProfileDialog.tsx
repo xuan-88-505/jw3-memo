@@ -5,7 +5,12 @@ import { Avatar, Btn } from "@/components/common/ui";
 import type { CharacterAvatar } from "@/data/types";
 import { ROLE_LABEL } from "@/lib/format";
 import { isOnline, me, useProto } from "@/state/store";
-import { AvatarChoices, sameAvatar } from "./AvatarPicker";
+import {
+  AvatarChoices,
+  AvatarError,
+  EditableAvatar,
+  sameAvatar,
+} from "./AvatarPicker";
 import { Field, inputCls } from "./shared";
 
 const NAME_MAX = 12;
@@ -28,6 +33,7 @@ export function ProfileDialog({
   });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
 
   // 每次打开时回到当前资料
   useEffect(() => {
@@ -36,6 +42,7 @@ export function ProfileDialog({
     setAvatar(self.avatar ?? { kind: "preset", mood: moodFor(self.name) });
     setError("");
     setBusy(false);
+    setAvatarError("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -94,11 +101,19 @@ export function ProfileDialog({
     >
       <div className="pb-1">
         <div className="flex items-start gap-4">
-          <Avatar
-            member={{ ...self, name: n || self.name, avatar }}
+          <EditableAvatar
             size={64}
-            animated
-          />
+            round
+            onUpload={src => setAvatar({ kind: "upload", src })}
+            onBusyChange={setBusy}
+            onError={setAvatarError}
+          >
+            <Avatar
+              member={{ ...self, name: n || self.name, avatar }}
+              size={64}
+              animated
+            />
+          </EditableAvatar>
           <div className="min-w-0 flex-1">
             <Field label="昵称" htmlFor="me-name" error={error}>
               <input
@@ -121,10 +136,13 @@ export function ProfileDialog({
             </p>
           </div>
         </div>
+        <AvatarError message={avatarError} />
         <AvatarChoices
           value={avatar}
-          onChange={setAvatar}
-          onBusyChange={setBusy}
+          onChange={a => {
+            setAvatar(a);
+            setAvatarError("");
+          }}
           renderAvatar={(a, size, animated) => (
             <Avatar
               member={{ ...self, avatar: a }}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, ImagePlus, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2, Pencil } from "lucide-react";
 import { schoolLabel } from "@/data/seed";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { HUANGJI_MOODS, type HuangjiMood } from "@/components/brand/Huangji";
@@ -22,14 +22,121 @@ export function sameAvatar(a?: CharacterAvatar, b?: CharacterAvatar) {
 }
 
 /**
- * 头像选择：18 个黄鸡表情 + 上传自己的图片。
- * 角色换头像和个人资料共用；renderAvatar 决定头像的形状（角色方形、成员圆形）。
+ * 可上传的大头像：悬停或键盘聚焦时出现编辑图标，点击直接选图，也能把图片拖到头像上。
+ * 角色换头像和个人资料共用；round 为成员的圆形头像，否则按角色头像的圆角。
+ */
+export function EditableAvatar({
+  size,
+  round = false,
+  children,
+  onUpload,
+  onBusyChange,
+  onError,
+}: {
+  size: number;
+  round?: boolean;
+  children: ReactNode;
+  onUpload: (src: string) => void;
+  onBusyChange?: (busy: boolean) => void;
+  onError: (message: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const radius = round ? 9999 : Math.max(6, Math.round(size * 0.24));
+
+  useEffect(() => onBusyChange?.(busy), [busy, onBusyChange]);
+
+  const handleFile = async (file?: File | null) => {
+    if (!file) return;
+    onError("");
+    setBusy(true);
+    try {
+      onUpload(await fileToAvatar(file));
+    } catch (e) {
+      onError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={busy}
+        aria-label="上传图片作为头像"
+        title={`上传图片作为头像（PNG、JPG、WebP，最大 ${AVATAR_MAX_MB} MB）`}
+        onClick={() => inputRef.current?.click()}
+        onDragOver={e => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={e => {
+          e.preventDefault();
+          setDragOver(false);
+          handleFile(e.dataTransfer.files?.[0]);
+        }}
+        className="group/avatar relative shrink-0"
+        style={{ width: size, height: size, borderRadius: radius }}
+      >
+        {children}
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute inset-0 grid place-items-center bg-black/55 text-paper opacity-0 transition-opacity duration-150 group-hover/avatar:opacity-100 group-focus-visible/avatar:opacity-100",
+            (busy || dragOver) && "opacity-100",
+            dragOver && "ring-2 ring-inset ring-cinnabar-text/80"
+          )}
+          style={{ borderRadius: radius }}
+        >
+          {busy ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Pencil className="h-[18px] w-[18px]" />
+          )}
+        </span>
+      </button>
+      {/* 放在按钮外面：点击文件框的事件不会再冒泡回按钮 */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept={AVATAR_TYPES.join(",")}
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={e => {
+          handleFile(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+    </>
+  );
+}
+
+/** 上传头像失败的提示 */
+export function AvatarError({ message }: { message: string }) {
+  if (!message) return null;
+  return (
+    <p
+      role="alert"
+      className="mt-3 flex items-center gap-1.5 text-[12.5px] text-cinnabar-text"
+    >
+      <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      {message}
+    </p>
+  );
+}
+
+/**
+ * 头像选择：18 个黄鸡表情。上传自己的图片在上面的大头像上点。
+ * renderAvatar 决定头像的形状（角色方形、成员圆形）。
  */
 export function AvatarChoices({
   value,
   onChange,
   renderAvatar,
-  onBusyChange,
 }: {
   value: CharacterAvatar;
   onChange: (a: CharacterAvatar) => void;
@@ -38,41 +145,8 @@ export function AvatarChoices({
     size: number,
     animated: boolean
   ) => ReactNode;
-  onBusyChange?: (busy: boolean) => void;
 }) {
-  const [upload, setUpload] = useState<string | null>(
-    value.kind === "upload" ? value.src : null
-  );
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
   const [hovered, setHovered] = useState<HuangjiMood | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => onBusyChange?.(busy), [busy, onBusyChange]);
-
-  const handleFile = async (file?: File | null) => {
-    if (!file) return;
-    setError("");
-    setBusy(true);
-    try {
-      const src = await fileToAvatar(file);
-      setUpload(src);
-      onChange({ kind: "upload", src });
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const tile =
-    "flex flex-col items-center gap-1 rounded-lg py-2 text-[12px] transition-colors ring-1 ring-inset";
-  const tileState = (selected: boolean) =>
-    selected
-      ? "bg-cinnabar/[0.08] text-paper ring-2 ring-cinnabar-text/70"
-      : "text-paper-2 ring-paper/10 hover:bg-paper/[0.04] hover:text-paper";
-
   return (
     <>
       <p className="mb-2 mt-5 text-[12px] text-paper-3">黄鸡表情</p>
@@ -90,11 +164,13 @@ export function AvatarChoices({
               aria-label={m.key}
               onMouseEnter={() => setHovered(m.key)}
               onFocus={() => setHovered(m.key)}
-              onClick={() => {
-                onChange({ kind: "preset", mood: m.key });
-                setError("");
-              }}
-              className={cn(tile, tileState(selected))}
+              onClick={() => onChange({ kind: "preset", mood: m.key })}
+              className={cn(
+                "flex flex-col items-center gap-1 rounded-lg py-2 text-[12px] ring-1 ring-inset transition-colors",
+                selected
+                  ? "bg-cinnabar/[0.08] text-paper ring-2 ring-cinnabar-text/70"
+                  : "text-paper-2 ring-paper/10 hover:bg-paper/[0.04] hover:text-paper"
+              )}
             >
               {renderAvatar(
                 { kind: "preset", mood: m.key },
@@ -106,79 +182,6 @@ export function AvatarChoices({
           );
         })}
       </div>
-
-      <p className="mb-2 mt-5 text-[12px] text-paper-3">自己的图片</p>
-      <div className="flex gap-2">
-        {upload && (
-          <button
-            type="button"
-            aria-pressed={value.kind === "upload"}
-            onClick={() => onChange({ kind: "upload", src: upload })}
-            className={cn(
-              tile,
-              "w-[92px] shrink-0",
-              tileState(value.kind === "upload")
-            )}
-          >
-            {renderAvatar({ kind: "upload", src: upload }, 36, false)}
-            我的图片
-          </button>
-        )}
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
-          onDragOver={e => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={e => {
-            e.preventDefault();
-            setDragOver(false);
-            handleFile(e.dataTransfer.files?.[0]);
-          }}
-          className={cn(
-            "flex min-h-[78px] flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-3 text-center transition-colors",
-            dragOver
-              ? "border-cinnabar-text/70 bg-cinnabar/[0.06] text-paper"
-              : "border-paper/20 text-paper-2 hover:border-paper/40 hover:text-paper"
-          )}
-        >
-          <span className="flex items-center gap-1.5 text-[13px]">
-            {busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <ImagePlus className="h-4 w-4" aria-hidden="true" />
-            )}
-            {busy ? "正在处理…" : upload ? "换一张" : "上传或拖进来"}
-          </span>
-          <span className="text-[11.5px] text-paper-3">
-            PNG、JPG、WebP，最大 {AVATAR_MAX_MB} MB，自动裁成正方形
-          </span>
-        </button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept={AVATAR_TYPES.join(",")}
-          className="sr-only"
-          tabIndex={-1}
-          aria-hidden="true"
-          onChange={e => {
-            handleFile(e.target.files?.[0]);
-            e.target.value = "";
-          }}
-        />
-      </div>
-      {error && (
-        <p
-          role="alert"
-          className="mt-2 flex items-center gap-1.5 text-[12.5px] text-cinnabar-text"
-        >
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          {error}
-        </p>
-      )}
     </>
   );
 }
@@ -195,12 +198,14 @@ export function AvatarPicker({
   const online = isOnline(state);
   const [choice, setChoice] = useState<CharacterAvatar>(DEFAULT_AVATAR);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   // 每次打开时回到角色当前的头像
   useEffect(() => {
     if (!character) return;
     setChoice(character.avatar ?? DEFAULT_AVATAR);
     setBusy(false);
+    setError("");
   }, [character]);
 
   if (!character) return null;
@@ -242,11 +247,18 @@ export function AvatarPicker({
     >
       <div className="pb-1">
         <div className="flex items-center gap-3.5">
-          <CharAvatar
-            character={{ ...character, avatar: choice }}
+          <EditableAvatar
             size={64}
-            animated
-          />
+            onUpload={src => setChoice({ kind: "upload", src })}
+            onBusyChange={setBusy}
+            onError={setError}
+          >
+            <CharAvatar
+              character={{ ...character, avatar: choice }}
+              size={64}
+              animated
+            />
+          </EditableAvatar>
           <div className="min-w-0">
             <p className="truncate text-[16px] font-semibold text-paper">
               {character.name}
@@ -256,11 +268,13 @@ export function AvatarPicker({
             </p>
           </div>
         </div>
+        <AvatarError message={error} />
         <AvatarChoices
-          key={character.id}
           value={choice}
-          onChange={setChoice}
-          onBusyChange={setBusy}
+          onChange={a => {
+            setChoice(a);
+            setError("");
+          }}
           renderAvatar={(a, size, animated) => (
             <CharAvatar
               character={{ school: character.school, avatar: a }}
