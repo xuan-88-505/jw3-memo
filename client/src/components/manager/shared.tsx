@@ -166,7 +166,8 @@ export function SectionHeader({
 }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3 pb-5">
-      <div className="min-w-0">
+      {/* 标题块至少 32 高（和最高的右侧按钮一样）：有没有右侧按钮，标题位置都不变，切页签不跳 */}
+      <div className="flex min-h-8 min-w-0 flex-col justify-end">
         <div className="flex items-center gap-0.5">
           {back && (
             <button

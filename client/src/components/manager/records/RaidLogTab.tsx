@@ -120,7 +120,8 @@ export function RaidLogTab({
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2 pb-3">
+      {/* 和避雷、链接一样，工具栏下面空 16，切页签时列表不跳 */}
+      <div className="flex flex-wrap items-center gap-2 pb-4">
         <Segmented<Period>
           label={tx("时间范围")}
           value={period}

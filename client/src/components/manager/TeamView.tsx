@@ -395,7 +395,7 @@ function TeamName({
             setValue(name);
             setEditing(true);
           }}
-          className="h-7 w-7 text-paper-3"
+          className="-my-1 h-7 w-7 text-paper-3"
         >
           <Pencil className="h-3.5 w-3.5" />
         </IconBtn>
