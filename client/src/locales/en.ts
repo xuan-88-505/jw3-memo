@@ -979,5 +979,6 @@ const dict: Record<string, string> = {
   "计算器加载失败": "Failed to load the calculator",
   "还没保存过当季结果": "No current-season result saved yet",
   "这套配装算不出来，换一件装备试试": "Can't calculate this set. Try swapping an item.",
+  "去魔盒看{0}的宏和奇穴": "See {0} macros and talents on JX3Box",
 };
 export default dict;

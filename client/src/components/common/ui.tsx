@@ -10,6 +10,28 @@ import { tx } from "@/lib/i18n";
 type BtnVariant = "primary" | "secondary" | "ghost" | "danger" | "quiet";
 type BtnSize = "xs" | "sm" | "md";
 
+/** 按钮外观；外链用 <a> 时也用它，看起来和按钮一样 */
+export function btnClass(
+  variant: BtnVariant = "secondary",
+  size: BtnSize = "sm"
+) {
+  return cn(
+    "inline-flex shrink-0 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-md font-medium transition-colors duration-100 disabled:opacity-45",
+    size === "xs" && "h-6 px-2 text-[12px]",
+    size === "sm" && "h-7 px-2.5 text-[12.5px]",
+    size === "md" && "h-8 px-3.5 text-[13px]",
+    variant === "primary" &&
+      "bg-cinnabar-fill text-[#FFF7F0] shadow-[inset_0_1px_0_rgb(255_255_255/0.16),0_1px_2px_rgb(0_0_0/0.35)] hover:bg-cinnabar active:bg-[#a9361f] active:shadow-none",
+    variant === "secondary" &&
+      "bg-paper/[0.06] text-paper shadow-[inset_0_1px_0_rgb(255_255_255/0.05)] ring-1 ring-inset ring-paper/10 hover:bg-paper/[0.10] active:bg-paper/[0.08] active:shadow-none",
+    variant === "ghost" &&
+      "text-paper-2 hover:bg-paper/[0.07] hover:text-paper",
+    variant === "quiet" && "text-paper-3 hover:text-paper",
+    variant === "danger" &&
+      "text-cinnabar-text ring-1 ring-inset ring-cinnabar/40 hover:bg-cinnabar/10"
+  );
+}
+
 export const Btn = forwardRef<
   HTMLButtonElement,
   ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -26,22 +48,7 @@ export const Btn = forwardRef<
       ref={ref}
       type="button"
       {...rest}
-      className={cn(
-        "inline-flex shrink-0 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-md font-medium transition-colors duration-100 disabled:opacity-45",
-        size === "xs" && "h-6 px-2 text-[12px]",
-        size === "sm" && "h-7 px-2.5 text-[12.5px]",
-        size === "md" && "h-8 px-3.5 text-[13px]",
-        variant === "primary" &&
-          "bg-cinnabar-fill text-[#FFF7F0] shadow-[inset_0_1px_0_rgb(255_255_255/0.16),0_1px_2px_rgb(0_0_0/0.35)] hover:bg-cinnabar active:bg-[#a9361f] active:shadow-none",
-        variant === "secondary" &&
-          "bg-paper/[0.06] text-paper shadow-[inset_0_1px_0_rgb(255_255_255/0.05)] ring-1 ring-inset ring-paper/10 hover:bg-paper/[0.10] active:bg-paper/[0.08] active:shadow-none",
-        variant === "ghost" &&
-          "text-paper-2 hover:bg-paper/[0.07] hover:text-paper",
-        variant === "quiet" && "text-paper-3 hover:text-paper",
-        variant === "danger" &&
-          "text-cinnabar-text ring-1 ring-inset ring-cinnabar/40 hover:bg-cinnabar/10",
-        className
-      )}
+      className={cn(btnClass(variant, size), className)}
     >
       {icon}
       {children}

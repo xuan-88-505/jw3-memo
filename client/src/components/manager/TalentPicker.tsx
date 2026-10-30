@@ -5,6 +5,7 @@ import type { TalentOption } from "@/data/types";
 import { layerLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { tx } from "@/lib/i18n";
+import { talentText } from "@/lib/jx3box";
 
 /**
  * 奇穴选择器
@@ -238,8 +239,8 @@ export function TalentPicker({
                     </span>
                   )}
                 </p>
-                <p className="mt-1 text-[12px] leading-relaxed text-paper-2">
-                  {detail.desc}
+                <p className="mt-1 whitespace-pre-line text-[12px] leading-relaxed text-paper-2">
+                  {talentText(detail.desc)}
                 </p>
               </div>
             </>

@@ -10,6 +10,7 @@ import { MACRO_LIMIT, cleanMacro, isCommentLine } from "@/lib/macro";
 import { useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { tx } from "@/lib/i18n";
+import { talentText } from "@/lib/jx3box";
 
 // ---------- 变化列表（通知里用） ----------
 
@@ -320,8 +321,8 @@ export function TalentList({
               />
             </button>
             {open && (
-              <p className="animate-fade px-2 pb-2 pl-[62px] pt-0.5 text-[12px] leading-relaxed text-paper-2">
-                {o.desc}
+              <p className="animate-fade whitespace-pre-line px-2 pb-2 pl-[62px] pt-0.5 text-[12px] leading-relaxed text-paper-2">
+                {talentText(o.desc)}
               </p>
             )}
           </li>

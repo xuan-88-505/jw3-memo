@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronRight,
+  ArrowUpRight,
   History,
   Info,
   Lock,
@@ -22,6 +23,7 @@ import { InlineModal } from "@/components/common/overlay";
 import {
   Avatar,
   Btn,
+  btnClass,
   IconBtn,
   SectionLabel,
   Segmented,
@@ -36,6 +38,7 @@ import {
 } from "@/data/types";
 import { diffVersions } from "@/lib/diff";
 import { relativeTime } from "@/lib/format";
+import { jx3boxMacroUrl } from "@/lib/jx3box";
 import { MACRO_LIMIT, cleanMacro, lintMacro } from "@/lib/macro";
 import {
   activeSchemeId,
@@ -752,6 +755,20 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
                   {other}
                 </Btn>
               )}
+              <a
+                href={jx3boxMacroUrl(xinfa)}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={tx("去魔盒看{0}的宏和奇穴", xinfa)}
+                title={tx("去魔盒看{0}的宏和奇穴", xinfa)}
+                className={cn(btnClass("secondary", "sm"), "gap-1")}
+              >
+                {tx("魔盒")}
+                <ArrowUpRight
+                  className="h-3.5 w-3.5 text-paper-3"
+                  aria-hidden="true"
+                />
+              </a>
               {last && (
                 <Btn
                   variant="secondary"
