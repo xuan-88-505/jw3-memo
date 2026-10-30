@@ -4,7 +4,7 @@ import { XINFA_META } from "@/data/seed";
 import { xinfaIconUrl } from "@/data/xinfaIcons";
 import { cn } from "@/lib/utils";
 
-/** 朱砂方印：两道平行短横，像两根调到同一个音的琴弦 */
+/** 品牌标记：黄鸡大笑（游戏表情第 1 帧），和托盘图标、应用图标同一只 */
 export function BrandSeal({
   size = 24,
   className,
@@ -13,37 +13,9 @@ export function BrandSeal({
   className?: string;
 }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      className={className}
-      aria-hidden="true"
-    >
-      <rect x="1" y="1" width="22" height="22" rx="4.5" fill="#D2462F" />
-      <rect
-        x="3.2"
-        y="3.2"
-        width="17.6"
-        height="17.6"
-        rx="3"
-        fill="none"
-        stroke="#F6D9CF"
-        strokeOpacity="0.35"
-      />
-      <path
-        d="M6.5 9.4h11"
-        stroke="#FFF4EC"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M6.5 14.6h11"
-        stroke="#FFF4EC"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
+    <span className={cn("inline-flex shrink-0", className)} aria-hidden="true">
+      <Huangji mood="大笑" size={size} />
+    </span>
   );
 }
 

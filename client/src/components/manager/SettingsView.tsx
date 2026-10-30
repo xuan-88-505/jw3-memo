@@ -30,7 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SectionHeader } from "./shared";
 
-const APP_VERSION = IS_DESKTOP ? "1.0.2" : "v0.1.0";
+const APP_VERSION = IS_DESKTOP ? "1.0.3" : "v0.1.0";
 
 const MOTION_DESC: Record<TrayMotion, string> = {
   hover: "鼠标移上去时动；有新的更新时动 3 秒",
