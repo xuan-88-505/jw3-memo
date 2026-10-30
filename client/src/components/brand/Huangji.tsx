@@ -44,7 +44,7 @@ export function huangjiSrc(mood: HuangjiMood, animated = false) {
 }
 
 /** 系统开启"减少动态效果"时只显示静态图 */
-function useReducedMotion() {
+export function useReducedMotion() {
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");

@@ -88,25 +88,23 @@ export function SettingsView() {
               ))}
             </SelectBox>
           </SettingRow>
-          {/* 系统托盘图标是静态图，桌面版没有动效可选 */}
-          {!IS_DESKTOP && (
-            <SettingRow
-              titleId="set-motion"
-              title={tx("托盘表情动效")}
-              desc={tx(MOTION_DESC[state.trayMotion])}
-            >
-              <Segmented<TrayMotion>
-                label={tx("托盘表情动效")}
-                value={state.trayMotion}
-                onChange={actions.setTrayMotion}
-                options={[
-                  { value: "hover", label: tx("悬停时") },
-                  { value: "always", label: tx("一直动") },
-                  { value: "off", label: tx("不动") },
-                ]}
-              />
-            </SettingRow>
-          )}
+          {/* 桌面版由 src-tauri/src/tray_motion.rs 轮换托盘图标的两帧 */}
+          <SettingRow
+            titleId="set-motion"
+            title={tx("托盘表情动效")}
+            desc={tx(MOTION_DESC[state.trayMotion])}
+          >
+            <Segmented<TrayMotion>
+              label={tx("托盘表情动效")}
+              value={state.trayMotion}
+              onChange={actions.setTrayMotion}
+              options={[
+                { value: "hover", label: tx("悬停时") },
+                { value: "always", label: tx("一直动") },
+                { value: "off", label: tx("不动") },
+              ]}
+            />
+          </SettingRow>
           <SettingRow
             titleId="set-launch"
             title={tx("开机自动启动")}

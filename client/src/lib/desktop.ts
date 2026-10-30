@@ -100,6 +100,9 @@ export const setPanelRect = (r: Rect, moved: boolean) =>
 export const startDragging = () => getCurrentWindow().startDragging();
 export const setTrayBadge = (count: number, tip: string) =>
   invoke<void>("set_tray_badge", { count, tip });
+/** 托盘黄鸡动效：悬停时 / 一直动 / 不动（见 src-tauri/src/tray_motion.rs） */
+export const setTrayMotion = (mode: "hover" | "always" | "off") =>
+  invoke<void>("set_tray_motion", { mode });
 /** 托盘菜单和窗口标题，按界面语言 */
 export const setUiTexts = (texts: {
   title: string;

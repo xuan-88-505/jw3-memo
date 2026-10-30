@@ -7,6 +7,8 @@
 //! 数据存成应用数据目录下的一个 `data.json`，由前端整体读写。
 //! 一个窗口保存后，通知另一个窗口重新读取。
 
+mod tray_motion;
+
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -22,10 +24,14 @@ use tauri::{
     AppHandle, Emitter, EventTarget, LogicalPosition, LogicalSize, Manager, PhysicalPosition,
     Theme, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Window, WindowEvent,
 };
+use tray_motion::TrayMotion;
 
 const PANEL: &str = "panel";
 const MANAGER: &str = "manager";
 const TRAY_ID: &str = "main";
+/// 托盘图标：黄鸡大笑静态图，和动图第 1 帧一样；动图第 2 帧见 tray_motion.rs
+const TRAY_ICON: &[u8] = include_bytes!("../icons/tray.png");
+const TRAY_ICON_ANIM: &[u8] = include_bytes!("../icons/tray-anim.png");
 /// 面板默认尺寸（逻辑像素），和前端 client/src/lib/panelSize.ts 一致
 const PANEL_W: f64 = 360.0;
 const PANEL_H: f64 = 500.0;
@@ -380,8 +386,11 @@ fn open_manager(app: AppHandle, req: serde_json::Value) {
 
 /// 托盘提示：Windows 显示在悬停提示里，Mac 显示在菜单栏图标旁边。
 /// `tip` 由页面按界面语言给出；旧页面没传时用中文。
+/// 更新条数变多时，托盘黄鸡动 3 秒（「悬停时」模式）。
 #[tauri::command]
 fn set_tray_badge(app: AppHandle, count: u32, tip: Option<String>) {
+    app.state::<TrayMotion>()
+        .update(|m, now| m.on_count(count, now));
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
         return;
     };
@@ -398,6 +407,14 @@ fn set_tray_badge(app: AppHandle, count: u32, tip: Option<String>) {
         let title = (count > 0).then(|| count.to_string());
         let _ = tray.set_title(title);
     }
+}
+
+/// 托盘黄鸡动效：hover（悬停时）/ always（一直动）/ off（不动）
+#[tauri::command]
+fn set_tray_motion(app: AppHandle, mode: String) -> Result<(), String> {
+    let mode = tray_motion::Mode::parse(&mode).ok_or_else(|| format!("未知的动效模式：{mode}"))?;
+    app.state::<TrayMotion>().update(|m, _| m.set_mode(mode));
+    Ok(())
 }
 
 /// 托盘右键菜单。菜单项 id 不变，换语言时只换文字
@@ -467,8 +484,9 @@ fn create_windows(app: &tauri::App) -> tauri::Result<()> {
 
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     let menu = tray_menu(app, "打开备忘录", "退出")?;
+    let still = Image::from_bytes(TRAY_ICON)?;
     TrayIconBuilder::with_id(TRAY_ID)
-        .icon(Image::from_bytes(include_bytes!("../icons/tray.png"))?)
+        .icon(still.clone())
         .tooltip("备忘录")
         .menu(&menu)
         .show_menu_on_left_click(false)
@@ -481,22 +499,36 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
             }
             _ => {}
         })
-        .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click {
+        .on_tray_icon_event(|tray, event| match event {
+            // 鼠标移上去、移开：黄鸡动或停（Windows、macOS 才有这两个事件）
+            TrayIconEvent::Enter { .. } => tray
+                .app_handle()
+                .state::<TrayMotion>()
+                .update(|m, _| m.set_hovering(true)),
+            TrayIconEvent::Leave { .. } => tray
+                .app_handle()
+                .state::<TrayMotion>()
+                .update(|m, _| m.set_hovering(false)),
+            TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
                 rect,
                 ..
-            } = event
-            {
+            } => {
                 let app = tray.app_handle();
                 let p = rect.position.to_physical::<f64>(1.0);
                 let s = rect.size.to_physical::<f64>(1.0);
                 panel_state(app).tray = Some((p.x, p.y, s.width, s.height));
                 toggle(app, true);
             }
+            _ => {}
         })
         .build(app)?;
+    tray_motion::spawn(
+        app.handle().clone(),
+        TRAY_ID,
+        [still, Image::from_bytes(TRAY_ICON_ANIM)?],
+    );
     Ok(())
 }
 
@@ -566,6 +598,7 @@ pub fn run() {
             Some(vec!["--hidden"]),
         ))
         .manage(AppState(Mutex::new(Panel::default())))
+        .manage(TrayMotion::default())
         .invoke_handler(tauri::generate_handler![
             load_data,
             save_data,
@@ -579,6 +612,7 @@ pub fn run() {
             set_panel_rect,
             open_manager,
             set_tray_badge,
+            set_tray_motion,
             set_ui_texts,
         ])
         .on_window_event(on_window_event)

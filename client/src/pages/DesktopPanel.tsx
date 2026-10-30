@@ -1,4 +1,5 @@
 import { useEffect, useRef, type PointerEvent } from "react";
+import { useReducedMotion } from "@/components/brand/Huangji";
 import { ResizeEdges } from "@/components/panel/ResizeEdges";
 import { fromControl } from "@/components/desktop/DesktopScreen";
 import { TrayPanel } from "@/components/panel/TrayPanel";
@@ -12,6 +13,7 @@ import {
   setPanelRect,
   setPinned,
   setTrayBadge,
+  setTrayMotion,
   setUiTexts,
   startDragging,
   togglePanel,
@@ -63,6 +65,11 @@ export default function DesktopPanel() {
       pending > 0 ? tx("备忘录 · {0} 条更新", pending) : tx("备忘录")
     );
   }, [pending, lang]);
+  // 托盘黄鸡动效；系统开了"减少动态效果"时不动
+  const reduced = useReducedMotion();
+  useEffect(() => {
+    void setTrayMotion(reduced ? "off" : state.trayMotion);
+  }, [state.trayMotion, reduced]);
   // 托盘菜单和窗口标题跟着界面语言
   useEffect(() => {
     void setUiTexts({
