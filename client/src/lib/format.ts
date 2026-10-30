@@ -2,16 +2,30 @@ import type { Platform, Role } from "@/data/types";
 import { IS_DESKTOP, writeClipboard } from "@/lib/desktop";
 import { getLang, monthDay, tx } from "@/lib/i18n";
 
-export function relativeTime(iso: string, now = Date.now()): string {
+/**
+ * 相对时间。inline 为真时用于句子中间（如「Updated {0}」）：英文、西语的「Just now」
+ * 「Hace 1 día」首字母改小写；超过 7 天返回的日期（如 Oct 20）不动。
+ */
+export function relativeTime(
+  iso: string,
+  now = Date.now(),
+  inline = false
+): string {
   const t = new Date(iso).getTime();
   const diff = Math.max(0, now - t);
   const min = Math.floor(diff / 60000);
-  if (min < 1) return tx("刚刚");
-  if (min < 60) return min === 1 ? tx("1 分钟前") : tx("{0} 分钟前", min);
+  const lang = getLang();
+  const rel = (s: string) =>
+    inline && (lang === "en" || lang === "es")
+      ? s.charAt(0).toLowerCase() + s.slice(1)
+      : s;
+  if (min < 1) return rel(tx("刚刚"));
+  if (min < 60) return rel(min === 1 ? tx("1 分钟前") : tx("{0} 分钟前", min));
   const hour = Math.floor(min / 60);
-  if (hour < 24) return hour === 1 ? tx("1 小时前") : tx("{0} 小时前", hour);
+  if (hour < 24)
+    return rel(hour === 1 ? tx("1 小时前") : tx("{0} 小时前", hour));
   const day = Math.floor(hour / 24);
-  if (day < 7) return day === 1 ? tx("1 天前") : tx("{0} 天前", day);
+  if (day < 7) return rel(day === 1 ? tx("1 天前") : tx("{0} 天前", day));
   const d = new Date(t);
   return monthDay(d);
 }

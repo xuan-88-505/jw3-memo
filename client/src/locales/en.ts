@@ -177,7 +177,7 @@ const dict: Record<string, string> = {
   "未命名宏": "Unnamed macro",
   "有宏没写名字": "Some macros have no name",
   "新宏 {0}": "New macro {0}",
-  "{0}更新": "{0} update",
+  "{0}更新": "Updated {0}",
   "新方案，还没保存": "New preset, not saved yet",
   "添加 {0} 方案": "Add {0} preset",
   "历史版本": "Version history",
@@ -913,5 +913,6 @@ const dict: Record<string, string> = {
   "取消收藏": "Remove from favorites",
   "取消收藏 {0}": "Remove {0} from favorites",
   "说明（选填）": "Description (optional)",
+  "{0} 创建": "Created by {0}",
 };
 export default dict;

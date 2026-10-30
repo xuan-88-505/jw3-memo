@@ -913,5 +913,6 @@ const dict: Record<string, string> = {
   "取消收藏": "즐겨찾기 해제",
   "取消收藏 {0}": "{0} 즐겨찾기 해제",
   "说明（选填）": "설명 (선택)",
+  "{0} 创建": "{0} 님이 생성",
 };
 export default dict;

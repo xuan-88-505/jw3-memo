@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   AlertTriangle,
   ChevronDown,
@@ -20,7 +27,13 @@ import {
   Segmented,
 } from "@/components/common/ui";
 import { ME_ID, XINFA_LIST, layersOf, xinfasOf } from "@/data/seed";
-import { MODES, type Macro, type Mode, type SchemeVersion } from "@/data/types";
+import {
+  MODES,
+  type Macro,
+  type Member,
+  type Mode,
+  type SchemeVersion,
+} from "@/data/types";
 import { diffVersions } from "@/lib/diff";
 import { absoluteTime, relativeTime } from "@/lib/format";
 import { MACRO_LIMIT, cleanMacro, lintMacro } from "@/lib/macro";
@@ -200,7 +213,7 @@ function SchemeList() {
         />
       </nav>
       {/* 二级页入口：所有方案的修改时间线 */}
-      <div className="border-t border-paper/[0.07] p-2">
+      <div className="p-2">
         <button
           type="button"
           onClick={() => actions.openChangelog()}
@@ -393,7 +406,7 @@ function SchemeTitle({
 
   if (!editable) {
     return (
-      <h1 className="truncate text-[20px] font-semibold leading-tight">
+      <h1 className="break-words text-[20px] font-semibold leading-tight">
         {shown}
       </h1>
     );
@@ -423,26 +436,29 @@ function SchemeTitle({
 
   return (
     <h1 className="text-[20px] font-semibold leading-tight">
-      {/* 隐藏的文字和输入框叠在同一格，输入框宽度跟着文字走 */}
+      {/* 隐藏的文字和输入框叠在同一格：宽度跟着文字走，放不下时两者一起折行、一起长高 */}
       <span className="-ml-1.5 inline-grid max-w-full align-middle">
         <span
           aria-hidden="true"
-          className="invisible col-start-1 row-start-1 overflow-hidden whitespace-pre px-1.5"
+          className="invisible col-start-1 row-start-1 whitespace-pre-wrap break-words px-1.5 py-1.5"
         >
           {(value || fallback) + " "}
         </span>
-        <input
+        <textarea
+          rows={1}
           value={value}
-          size={1}
           maxLength={24}
           spellCheck={false}
           aria-label={tx("方案标题")}
           title={tx("点击修改标题，清空后恢复默认")}
           placeholder={fallback}
-          onChange={e => setValue(e.target.value)}
+          // 标题只有一行：粘贴进来的换行换成空格
+          onChange={e => setValue(e.target.value.replace(/\s*\n\s*/g, " "))}
           onKeyDown={e => {
-            if (e.key === "Enter") e.currentTarget.blur();
-            else if (e.key === "Escape") {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              e.currentTarget.blur();
+            } else if (e.key === "Escape") {
               e.stopPropagation();
               cancelRef.current = true;
               e.currentTarget.blur();
@@ -450,7 +466,7 @@ function SchemeTitle({
           }}
           onBlur={commit}
           className={cn(
-            "col-start-1 row-start-1 h-9 w-full min-w-0 rounded-md bg-transparent px-1.5 text-paper outline-none transition-colors placeholder:text-paper-3",
+            "col-start-1 row-start-1 block h-full w-full min-w-0 resize-none overflow-hidden rounded-md bg-transparent px-1.5 py-1.5 text-paper outline-none transition-colors placeholder:text-paper-3",
             "hover:bg-paper/[0.05] focus:bg-paper/[0.04] focus:ring-1 focus:ring-inset focus:ring-cinnabar-text/50"
           )}
         />
@@ -459,6 +475,122 @@ function SchemeTitle({
   );
 }
 
+/**
+ * 方案标题行：图标 | 标题 | 作者信息 | 操作（加宏、加另一个模式、历史版本）。
+ * 实测「标题排一行的宽度 + 作者信息 + 操作」：放得下就排成一行，作者信息靠右；
+ * 放不下时作者信息换到第二行，并横跨到操作按钮下面。标题本身也能折行。
+ * 这样任何语言、任何窗口宽度下标题都不会被截断。
+ */
+function SchemeHeader({
+  mark,
+  title,
+  titleText,
+  meta,
+  actions,
+}: {
+  mark: ReactNode;
+  title: ReactNode;
+  /** 标题文字，只用来量它排成一行有多宽 */
+  titleText: string;
+  meta: ReactNode;
+  actions: ReactNode;
+}) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const markRef = useRef<HTMLDivElement>(null);
+  const probeRef = useRef<HTMLSpanElement>(null);
+  const metaRef = useRef<HTMLParagraphElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const [stack, setStack] = useState(false);
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    const fit = () => {
+      const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
+      // 作者信息用 w-max，两种排法下宽度一样，所以判断结果不会来回跳
+      const need =
+        (markRef.current?.offsetWidth ?? 0) +
+        (probeRef.current?.offsetWidth ?? 0) +
+        (metaRef.current?.offsetWidth ?? 0) +
+        (actionsRef.current?.offsetWidth ?? 0) +
+        gap * 3;
+      setStack(row.clientWidth + 0.5 < need);
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    for (const el of [
+      row,
+      probeRef.current,
+      metaRef.current,
+      actionsRef.current,
+    ])
+      if (el) ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div
+      ref={rowRef}
+      className="relative grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-3.5 gap-y-1"
+    >
+      {/* 量标题排成一行的宽度；左右内边距和可编辑标题一致 */}
+      <span
+        ref={probeRef}
+        aria-hidden="true"
+        className="pointer-events-none invisible absolute left-0 top-0 whitespace-pre px-1.5 text-[20px] font-semibold leading-tight"
+      >
+        {titleText}
+      </span>
+      <div
+        ref={markRef}
+        className={cn("col-start-1 row-start-1", stack && "row-span-2")}
+      >
+        {mark}
+      </div>
+      <div
+        className={cn(
+          "row-start-1 min-w-0",
+          stack ? "col-start-2 col-end-4" : "col-start-2"
+        )}
+      >
+        {title}
+      </div>
+      <p
+        ref={metaRef}
+        className={cn(
+          "flex w-max max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12.5px] text-paper-3",
+          stack
+            ? "col-start-2 col-end-5 row-start-2 justify-self-start"
+            : "col-start-3 row-start-1 justify-self-end"
+        )}
+      >
+        {meta}
+      </p>
+      <div
+        ref={actionsRef}
+        className="col-start-4 row-start-1 flex items-center gap-0.5"
+      >
+        {actions}
+      </div>
+    </div>
+  );
+}
+/** 「{0} 创建」：按当前语言的语序把头像和名字放进 {0}，比如英文是 Created by 八八 */
+function CreatedBy({
+  member,
+  name,
+}: {
+  member: Member | undefined;
+  name: string;
+}) {
+  const [before = "", after = ""] = tx("{0} 创建").split("{0}");
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      {before.trim() && <span>{before.trim()}</span>}
+      {member && <Avatar member={member} size={16} />}
+      <span className="text-paper-2">{name}</span>
+      {after.trim() && <span>{after.trim()}</span>}
+    </span>
+  );
+}
 function SchemeEditor({ schemeId }: { schemeId: string }) {
   const { state, actions } = useProto();
   const [xinfa, mode] = schemeId.split("-") as [string, Mode];
@@ -558,76 +690,80 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
   return (
     <div className="flex min-h-full flex-col">
       <div className="flex-1 px-7 pb-6 pt-6">
-        <div className="flex items-center gap-3.5">
-          <XinfaMark xinfa={xinfa} size={40} />
-          <div className="min-w-0 flex-1">
+        <SchemeHeader
+          mark={<XinfaMark xinfa={xinfa} size={40} />}
+          titleText={(scheme?.title ?? draft?.title) || `${xinfa} · ${mode}`}
+          title={
             <SchemeTitle
               schemeId={schemeId}
               title={scheme?.title ?? draft?.title}
               fallback={`${xinfa} · ${mode}`}
               editable={editable && online}
             />
-          </div>
-          <p className="flex shrink-0 items-center gap-1.5 text-[12.5px] text-paper-3">
-            {last ? (
+          }
+          meta={
+            last ? (
               <>
                 {!solo && (
                   <>
-                    {creator && <Avatar member={creator} size={16} />}
-                    <span className="text-paper-2">
-                      {creator?.name ?? memberName(state, creatorId ?? "")}
-                    </span>
-                    <span>{tx("创建")}</span>
+                    <CreatedBy
+                      member={creator}
+                      name={creator?.name ?? memberName(state, creatorId ?? "")}
+                    />
                     <span aria-hidden="true">·</span>
                   </>
                 )}
-                <span title={absoluteTime(last.at)}>
-                  {tx("{0}更新", relativeTime(last.at))}
+                <span
+                  className="whitespace-nowrap"
+                  title={absoluteTime(last.at)}
+                >
+                  {tx("{0}更新", relativeTime(last.at, Date.now(), true))}
                 </span>
               </>
             ) : (
               tx("新方案，还没保存")
-            )}
-          </p>
-          {/* 操作放在一起：加宏、加另一个模式、历史版本（只用图标） */}
-          <div className="flex shrink-0 items-center gap-0.5">
-            {editable && (
-              <Btn
-                variant="ghost"
-                size="sm"
-                aria-label={tx("添加宏")}
-                title={tx("添加宏")}
-                icon={<Plus className="h-3.5 w-3.5" />}
-                onClick={addMacro}
-              >
-                {tx("宏")}
-              </Btn>
-            )}
-            {last && editable && !otherExists && (
-              <Btn
-                variant="ghost"
-                size="sm"
-                aria-label={tx("添加 {0} 方案", other)}
-                title={tx("添加 {0} 方案", other)}
-                icon={<Plus className="h-3.5 w-3.5" />}
-                onClick={() => actions.startDraft(xinfa, other)}
-              >
-                {other}
-              </Btn>
-            )}
-            {last && (
-              <Btn
-                variant="ghost"
-                size="sm"
-                aria-label={tx("历史版本")}
-                title={tx("历史版本")}
-                className="w-7 px-0"
-                icon={<History className="h-3.5 w-3.5" />}
-                onClick={() => actions.openChangelog(xinfa)}
-              />
-            )}
-          </div>
-        </div>
+            )
+          }
+          actions={
+            <>
+              {editable && (
+                <Btn
+                  variant="ghost"
+                  size="sm"
+                  aria-label={tx("添加宏")}
+                  title={tx("添加宏")}
+                  icon={<Plus className="h-3.5 w-3.5" />}
+                  onClick={addMacro}
+                >
+                  {tx("宏")}
+                </Btn>
+              )}
+              {last && editable && !otherExists && (
+                <Btn
+                  variant="ghost"
+                  size="sm"
+                  aria-label={tx("添加 {0} 方案", other)}
+                  title={tx("添加 {0} 方案", other)}
+                  icon={<Plus className="h-3.5 w-3.5" />}
+                  onClick={() => actions.startDraft(xinfa, other)}
+                >
+                  {other}
+                </Btn>
+              )}
+              {last && (
+                <Btn
+                  variant="ghost"
+                  size="sm"
+                  aria-label={tx("历史版本")}
+                  title={tx("历史版本")}
+                  className="w-7 px-0"
+                  icon={<History className="h-3.5 w-3.5" />}
+                  onClick={() => actions.openChangelog(xinfa)}
+                />
+              )}
+            </>
+          }
+        />
 
         {!editable && (
           <div className="mt-4 flex items-center gap-2 rounded-lg bg-paper/[0.04] px-3 py-2 text-[12.5px] text-paper-2 ring-1 ring-inset ring-paper/10">
