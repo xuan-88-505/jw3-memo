@@ -1,10 +1,4 @@
-import {
-  ArrowDown,
-  ArrowLeftRight,
-  ArrowUp,
-  GitCompare,
-  Plus,
-} from "lucide-react";
+import { ArrowDown, ArrowLeftRight, ArrowUp, Plus } from "lucide-react";
 import { useState } from "react";
 import { XinfaMark } from "@/components/brand/Marks";
 import { Btn, IconBtn, Segmented } from "@/components/common/ui";
@@ -143,7 +137,7 @@ export function CompareView({
   if (!b) {
     return (
       <EmptyState
-        icon={<GitCompare className="h-5 w-5" />}
+        icon="swords"
         title={`${a.xinfa}只有这一套配装`}
         description="再建一套同心法的配装，就能对比属性"
         action={

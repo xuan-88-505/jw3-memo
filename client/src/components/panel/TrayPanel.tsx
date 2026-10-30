@@ -4,18 +4,10 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import {
-  AppWindow,
-  Bell,
-  BookOpen,
-  ChevronDown,
-  Pin,
-  Plus,
-  UserPlus,
-  Users,
-} from "lucide-react";
+import { AppWindow, Bell, ChevronDown, Pin, Plus, Users } from "lucide-react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { Wordmark, XinfaMark } from "@/components/brand/Marks";
+import { PixelIcon } from "@/components/brand/PixelIcon";
 import { OfflineBar, ToastStack } from "@/components/common/overlay";
 import { Btn, IconBtn, Segmented } from "@/components/common/ui";
 import { schoolLabel, xinfasOf } from "@/data/seed";
@@ -513,13 +505,11 @@ function NoScheme({
   const { state } = useProto();
   const viewer = me(state)?.role === "viewer";
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-8 pb-6 text-center">
+    <div className="empty-state flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-8 pb-6 text-center">
       {xinfa ? (
         <XinfaMark xinfa={xinfa} size={40} className="opacity-60" />
       ) : (
-        <span className="grid h-10 w-10 place-items-center rounded-full bg-paper/[0.05] text-paper-3">
-          <BookOpen className="h-[18px] w-[18px]" aria-hidden="true" />
-        </span>
+        <PixelIcon name="book" className="pixel-hop" />
       )}
       <p className="text-[13.5px] text-paper-2">
         {xinfa ?? ""}还没有 {mode} 方案
@@ -554,10 +544,8 @@ function NoCharacters({ onAdd }: { onAdd: () => void }) {
         )}
       </header>
       <OfflineBar compact />
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 pb-6 text-center">
-        <span className="grid h-10 w-10 place-items-center rounded-full bg-paper/[0.05] text-paper-3">
-          <UserPlus className="h-5 w-5" aria-hidden="true" />
-        </span>
+      <div className="empty-state flex flex-1 flex-col items-center justify-center gap-3 px-8 pb-6 text-center">
+        <PixelIcon name="hero" className="pixel-hop" />
         <p className="text-[13.5px] text-paper-2">还没有角色</p>
         <Btn
           variant="primary"

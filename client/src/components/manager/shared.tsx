@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { EMPTY_ICON } from "@/components/common/surface";
+import { PixelIcon, type PixelIconName } from "@/components/brand/PixelIcon";
 import { ChevronDown, ChevronLeft } from "lucide-react";
 import { Jx3Icon } from "@/components/brand/Marks";
 import type { SchemeDiff } from "@/lib/diff";
@@ -232,21 +232,25 @@ export const inputCls = (error?: boolean) =>
       : "ring-paper/10 hover:ring-paper/[0.18] focus:ring-cinnabar-text/60"
   );
 
+/**
+ * 空状态：像素图标 + 标题 + 说明 + 操作，在父元素剩下的空间里上下左右居中。
+ * 父元素要是纵向 flex 才能撑满；底部留白比顶部多一点，看起来才居中。
+ */
 export function EmptyState({
   icon,
   title,
   description,
   action,
 }: {
-  icon: ReactNode;
+  icon: PixelIconName;
   title: string;
   description?: string;
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
-      <span className={EMPTY_ICON}>{icon}</span>
-      <p className="mt-3.5 text-[14px] font-medium text-paper">{title}</p>
+    <div className="empty-state flex min-h-[240px] flex-1 flex-col items-center justify-center px-6 pb-16 pt-10 text-center">
+      <PixelIcon name={icon} className="pixel-hop" />
+      <p className="mt-4 text-[14px] font-medium text-paper">{title}</p>
       {description && (
         <p className="mt-1.5 max-w-[340px] text-[12.5px] leading-relaxed text-paper-3">
           {description}

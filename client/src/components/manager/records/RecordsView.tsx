@@ -35,7 +35,7 @@ export function RecordsView() {
   ];
 
   return (
-    <div>
+    <div className="flex flex-1 flex-col">
       <SectionHeader
         title="记录"
         right={

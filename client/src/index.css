@@ -220,6 +220,20 @@
       background-position: -200% 0;
     }
   }
+
+  /* 空状态的像素图标：鼠标移到空状态上时两帧跳动，一次跳一格（48px 图标一格 3px） */
+  .empty-state:hover .pixel-hop {
+    animation: pixel-hop 0.7s steps(1, end) infinite;
+  }
+  @keyframes pixel-hop {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-3px);
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

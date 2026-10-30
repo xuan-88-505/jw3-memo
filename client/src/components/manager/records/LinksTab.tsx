@@ -155,7 +155,7 @@ export function LinksTab() {
   };
 
   return (
-    <div className="relative" {...drag}>
+    <div className="relative flex flex-1 flex-col" {...drag}>
       <form
         className="flex items-center gap-2"
         onSubmit={e => {
@@ -236,10 +236,7 @@ export function LinksTab() {
       )}
 
       {links.length === 0 ? (
-        <EmptyState
-          icon={<Link2 className="h-4 w-4" />}
-          title="还没有链接或图片"
-        />
+        <EmptyState icon="pigeon" title="还没有链接或图片" />
       ) : (
         <ul className={cn("-mx-3 mt-4", DIVIDE)} aria-label="链接和图片">
           {links.map(l => {

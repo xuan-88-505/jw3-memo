@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Pencil, Plus, Trash2, UserPlus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { InlineModal } from "@/components/common/overlay";
 import { Btn, IconBtn } from "@/components/common/ui";
@@ -47,7 +47,7 @@ export function CharactersView() {
   const showScore = mine.some(c => loadoutOf.get(c.id));
 
   return (
-    <div>
+    <div className="flex flex-1 flex-col">
       <SectionHeader
         title="我的角色"
         right={
@@ -66,7 +66,7 @@ export function CharactersView() {
 
       {mine.length === 0 ? (
         <EmptyState
-          icon={<UserPlus className="h-5 w-5" />}
+          icon="hero"
           title="还没有角色"
           action={
             <Btn

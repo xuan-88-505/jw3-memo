@@ -38,7 +38,3 @@ export const TD = "px-3 py-2.5";
 
 /** 分区标题 */
 export const SECTION_TITLE = "text-[14px] font-medium text-paper";
-
-/** 空状态里的图标圆 */
-export const EMPTY_ICON =
-  "grid h-10 w-10 place-items-center rounded-full bg-paper/[0.05] text-paper-3";

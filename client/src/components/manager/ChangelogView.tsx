@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, ChevronDown, History, Plus } from "lucide-react";
+import { Check, ChevronDown, Plus } from "lucide-react";
 import { XinfaMark } from "@/components/brand/Marks";
 import { FilterChip } from "@/components/common/FilterChip";
 import { InlineModal } from "@/components/common/overlay";
@@ -85,7 +85,7 @@ export function ChangelogView() {
   const showFilter = total > 0 && (filter !== "全部" || entries.length > 0);
 
   return (
-    <div>
+    <div className="flex flex-1 flex-col">
       <SectionHeader
         title="修改记录"
         back={{ label: "方案库", onClick: actions.closeChangelog }}
@@ -130,14 +130,11 @@ export function ChangelogView() {
       )}
 
       {total === 0 ? (
-        <EmptyState
-          icon={<History className="h-5 w-5" />}
-          title="还没有修改记录"
-        />
+        <EmptyState icon="scroll" title="还没有修改记录" />
       ) : filter === "全部" && entries.length === 0 ? (
         // 别的心法有记录，但没关注
         <EmptyState
-          icon={<History className="h-5 w-5" />}
+          icon="scroll"
           title={
             followed.length === 0
               ? "还没有关注的心法"
@@ -154,10 +151,7 @@ export function ChangelogView() {
           }
         />
       ) : groups.length === 0 ? (
-        <EmptyState
-          icon={<History className="h-5 w-5" />}
-          title="还没有修改记录"
-        />
+        <EmptyState icon="scroll" title="还没有修改记录" />
       ) : (
         <div className="space-y-6">
           {groups.map(g => (

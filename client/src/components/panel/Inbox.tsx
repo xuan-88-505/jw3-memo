@@ -3,14 +3,9 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import {
-  ArrowLeft,
-  BellOff,
-  Check,
-  ChevronDown,
-  ChevronRight,
-} from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronRight } from "lucide-react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
+import { PixelIcon } from "@/components/brand/PixelIcon";
 import { OfflineBar } from "@/components/common/overlay";
 import { Btn, IconBtn } from "@/components/common/ui";
 import { layersOf } from "@/data/seed";
@@ -81,8 +76,8 @@ export function Inbox({
       <OfflineBar compact />
       <div className="scroll-thin min-h-0 flex-1 animate-fade overflow-y-auto">
         {items.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2.5 pb-6 text-paper-3">
-            <BellOff className="h-6 w-6" strokeWidth={1.6} aria-hidden="true" />
+          <div className="empty-state flex h-full flex-col items-center justify-center gap-3 pb-6 text-paper-3">
+            <PixelIcon name="bell" className="pixel-hop" />
             <p className="text-[13px]">没有新通知</p>
           </div>
         ) : (

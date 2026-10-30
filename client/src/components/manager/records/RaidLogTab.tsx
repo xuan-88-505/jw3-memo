@@ -1,11 +1,4 @@
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  Plus,
-  ScrollText,
-  Trash2,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { InlineModal } from "@/components/common/overlay";
@@ -120,7 +113,7 @@ export function RaidLogTab({
       : undefined;
 
   return (
-    <div>
+    <div className="flex flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-2 pb-3">
         <Segmented<Period>
           label="时间范围"
@@ -167,7 +160,7 @@ export function RaidLogTab({
 
       {rows.length === 0 ? (
         <EmptyState
-          icon={<ScrollText className="h-5 w-5" />}
+          icon="chest"
           title={state.raidLogs.length ? "这段时间没有记录" : "还没有打本记录"}
           action={
             <Btn

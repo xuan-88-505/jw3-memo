@@ -55,7 +55,7 @@ export function BlacklistTab({
       : undefined;
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-1 flex-col space-y-4">
       <section aria-label="查人">
         <div className="max-w-[640px]">
           <RoleLookup
@@ -121,10 +121,7 @@ export function BlacklistTab({
       </section>
 
       {rows.length === 0 ? (
-        <EmptyState
-          icon={<ShieldAlert className="h-5 w-5" />}
-          title="避雷名单是空的"
-        />
+        <EmptyState icon="thunder" title="避雷名单是空的" />
       ) : (
         <div className="-mx-3">
           <table className="w-full table-fixed text-left text-[13px]">

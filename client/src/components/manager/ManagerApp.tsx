@@ -248,7 +248,7 @@ export function ManagerApp() {
           ) : state.managerSection === "schemes" ? (
             state.schemesPage === "changelog" ? (
               <div className="scroll-thin h-full overflow-y-auto px-8 pb-10 pt-6">
-                <div className="max-w-[1040px]">
+                <div className="flex min-h-full max-w-[1040px] flex-col">
                   <ChangelogView />
                 </div>
               </div>
@@ -259,7 +259,7 @@ export function ManagerApp() {
             <GearView />
           ) : (
             <div className="scroll-thin h-full overflow-y-auto px-8 pb-10 pt-7">
-              <div className="max-w-[1040px]">
+              <div className="flex min-h-full max-w-[1040px] flex-col">
                 {state.managerSection === "characters" && <CharactersView />}
                 {state.managerSection === "records" && <RecordsView />}
                 {state.managerSection === "team" && <TeamView />}

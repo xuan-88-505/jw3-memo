@@ -1,4 +1,4 @@
-import { ExternalLink, Pencil, Plus, RefreshCw, Shirt } from "lucide-react";
+import { ExternalLink, Pencil, Plus, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Btn, IconBtn } from "@/components/common/ui";
@@ -193,10 +193,10 @@ export function GearView() {
 
   if (!lo && !pending) {
     return (
-      <div className="scroll-thin h-full overflow-y-auto px-8 pb-10 pt-7">
+      <div className="scroll-thin flex h-full flex-col overflow-y-auto px-8 pb-10 pt-7">
         <SectionHeader title="配装" />
         <EmptyState
-          icon={<Shirt className="h-5 w-5" />}
+          icon="sword"
           title="还没有配装"
           description="导入茗伊装备码、魔盒链接，或者手动配"
           action={
@@ -313,7 +313,7 @@ export function GearView() {
       </aside>
 
       {/* 右侧：木桩秒伤和页签；导入时换成导入框 */}
-      <div className="scroll-thin min-w-0 flex-1 overflow-y-auto px-8 pb-8 pt-5">
+      <div className="scroll-thin flex min-w-0 flex-1 flex-col overflow-y-auto px-8 pb-8 pt-5">
         {showImport ? (
           <ImportCard
             key={lo?.id ?? "new"}
@@ -416,7 +416,7 @@ export function GearView() {
               ))}
             </div>
 
-            <div className="pt-5">
+            <div className="flex flex-1 flex-col pt-5">
               {tab === "history" ? (
                 <HistoryPanel
                   lo={lo!}
