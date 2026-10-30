@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "同调",
+  "productName": "JW3 Memo",
   "mainBinaryName": "tongdiao",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "identifier": "com.xuan88.tongdiao",
   "build": {
     "beforeDevCommand": "pnpm dev:static",

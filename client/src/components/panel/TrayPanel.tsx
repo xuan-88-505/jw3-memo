@@ -84,7 +84,7 @@ export function TrayPanel({
 
   return (
     <section
-      aria-label="同调面板"
+      aria-label="备忘录面板"
       className={cn(
         "glass-ink relative flex h-[500px] w-[360px] flex-col overflow-hidden rounded-xl text-paper shadow-[0_28px_70px_-16px_rgb(0_0_0/0.8),0_0_0_1px_rgb(236_230_218/0.1)]",
         className

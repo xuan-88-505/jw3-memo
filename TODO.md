@@ -396,3 +396,11 @@
 - 已验证：Linux 调试版在虚拟屏幕上真机运行：管理窗口显示空白首启；`Ctrl+Alt+Q` 呼出面板；添加角色后 `data.json` 写入磁盘，面板同步显示；重启后数据还在；点管理窗口后面板自动收起。
 - 已验证：GitHub Actions 第一次打包成功（Windows 7 分钟，Mac 11 分钟），Release `v1.0.0` 已发布为 Latest：`Tongdiao_1.0.0_windows_x64-setup.exe`（2.0 MB，NSIS 安装程序）、`Tongdiao_1.0.0_darwin_universal.dmg`（5.1 MB）。Mac 的平台名是 `darwin`，README 和 Release 说明已按实际文件名改正。
 - 未验证：Windows 和 Mac 上的实际运行（托盘位置、菜单栏位置、Mac 透明圆角、开机自启、单实例）。要等 GitHub 打包后在真机上确认。
+
+## 改名：备忘录 / JW3 Memo（2026-10-30 13:35 用户要求：「换成备忘录，英文写成 jw3 memo」）
+
+- [x] 界面里显示的名字改成「备忘录」：标题字标、窗口标题、托盘悬停提示、托盘菜单「打开备忘录」、面板读屏名称、导出文件名「备忘录数据-日期.json」、导入错误提示、网页原型标题和说明。
+- [x] 安装后的软件名、安装包文件名用英文 JW3 Memo（`JW3-Memo_1.0.1_windows_x64-setup.exe`、`JW3-Memo_1.0.1_darwin_universal.dmg`）。原因：Mac 自带的「备忘录」也叫这个名字，软件名用英文可以避免在启动台和聚焦搜索里重名。
+- [x] GitHub 仓库改名为 `jw3-memo`，「检查更新」指向新地址；旧地址由 GitHub 自动跳转。
+- [x] 不改：`identifier`（`com.xuan88.tongdiao`，决定数据存放位置）、本地存储键、事件名、Rust 包名和可执行文件名 `tongdiao`。升级后数据还在。
+- [x] 版本升到 1.0.1。README 和 Release 说明写清从「同调」升级的步骤：先关开机自启，退出，卸载旧版（不要勾选删除应用数据），再装新版。Mac 补充「已损坏」时用 `xattr -cr` 解决。

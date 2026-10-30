@@ -30,7 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SectionHeader } from "./shared";
 
-const APP_VERSION = IS_DESKTOP ? "1.0.0" : "v0.1.0";
+const APP_VERSION = IS_DESKTOP ? "1.0.1" : "v0.1.0";
 
 const MOTION_DESC: Record<TrayMotion, string> = {
   hover: "鼠标移上去时动；有新的更新时动 3 秒",
@@ -187,7 +187,7 @@ function DataRows() {
   const doExport = async () => {
     try {
       const ok = await exportFile(
-        `同调数据-${today()}.json`,
+        `备忘录数据-${today()}.json`,
         serializeData(state)
       );
       if (ok) actions.toast("manager", "success", "已导出");
@@ -200,7 +200,7 @@ function DataRows() {
     if (!file) return;
     const data = parseData(await file.text());
     if (!data) {
-      actions.toast("manager", "error", "这个文件不是同调导出的数据");
+      actions.toast("manager", "error", "这个文件不是备忘录导出的数据");
       return;
     }
     setPending(data);

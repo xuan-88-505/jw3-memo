@@ -1,25 +1,44 @@
-# 同调
+# 备忘录（JW3 Memo）
 
 剑网3（旗舰端）宏和奇穴的统一管理工具，支持 Windows 和 Mac。
 
-同调待在系统托盘（Windows 任务栏右下角）或菜单栏（Mac 屏幕顶部）里。点图标或按快捷键打开面板，查看当前角色的宏和奇穴，一键复制宏。同调不读写游戏文件，不模拟按键，不需要登录。
+备忘录待在系统托盘（Windows 任务栏右下角）或菜单栏（Mac 屏幕顶部）里。点图标或按快捷键打开面板，查看当前角色的宏和奇穴，一键复制宏。备忘录不读写游戏文件，不模拟按键，不需要登录。
 
 ## 下载
 
-到 [Releases](https://github.com/xuan-88-505/tongdiao/releases) 下载最新版本：
+到 [Releases](https://github.com/xuan-88-505/jw3-memo/releases) 下载最新版本：
 
 | 系统 | 下载这个文件 |
 | --- | --- |
-| Windows 10 / 11 | `Tongdiao_*_windows_x64-setup.exe` |
-| Mac（M 芯片和 Intel 芯片都可以） | `Tongdiao_*_darwin_universal.dmg` |
+| Windows 10 / 11 | `JW3-Memo_*_windows_x64-setup.exe` |
+| Mac（M 芯片和 Intel 芯片都可以） | `JW3-Memo_*_darwin_universal.dmg` |
+
+安装后，软件在开始菜单、启动台和「应用程序」里叫 **JW3 Memo**，打开后界面里叫「备忘录」。Mac 自带的「备忘录」也叫这个名字，用英文名可以避免在启动台和聚焦搜索里混淆。
 
 ## 第一次打开
 
-同调没有购买签名证书，系统第一次会拦一下。放行一次以后就不会再拦。
+备忘录没有购买签名证书，系统第一次会拦一下。放行一次以后就不会再拦。
 
 **Windows**：出现「Windows 已保护你的电脑」时，点「更多信息」，再点「仍要运行」。
 
-**Mac**：打开 dmg，把「同调」拖进「应用程序」。第一次打开被拦住时，到「系统设置 → 隐私与安全性」，在页面下方点「仍要打开」。
+**Mac**：打开 dmg，把「JW3 Memo」拖进「应用程序」。第一次打开被拦住时，到「系统设置 → 隐私与安全性」，在页面下方点「仍要打开」。如果提示「已损坏，无法打开」，打开「终端」运行下面这行，再重新打开：
+
+```
+xattr -cr "/Applications/JW3 Memo.app"
+```
+
+## 从「同调」1.0.0 升级
+
+1.0.0 叫「同调」。新版本换了名字，会作为一个新软件安装，旧版不会被自动替换。数据存放的位置没变，新版打开后数据都还在。
+
+1. 打开旧版「同调」，在「设置」里关掉「开机自动启动」。
+2. 右键托盘图标（Mac 上点菜单栏图标），选「退出」。
+3. 删除旧版：
+   - Windows：「设置 → 应用 → 已安装的应用」里找到「同调」，点「卸载」。卸载时**不要勾选**「删除应用程序数据」。
+   - Mac：把「应用程序」里的「同调」拖进废纸篓。
+4. 安装新版 JW3 Memo。
+
+旧版没删时，两个版本会互相占用：打开新版只会把旧版的窗口叫出来。
 
 ## 使用
 
@@ -34,14 +53,16 @@
 
 ## 数据
 
-1.0 是单机版，数据只存在当前这台电脑上：
+1.x 是单机版，数据只存在当前这台电脑上：
 
 - Windows：`%APPDATA%\com.xuan88.tongdiao\data.json`
 - Mac：`~/Library/Application Support/com.xuan88.tongdiao/data.json`
 
+文件夹名里的 `tongdiao` 是旧名字。为了让升级后还能读到原来的数据，这个名字不改。
+
 要在另一台电脑上使用，在「设置 → 数据」里导出，再到另一台电脑上导入。导入会替换那台电脑上原有的数据。
 
-1.0 还没有亲友团协作，以后的版本再加。
+1.x 还没有亲友团协作，以后的版本再加。
 
 ## 开发
 
@@ -50,4 +71,5 @@
 - `pnpm dev:static`：只跑网页原型，浏览器打开 `http://localhost:3000`。
 - `pnpm tauri dev`：以桌面应用运行。
 - `pnpm tauri build`：在本机打包。
-- 推送 `v` 开头的标签（如 `v1.0.1`）后，GitHub Actions 会在 Windows 和 Mac 上打包，并发布到 Releases。版本号在 `src-tauri/tauri.conf.json` 里改。
+- 推送 `v` 开头的标签（如 `v1.0.2`）后，GitHub Actions 会在 Windows 和 Mac 上打包，并发布到 Releases。版本号在 `src-tauri/tauri.conf.json` 里改。
+- 本地存储键、事件名、`identifier`（`com.xuan88.tongdiao`）和 Rust 包名仍用 `tongdiao`。改了会导致已有数据读不到，不要改。

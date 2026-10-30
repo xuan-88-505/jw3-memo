@@ -1,4 +1,4 @@
-//! 同调桌面版。
+//! 备忘录（JW3 Memo）桌面版。
 //!
 //! 两个窗口加载同一个前端页面，前端按窗口 label 选择界面：
 //! - `panel`：托盘 / 菜单栏弹出的面板，无边框，失去焦点时收起（置顶后不收起）。
@@ -283,9 +283,9 @@ fn open_manager(app: AppHandle, req: serde_json::Value) {
 fn set_tray_badge(app: AppHandle, count: u32) {
     let Some(tray) = app.tray_by_id(TRAY_ID) else { return };
     let tip = if count > 0 {
-        format!("同调 · {count} 条更新")
+        format!("备忘录 · {count} 条更新")
     } else {
-        "同调".to_string()
+        "备忘录".to_string()
     };
     let _ = tray.set_tooltip(Some(tip));
     #[cfg(target_os = "macos")]
@@ -299,7 +299,7 @@ fn set_tray_badge(app: AppHandle, count: u32) {
 
 fn create_windows(app: &tauri::App) -> tauri::Result<()> {
     WebviewWindowBuilder::new(app, MANAGER, WebviewUrl::App("index.html".into()))
-        .title("同调")
+        .title("备忘录")
         .inner_size(1180.0, 760.0)
         .min_inner_size(960.0, 640.0)
         .center()
@@ -308,7 +308,7 @@ fn create_windows(app: &tauri::App) -> tauri::Result<()> {
         .build()?;
 
     let panel = WebviewWindowBuilder::new(app, PANEL, WebviewUrl::App("index.html".into()))
-        .title("同调")
+        .title("备忘录")
         .inner_size(PANEL_W, PANEL_H)
         .resizable(false)
         .maximizable(false)
@@ -328,13 +328,13 @@ fn create_windows(app: &tauri::App) -> tauri::Result<()> {
 }
 
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "打开同调", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "打开备忘录", true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&open, &sep, &quit])?;
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(Image::from_bytes(include_bytes!("../icons/tray.png"))?)
-        .tooltip("同调")
+        .tooltip("备忘录")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, e| match e.id().as_ref() {
@@ -441,7 +441,7 @@ pub fn run() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("同调启动失败");
+        .expect("备忘录启动失败");
 
     app.run(|app, event| {
         // Mac：点 Dock 图标时重新打开管理窗口

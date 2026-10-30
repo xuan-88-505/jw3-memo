@@ -48,14 +48,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v__VERSION__
-          releaseName: 同调 v__VERSION__
+          releaseName: 备忘录 JW3 Memo v__VERSION__
           releaseBody: |
             ## 下载
 
             | 系统 | 下载这个文件 |
             | --- | --- |
-            | Windows 10 / 11 | `Tongdiao_*_windows_x64-setup.exe` |
-            | Mac（M 芯片和 Intel 芯片都可以） | `Tongdiao_*_darwin_universal.dmg` |
+            | Windows 10 / 11 | `JW3-Memo_*_windows_x64-setup.exe` |
+            | Mac（M 芯片和 Intel 芯片都可以） | `JW3-Memo_*_darwin_universal.dmg` |
 
             其他文件是给自动更新用的，不用下载。
 
@@ -64,10 +64,10 @@ jobs:
             这个软件没有购买签名证书，系统第一次会拦一下，放行一次以后就不会再拦。
 
             - **Windows**：出现「Windows 已保护你的电脑」时，点「更多信息」→「仍要运行」。
-            - **Mac**：打开 dmg，把「同调」拖进「应用程序」。第一次打开被拦住时，到「系统设置 → 隐私与安全性」，在页面下方点「仍要打开」。
+            - **Mac**：打开 dmg，把「JW3 Memo」拖进「应用程序」。第一次打开被拦住时，到「系统设置 → 隐私与安全性」，在页面下方点「仍要打开」。如果提示「已损坏，无法打开」，打开「终端」运行 `xattr -cr "/Applications/JW3 Memo.app"`，再重新打开。
 
-            打开后，同调会待在 Windows 任务栏右下角的托盘里，或者 Mac 屏幕顶部的菜单栏里。点图标或按 `Ctrl+Alt+Q`（Mac 是 `⌃⌥Q`）打开面板。
+            打开后，备忘录会待在 Windows 任务栏右下角的托盘里，或者 Mac 屏幕顶部的菜单栏里。点图标或按 `Ctrl+Alt+Q`（Mac 是 `⌃⌥Q`）打开面板。
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
-          releaseAssetNamePattern: Tongdiao_[version]_[platform]_[arch][setup][ext]
+          releaseAssetNamePattern: JW3-Memo_[version]_[platform]_[arch][setup][ext]

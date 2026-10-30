@@ -64,7 +64,7 @@ export function Wordmark({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
           text
         )}
       >
-        同调
+        备忘录
       </span>
     </span>
   );

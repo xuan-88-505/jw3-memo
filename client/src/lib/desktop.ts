@@ -27,7 +27,7 @@ export const DESKTOP_PLATFORM: Platform =
     : "win";
 
 /** 发布页：检查更新时打开 */
-export const RELEASES_URL = "https://github.com/xuan-88-505/tongdiao/releases";
+export const RELEASES_URL = "https://github.com/xuan-88-505/jw3-memo/releases";
 
 /** 面板请管理窗口打开某一页 */
 export interface OpenManagerRequest {
@@ -67,7 +67,7 @@ export async function exportFile(name: string, contents: string) {
   const { save } = await import("@tauri-apps/plugin-dialog");
   const path = await save({
     defaultPath: name,
-    filters: [{ name: "同调数据", extensions: ["json"] }],
+    filters: [{ name: "备忘录数据", extensions: ["json"] }],
   });
   if (!path) return false;
   await invoke("write_text_file", { path, contents });

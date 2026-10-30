@@ -413,7 +413,7 @@ export function serializeData(s: ProtoState) {
   return JSON.stringify({ app: DATA_APP, version: DATA_VERSION, data });
 }
 
-/** 解析 data.json 或导入的文件；不是同调的数据时返回 null */
+/** 解析 data.json 或导入的文件；不是备忘录的数据时返回 null */
 export function parseData(raw: string): Partial<ProtoState> | null {
   let v: unknown;
   try {
