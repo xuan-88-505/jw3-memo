@@ -1578,7 +1578,7 @@ function useActions(
       },
       saveLink: (
         id: string,
-        input: Pick<SharedLink, "title" | "url" | "visibility">
+        input: Pick<SharedLink, "title" | "url" | "visibility" | "note">
       ) => {
         update(s => ({
           links: s.links.map(l => (l.id === id ? { ...l, ...input } : l)),

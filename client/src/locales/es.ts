@@ -873,5 +873,6 @@ const dict: Record<string, string> = {
   "新建 {0}": "Crear {0}",
   "添加 {0}": "Añadir {0}",
   "按下组合键": "Pulsa las teclas",
+  "可不填": "Opcional",
 };
 export default dict;

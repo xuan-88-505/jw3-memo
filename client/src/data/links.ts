@@ -19,6 +19,8 @@ export interface SharedLink {
   visibility: LinkVisibility;
   /** 有图片就是图片条目：点开看大图，不跳转 */
   image?: NoteImage;
+  /** 用户写的备注；有备注时列表第二行显示备注，不显示网址 */
+  note?: string;
 }
 
 /** 常见站点的中文名，用于自动起名和显示来源 */

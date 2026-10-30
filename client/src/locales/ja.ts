@@ -873,5 +873,6 @@ const dict: Record<string, string> = {
   "新建 {0}": "{0} を新規作成",
   "添加 {0}": "{0} を追加",
   "按下组合键": "キーを押してください",
+  "可不填": "任意",
 };
 export default dict;

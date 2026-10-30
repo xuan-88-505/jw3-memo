@@ -873,5 +873,6 @@ const dict: Record<string, string> = {
   "新建 {0}": "새 {0}",
   "添加 {0}": "{0} 추가",
   "按下组合键": "키를 누르세요",
+  "可不填": "선택 사항",
 };
 export default dict;

@@ -1,9 +1,10 @@
 import {
-  useEffect,
-  useRef,
-  useState,
   type ClipboardEvent,
   type DragEvent,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
 } from "react";
 import {
   ExternalLink,
@@ -156,207 +157,221 @@ export function LinksTab() {
   };
 
   return (
-    <div className="relative flex flex-1 flex-col" {...drag}>
-      <form
-        className="flex items-center gap-2"
-        onSubmit={e => {
-          e.preventDefault();
-          if (text.trim()) add(text);
-        }}
-      >
-        <div className="relative min-w-0 flex-1">
-          <Link2
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-paper-3"
-            aria-hidden="true"
-          />
-          <input
-            value={text}
-            disabled={!writable}
-            onChange={e => {
-              setText(e.target.value);
-              if (error) setError(null);
-            }}
-            onPaste={onPaste}
-            placeholder={
-              writable
-                ? tx("粘贴链接或截图，回车添加")
-                : canEdit(state)
-                  ? tx("离线时不能添加")
-                  : tx("只读成员不能添加")
-            }
-            aria-label={tx("粘贴链接或截图")}
-            aria-invalid={!!error}
-            aria-describedby={error ? "link-error" : undefined}
-            className={cn(inputCls(!!error), "pl-9 pr-10")}
-          />
-          <button
-            type="button"
-            disabled={!writable || pending > 0}
-            onClick={() => fileRef.current?.click()}
-            aria-label={pending > 0 ? tx("正在处理图片") : tx("上传图片")}
-            title={pending > 0 ? tx("正在处理图片") : tx("上传图片")}
-            className="absolute right-1.5 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded text-paper-3 transition-colors hover:bg-paper/[0.08] hover:text-paper disabled:pointer-events-none disabled:opacity-40"
+    <>
+      <div className="relative flex flex-1 flex-col" {...drag}>
+        <form
+          className="flex items-center gap-2"
+          onSubmit={e => {
+            e.preventDefault();
+            if (text.trim()) add(text);
+          }}
+        >
+          <div className="relative min-w-0 flex-1">
+            <Link2
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-paper-3"
+              aria-hidden="true"
+            />
+            <input
+              value={text}
+              disabled={!writable}
+              onChange={e => {
+                setText(e.target.value);
+                if (error) setError(null);
+              }}
+              onPaste={onPaste}
+              placeholder={
+                writable
+                  ? tx("粘贴链接或截图，回车添加")
+                  : canEdit(state)
+                    ? tx("离线时不能添加")
+                    : tx("只读成员不能添加")
+              }
+              aria-label={tx("粘贴链接或截图")}
+              aria-invalid={!!error}
+              aria-describedby={error ? "link-error" : undefined}
+              className={cn(inputCls(!!error), "pl-9 pr-10")}
+            />
+            <button
+              type="button"
+              disabled={!writable || pending > 0}
+              onClick={() => fileRef.current?.click()}
+              aria-label={pending > 0 ? tx("正在处理图片") : tx("上传图片")}
+              title={pending > 0 ? tx("正在处理图片") : tx("上传图片")}
+              className="absolute right-1.5 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded text-paper-3 transition-colors hover:bg-paper/[0.08] hover:text-paper disabled:pointer-events-none disabled:opacity-40"
+            >
+              {pending > 0 ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <ImagePlus className="h-4 w-4" aria-hidden="true" />
+              )}
+            </button>
+          </div>
+          <Btn
+            type="submit"
+            variant="secondary"
+            size="md"
+            disabled={!writable || !text.trim()}
           >
-            {pending > 0 ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <ImagePlus className="h-4 w-4" aria-hidden="true" />
-            )}
-          </button>
-        </div>
-        <Btn
-          type="submit"
-          variant="secondary"
-          size="md"
-          disabled={!writable || !text.trim()}
-        >
-          {tx("添加")}
-        </Btn>
-      </form>
-      <input
-        ref={fileRef}
-        type="file"
-        multiple
-        accept={NOTE_IMAGE_TYPES.join(",")}
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden="true"
-        onChange={e => {
-          void addFiles(Array.from(e.target.files ?? []));
-          e.target.value = "";
-        }}
-      />
-      {error && (
-        <p
-          id="link-error"
-          role="alert"
-          className="mt-1.5 text-[12px] text-cinnabar-text"
-        >
-          {error}
-        </p>
-      )}
+            {tx("添加")}
+          </Btn>
+        </form>
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          accept={NOTE_IMAGE_TYPES.join(",")}
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden="true"
+          onChange={e => {
+            void addFiles(Array.from(e.target.files ?? []));
+            e.target.value = "";
+          }}
+        />
+        {error && (
+          <p
+            id="link-error"
+            role="alert"
+            className="mt-1.5 text-[12px] text-cinnabar-text"
+          >
+            {error}
+          </p>
+        )}
 
-      {links.length === 0 ? (
-        <EmptyState icon="pigeon" title={tx("还没有链接或图片")} />
-      ) : (
-        <ul className={cn("-mx-3 mt-4", DIVIDE)} aria-label={tx("链接和图片")}>
-          {links.map(l => {
-            const mine = l.by === ME_ID;
-            const canChange = writable && (mine || isAdmin);
-            const img = l.image;
-            // 整行可点：链接用浏览器打开，图片看大图
-            const hit =
-              "min-w-0 flex-1 text-left outline-none after:absolute after:inset-0 focus-visible:after:ring-1 focus-visible:after:ring-inset focus-visible:after:ring-cinnabar-text/50";
-            const label = (
-              <>
-                <span className="block truncate text-[13.5px] text-paper">
-                  {l.title}
-                </span>
-                <span className="block truncate text-[12px] text-paper-3">
-                  {img
-                    ? tx("图片 · {0}×{1}", img.w, img.h)
-                    : linkSubtitle(l.url)}
-                </span>
-              </>
-            );
-            return (
-              <li
-                key={l.id}
-                className="group/row relative flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-paper/[0.025]"
-              >
-                {img ? (
-                  <img
-                    src={img.src}
-                    alt=""
-                    draggable={false}
-                    className="h-8 w-8 shrink-0 rounded-md bg-ink object-cover ring-1 ring-inset ring-paper/12"
-                  />
-                ) : (
-                  <Favicon key={l.url} url={l.url} />
-                )}
-                {img ? (
-                  <button
-                    type="button"
-                    onClick={e =>
-                      viewer.open([img], 0, e.currentTarget, l.title)
-                    }
-                    aria-label={tx("查看图片「{0}」", l.title)}
-                    className={hit}
-                  >
-                    {label}
-                  </button>
-                ) : (
-                  <a
-                    href={l.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={l.url}
-                    className={hit}
-                  >
-                    {label}
-                  </a>
-                )}
-                {l.visibility === "private" && inTeam && (
-                  <Lock
-                    className="h-3.5 w-3.5 shrink-0 text-paper-3"
-                    aria-label={tx("仅自己可见")}
-                  />
-                )}
-                {!solo && (
-                  <span className="flex w-[88px] shrink-0 items-center gap-1.5 text-[12px] text-paper-3">
-                    {(() => {
-                      const m = state.members.find(x => x.id === l.by);
-                      return m ? <Avatar member={m} size={18} /> : null;
-                    })()}
-                    <span className="truncate">{memberName(state, l.by)}</span>
+        {links.length === 0 ? (
+          <EmptyState icon="pigeon" title={tx("还没有链接或图片")} />
+        ) : (
+          <ul
+            className={cn("-mx-3 mt-4", DIVIDE)}
+            aria-label={tx("链接和图片")}
+          >
+            {links.map(l => {
+              const mine = l.by === ME_ID;
+              const canChange = writable && (mine || isAdmin);
+              const img = l.image;
+              // 整行可点：链接用浏览器打开，图片看大图
+              const hit =
+                "min-w-0 flex-1 text-left outline-none after:absolute after:inset-0 focus-visible:after:ring-1 focus-visible:after:ring-inset focus-visible:after:ring-cinnabar-text/50";
+              const label = (
+                <>
+                  <span className="block truncate text-[13.5px] text-paper">
+                    {l.title}
                   </span>
-                )}
-                <span
-                  className="w-[64px] shrink-0 text-right text-[12px] tabular-nums text-paper-3"
-                  title={absoluteTime(l.at)}
+                  {/* 有备注显示备注，没有才显示网址或图片尺寸 */}
+                  <span
+                    className="block truncate text-[12px] text-paper-3"
+                    title={l.note || undefined}
+                  >
+                    {l.note
+                      ? l.note.replace(/\s*\n\s*/g, " ")
+                      : img
+                        ? tx("图片 · {0}×{1}", img.w, img.h)
+                        : linkSubtitle(l.url)}
+                  </span>
+                </>
+              );
+              return (
+                <li
+                  key={l.id}
+                  className="group/row relative flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-paper/[0.025]"
                 >
-                  {relativeTime(l.at)}
-                </span>
-                <span className="relative z-10 flex w-7 shrink-0 justify-end">
-                  {canChange ? (
-                    <IconBtn
-                      label={tx("编辑「{0}」", l.title)}
-                      onClick={() => setEditing(l)}
-                      className="opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </IconBtn>
-                  ) : img ? (
-                    <Maximize2
-                      className="h-3.5 w-3.5 text-paper-3 opacity-0 transition-opacity group-hover/row:opacity-100"
-                      aria-hidden="true"
+                  {img ? (
+                    <img
+                      src={img.src}
+                      alt=""
+                      draggable={false}
+                      className="h-8 w-8 shrink-0 rounded-md bg-ink object-cover ring-1 ring-inset ring-paper/12"
                     />
                   ) : (
-                    <ExternalLink
-                      className="h-3.5 w-3.5 text-paper-3 opacity-0 transition-opacity group-hover/row:opacity-100"
-                      aria-hidden="true"
+                    <Favicon key={l.url} url={l.url} />
+                  )}
+                  {img ? (
+                    <button
+                      type="button"
+                      onClick={e =>
+                        viewer.open([img], 0, e.currentTarget, l.title)
+                      }
+                      aria-label={tx("查看图片「{0}」", l.title)}
+                      className={hit}
+                    >
+                      {label}
+                    </button>
+                  ) : (
+                    <a
+                      href={l.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={l.url}
+                      className={hit}
+                    >
+                      {label}
+                    </a>
+                  )}
+                  {l.visibility === "private" && inTeam && (
+                    <Lock
+                      className="h-3.5 w-3.5 shrink-0 text-paper-3"
+                      aria-label={tx("仅自己可见")}
                     />
                   )}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                  {!solo && (
+                    <span className="flex w-[88px] shrink-0 items-center gap-1.5 text-[12px] text-paper-3">
+                      {(() => {
+                        const m = state.members.find(x => x.id === l.by);
+                        return m ? <Avatar member={m} size={18} /> : null;
+                      })()}
+                      <span className="truncate">
+                        {memberName(state, l.by)}
+                      </span>
+                    </span>
+                  )}
+                  <span
+                    className="w-[64px] shrink-0 text-right text-[12px] tabular-nums text-paper-3"
+                    title={absoluteTime(l.at)}
+                  >
+                    {relativeTime(l.at)}
+                  </span>
+                  <span className="relative z-10 flex w-7 shrink-0 justify-end">
+                    {canChange ? (
+                      <IconBtn
+                        label={tx("编辑「{0}」", l.title)}
+                        onClick={() => setEditing(l)}
+                        className="opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </IconBtn>
+                    ) : img ? (
+                      <Maximize2
+                        className="h-3.5 w-3.5 text-paper-3 opacity-0 transition-opacity group-hover/row:opacity-100"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <ExternalLink
+                        className="h-3.5 w-3.5 text-paper-3 opacity-0 transition-opacity group-hover/row:opacity-100"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
 
-      {dragging && (
-        <div className="pointer-events-none absolute -inset-2 z-20 grid place-items-center rounded-lg border-2 border-dashed border-cinnabar-text/60 bg-ink-2/90 text-[13px] text-paper">
-          {tx("松开添加图片")}
-        </div>
-      )}
+        {dragging && (
+          <div className="pointer-events-none absolute -inset-2 z-20 grid place-items-center rounded-lg border-2 border-dashed border-cinnabar-text/60 bg-ink-2/90 text-[13px] text-paper">
+            {tx("松开添加图片")}
+          </div>
+        )}
 
+        {viewer.node}
+      </div>
+      {/* 放在定位容器外面：和其他记录页一样盖住整个窗口，最小窗口里也放得下 */}
       <EditLinkDialog
         link={editing}
         inTeam={inTeam}
         onClose={() => setEditing(null)}
       />
-      {viewer.node}
-    </div>
+    </>
   );
 }
 
@@ -401,15 +416,25 @@ function EditLinkDialog({
   const { actions } = useProto();
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
+  const [note, setNote] = useState("");
+  const noteRef = useRef<HTMLTextAreaElement>(null);
   const [vis, setVis] = useState<LinkVisibility>("team");
   const [tried, setTried] = useState(false);
   useEffect(() => {
     if (!link) return;
     setTitle(link.title);
     setUrl(link.url);
+    setNote(link.note ?? "");
     setVis(link.visibility);
     setTried(false);
   }, [link]);
+  // 备注框按内容长高（2 行起，最多约 6 行，再多在框里滚动），弹窗在最小窗口里也放得下
+  useLayoutEffect(() => {
+    const el = noteRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [note, link]);
   const img = link?.image;
   const normalized = normalizeUrl(url);
   const urlError =
@@ -422,6 +447,7 @@ function EditLinkDialog({
       title: title.trim() || link.title,
       url: img ? link.url : normalized!,
       visibility: inTeam ? vis : "private",
+      note: note.trim() || undefined,
     });
     onClose();
   };
@@ -430,6 +456,8 @@ function EditLinkDialog({
       open={!!link}
       onClose={onClose}
       title={img ? tx("编辑图片") : tx("编辑链接")}
+      // 图片预览 + 名称 + 备注 + 谁能看到，默认 400 放不下；窗口很小时仍按窗口高度滚动
+      bodyMaxHeight={480}
       footer={
         <div className="flex w-full items-center">
           <Btn
@@ -464,7 +492,7 @@ function EditLinkDialog({
           <img
             src={img.src}
             alt={link?.title ?? ""}
-            className="max-h-40 rounded-md bg-ink object-contain ring-1 ring-inset ring-paper/12"
+            className="max-h-32 rounded-md bg-ink object-contain ring-1 ring-inset ring-paper/12"
           />
         )}
         <Field label={tx("名称")} htmlFor="link-title">
@@ -486,6 +514,28 @@ function EditLinkDialog({
             />
           </Field>
         )}
+        <Field label={tx("备注")} htmlFor="link-note">
+          <textarea
+            id="link-note"
+            ref={noteRef}
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            onKeyDown={e => {
+              // 回车换行；Ctrl/⌘ + 回车直接保存
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                save();
+              }
+            }}
+            rows={2}
+            maxLength={200}
+            placeholder={tx("可不填")}
+            className={cn(
+              inputCls(),
+              "scroll-thin h-auto max-h-36 resize-none overflow-y-auto py-2 leading-relaxed"
+            )}
+          />
+        </Field>
         {inTeam && (
           <div>
             <p className="mb-1.5 text-[12.5px] text-paper-2">
