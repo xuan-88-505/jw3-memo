@@ -1087,5 +1087,14 @@ const dict: Record<string, string> = {
   "请求内容不对": "Solicitud no válida",
   "请求内容太大": "Solicitud demasiado grande",
   "邀请码不对": "Código de invitación incorrecto",
+  "{0}，已恢复原来的服务器": "{0}, se ha restaurado el servidor original",
+  "「{0} {1}」有没保存的修改，先在方案库里保存或放弃": "«{0} {1}» tiene cambios sin guardar. Guárdalos o descártalos primero en Presets.",
+  "「{0}」的服务器改为{1}": "Servidor de «{0}» cambiado a {1}",
+  "为「{0}」新建": "Crear para «{0}»",
+  "加到「{0} {1}」，存为 v{2}": "Se añade a «{0} {1}» como v{2}",
+  "新增宏「{0}」": "Macro «{0}» añadida",
+  "新建配装或宏": "Crear conjunto de equipo o macro",
+  "点击修改服务器": "Haz clic para cambiar el servidor",
+  "还没有「{0} {1}」方案，保存时一起新建": "Aún no hay preset «{0} {1}». Se creará al guardar.",
 };
 export default dict;

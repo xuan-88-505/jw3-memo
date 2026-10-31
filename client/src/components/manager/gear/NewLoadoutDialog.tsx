@@ -90,12 +90,15 @@ function CharLinkSelect({
 export function NewLoadoutDialog({
   open,
   defaultXinfa,
+  defaultCharId,
   onClose,
   onStart,
 }: {
   open: boolean;
   /** 打开时默认选中的心法，一般是正在看的那套配装的心法 */
   defaultXinfa?: string;
+  /** 打开时默认关联的角色（从「我的角色」某一行新建时） */
+  defaultCharId?: string;
   onClose: () => void;
   /** 关闭弹窗后开始计算 */
   onStart: (p: {
@@ -146,7 +149,7 @@ export function NewLoadoutDialog({
     if (!open) return;
     setXinfa(fallbackXinfa);
     setName("");
-    setCharId("");
+    setCharId(defaultCharId ?? "");
     setError("");
     setEnchantOpen(false);
     setConfig(configOf(draft));
@@ -218,7 +221,11 @@ export function NewLoadoutDialog({
               value={xinfa}
               onChange={x => {
                 setXinfa(x);
-                setCharId("");
+                // 关联的角色也玩这个心法就留着，否则解除关联
+                const keep = mine.some(
+                  c => c.id === charId && xinfasOf(c).includes(x)
+                );
+                if (!keep) setCharId("");
                 setError("");
                 // 换心法后附魔选项不同，回到默认
                 setConfig(

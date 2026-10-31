@@ -1,7 +1,13 @@
 import { Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Btn } from "@/components/common/ui";
-import { findScheme, latest, loadoutList, useProto } from "@/state/store";
+import {
+  findScheme,
+  latest,
+  loadoutList,
+  useProto,
+  type NewLoadoutInput,
+} from "@/state/store";
 import {
   draftChanges,
   draftOf,
@@ -22,7 +28,6 @@ import { GearOverview } from "./GearOverview";
 import { ImportCard } from "./ImportCard";
 import { LoadoutList } from "./LoadoutList";
 import { EditLoadoutDialog, NewLoadoutDialog } from "./NewLoadoutDialog";
-import type { GearConfig } from "@/data/enchants";
 import { tx } from "@/lib/i18n";
 import {
   calcSupported,
@@ -31,15 +36,6 @@ import {
   readResult,
 } from "@/lib/dpsCalc";
 import { loadCatalog, useBundledCalc } from "@/lib/calcEngine";
-
-type NewLoadoutInput = {
-  xinfa: string;
-  name: string;
-  charId: string | null;
-  source: LoadoutSource;
-  sourceId: string | null;
-  config?: GearConfig;
-};
 
 /**
  * 配装与木桩。左栏是配装列表（每套直接写装分），右边从上到下：
@@ -189,6 +185,20 @@ export function GearView() {
       actions.toast("manager", "success", tx("已重新导入，配装没有变化"));
     }, 1200);
   };
+
+  // 从「我的角色」新建配装：弹窗在那边填好，到这里按同样的流程建。
+  // 记住处理过的意图，开发模式下 effect 跑两次也只建一套
+  const handledIntent = useRef<unknown>(null);
+  useEffect(() => {
+    const it = state.managerIntent;
+    if (!it || typeof it !== "object" || !("newLoadout" in it)) return;
+    if (handledIntent.current === it) return;
+    handledIntent.current = it;
+    actions.clearIntent();
+    startCreate(it.newLoadout);
+    // 只看意图
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.managerIntent]);
 
   const openNew = () => setNewOpen(true);
   const newDialog = (

@@ -207,10 +207,25 @@ function seedData() {
   };
 }
 
-/** 打开管理窗口时顺便要做的事：添加角色，或新建某心法某模式的方案 */
+/** 新建配装要用的参数：新建弹窗填好后交给配装页去建（导入的要先算） */
+export interface NewLoadoutInput {
+  xinfa: string;
+  name: string;
+  charId: string | null;
+  source: LoadoutSource;
+  sourceId: string | null;
+  /** 新建时改过的附魔和五彩石；不传就用导入的 */
+  config?: GearConfig;
+}
+
+/**
+ * 打开管理窗口或切页时顺便要做的事：添加角色、新建某心法某模式的方案，
+ * 或在配装页按填好的参数新建配装（从「我的角色」进来）
+ */
 export type ManagerIntent =
   | "add-character"
-  | { newScheme: { xinfa: string; mode: Mode } };
+  | { newScheme: { xinfa: string; mode: Mode } }
+  | { newLoadout: NewLoadoutInput };
 
 export interface Note {
   text: string;
@@ -1061,6 +1076,13 @@ function useActions(
         })),
       closeManager: () => patch({ managerOpen: false }),
       clearIntent: () => patch({ managerIntent: null }),
+      /** 管理窗口里切到某一页，并带上到那页要做的事 */
+      goTo: (managerSection: ManagerSection, intent?: ManagerIntent) =>
+        patch({
+          managerSection,
+          schemesPage: "list",
+          managerIntent: intent ?? null,
+        }),
       setSection: (managerSection: ManagerSection) =>
         patch({ managerSection, schemesPage: "list" }),
       /** 打开方案库的二级页「修改记录」；传心法时只看这个心法 */
@@ -1179,6 +1201,56 @@ function useActions(
        * 已经有方案时返回 "exists"；管理窗口里这个方案有填了内容还没保存的草稿时
        * 返回 "draft"，不覆盖。
        */
+      /**
+       * 给某心法某模式的方案加一个宏，从「我的角色」原地新建宏时用。
+       * 还没有这个方案：新建 v1，只有这个宏；已经有：在最新版本后面加上这个宏，存成新版本。
+       * 方案正在编辑、有没保存的修改时返回 "draft"，不动草稿。
+       */
+      addMacro: (
+        xinfa: string,
+        mode: Mode,
+        macro: Macro
+      ): "created" | "added" | "draft" => {
+        const s = stateRef.current;
+        const schemeId = `${xinfa}-${mode}`;
+        const last = latest(findScheme(s, xinfa, mode));
+        const old = s.drafts[schemeId];
+        const blank = defaultTalents();
+        if (!last) {
+          if (
+            old &&
+            (old.macros.length > 0 ||
+              old.talents.some((t, i) => t !== blank[i]))
+          )
+            return "draft";
+          commitDraft(
+            {
+              schemeId,
+              xinfa,
+              mode,
+              baseVersion: 0,
+              macros: [macro],
+              talents: blank,
+              ...(old?.title ? { title: old.title } : {}),
+            },
+            tx("新建")
+          );
+          return "created";
+        }
+        if (old) return "draft";
+        commitDraft(
+          {
+            schemeId,
+            xinfa,
+            mode,
+            baseVersion: last.version,
+            macros: [...last.macros, macro],
+            talents: last.talents,
+          },
+          tx("新增宏「{0}」", macro.name)
+        );
+        return "added";
+      },
       createScheme: (
         xinfa: string,
         mode: Mode,
@@ -1262,18 +1334,21 @@ function useActions(
         return id;
       },
       /**
-       * 改名，或改门派、心法、流派。同步记录按心法存，改回去自动恢复。
+       * 改名、改服务器，或改门派、心法、流派。同步记录按心法存，改回去自动恢复。
        * restored：新加的心法里有以前的同步记录
        */
       updateCharacter: (
         id: string,
-        p: Partial<Pick<Character, "name" | "school" | "only" | "liupai">>
+        p: Partial<
+          Pick<Character, "name" | "server" | "school" | "only" | "liupai">
+        >
       ): { restored: boolean } => {
         const char = stateRef.current.characters.find(c => c.id === id);
         if (!char) return { restored: false };
         const next: Character = {
           ...char,
           ...(p.name ? { name: p.name } : {}),
+          ...(p.server ? { server: p.server } : {}),
           ...(p.school !== undefined ? { school: p.school } : {}),
           ...(p.only !== undefined ? { only: p.only } : {}),
           ...(p.liupai !== undefined ? { liupai: p.liupai } : {}),

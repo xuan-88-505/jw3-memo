@@ -1087,5 +1087,14 @@ const dict: Record<string, string> = {
   "请求内容不对": "Invalid request",
   "请求内容太大": "Request too large",
   "邀请码不对": "Invite code is wrong",
+  "{0}，已恢复原来的服务器": "{0}, original server restored",
+  "「{0} {1}」有没保存的修改，先在方案库里保存或放弃": "“{0} {1}” has unsaved changes. Save or discard them in Presets first.",
+  "「{0}」的服务器改为{1}": "Server of “{0}” changed to {1}",
+  "为「{0}」新建": "New for “{0}”",
+  "加到「{0} {1}」，存为 v{2}": "Adds to “{0} {1}” as v{2}",
+  "新增宏「{0}」": "Added macro “{0}”",
+  "新建配装或宏": "New gear set or macro",
+  "点击修改服务器": "Click to edit server",
+  "还没有「{0} {1}」方案，保存时一起新建": "No “{0} {1}” preset yet. Saving creates it.",
 };
 export default dict;

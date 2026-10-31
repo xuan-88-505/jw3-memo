@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
+import { NavIcon, type NavIconName } from "@/components/brand/NavIcon";
+import { Anchored } from "@/components/common/Anchored";
 import { InlineModal } from "@/components/common/overlay";
 import { Btn, IconBtn } from "@/components/common/ui";
+import { isServerName } from "@/data/records";
 import { schoolLabel, xinfasOf } from "@/data/seed";
 import type { Character } from "@/data/types";
 import {
+  canEdit,
   currentLoadout,
   isOnline,
   modesOf,
@@ -14,6 +18,8 @@ import {
 } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { AvatarPicker } from "./AvatarPicker";
+import { NewLoadoutDialog } from "./gear/NewLoadoutDialog";
+import { NewMacroDialog } from "./NewMacroDialog";
 import { EmptyState, SectionHeader } from "./shared";
 import { SchoolMenu, type SchoolValue } from "./SchoolPicker";
 import {
@@ -31,7 +37,12 @@ export function CharactersView() {
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<Character | null>(null);
   const [avatarFor, setAvatarFor] = useState<string | null>(null);
+  // 按某个角色新建配装、新建宏：原地弹窗，不离开这一页
+  const [loadoutFor, setLoadoutFor] = useState<Character | null>(null);
+  const [macroFor, setMacroFor] = useState<Character | null>(null);
   const online = isOnline(state);
+  // 只读成员不能改方案，菜单里不出「新建宏」
+  const editable = canEdit(state);
 
   useEffect(() => {
     if (state.managerIntent === "add-character") {
@@ -91,7 +102,7 @@ export function CharactersView() {
                 <col />
               )}
               <col className="w-[180px]" />
-              <col className="w-[52px]" />
+              <col className="w-[88px]" />
             </colgroup>
             <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
               <tr>
@@ -162,20 +173,18 @@ export function CharactersView() {
                         )}
                       </td>
                     )}
-                    <td className={cn(TD, "whitespace-nowrap text-paper-2")}>
-                      {c.server}
+                    <td className={TD}>
+                      <ServerInput char={c} disabled={!online} />
                     </td>
                     <td className={cn(TD, "text-right")}>
-                      {/* 悬停整行或键盘聚焦时出现 */}
-                      <span className="inline-flex opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100">
-                        <IconBtn
-                          label={tx("删除角色 {0}", c.name)}
-                          onClick={() => setRemoving(c)}
-                          disabled={!online}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </IconBtn>
-                      </span>
+                      <RowActions
+                        char={c}
+                        disabled={!online}
+                        canMacro={editable}
+                        onLoadout={() => setLoadoutFor(c)}
+                        onMacro={() => setMacroFor(c)}
+                        onRemove={() => setRemoving(c)}
+                      />
                     </td>
                   </tr>
                 );
@@ -186,6 +195,20 @@ export function CharactersView() {
       )}
 
       <AddCharacterDialog open={adding} onClose={() => setAdding(false)} />
+
+      {/* 填好后到配装页去建：导入的要算一会儿，手动配的建好直接打开配装器 */}
+      <NewLoadoutDialog
+        open={!!loadoutFor}
+        defaultXinfa={loadoutFor ? xinfasOf(loadoutFor)[0] : undefined}
+        defaultCharId={loadoutFor?.id}
+        onClose={() => setLoadoutFor(null)}
+        onStart={p => actions.goTo("gear", { newLoadout: p })}
+      />
+
+      <NewMacroDialog
+        xinfas={macroFor ? xinfasOf(macroFor) : []}
+        onClose={() => setMacroFor(null)}
+      />
 
       <AvatarPicker
         character={mine.find(c => c.id === avatarFor) ?? null}
@@ -226,39 +249,62 @@ export function CharactersView() {
   );
 }
 
-/** 角色名：看起来是文字，点击直接编辑。回车保存，Esc 取消，点别处也会保存 */
-function NameInput({ char, disabled }: { char: Character; disabled: boolean }) {
-  const { state, actions } = useProto();
-  const [value, setValue] = useState(char.name);
+/**
+ * 看起来是文字，点击直接编辑。回车保存，Esc 取消，点别处也会保存。
+ * 回车时不合规就在下面提示；点别处时不合规就恢复原来的值，并用 onReject 提示。
+ */
+function InlineEdit({
+  value: saved,
+  disabled,
+  maxLength,
+  maxWidth,
+  label,
+  title,
+  errorId,
+  normalize = v => v,
+  validate,
+  onCommit,
+  onReject,
+  className,
+}: {
+  value: string;
+  disabled: boolean;
+  maxLength: number;
+  /** 输入框最宽多少像素；随内容变宽 */
+  maxWidth: number;
+  label: string;
+  title: string;
+  errorId: string;
+  /** 输入时整理，比如去掉空格 */
+  normalize?: (v: string) => string;
+  /** 返回错误说明；合规返回空字符串 */
+  validate: (v: string) => string;
+  onCommit: (v: string) => void;
+  onReject: (error: string, v: string) => void;
+  className?: string;
+}) {
+  const [value, setValue] = useState(saved);
   const [error, setError] = useState("");
   const cancelRef = useRef(false);
 
-  useEffect(() => setValue(char.name), [char.name]);
-
-  const check = () =>
-    nameError(myCharacters(state), value.trim(), char.server, char.id);
+  useEffect(() => setValue(saved), [saved]);
 
   const onBlur = () => {
     const n = value.trim();
-    if (cancelRef.current || n === char.name) {
+    if (cancelRef.current || n === saved) {
       cancelRef.current = false;
-      setValue(char.name);
+      setValue(saved);
       setError("");
       return;
     }
-    const err = check();
+    const err = validate(n);
     setError("");
     if (err) {
-      setValue(char.name);
-      actions.toast(
-        "manager",
-        "error",
-        tx("{0}，已恢复原名", n ? err : tx("角色名不能为空"))
-      );
+      setValue(saved);
+      onReject(err, n);
       return;
     }
-    actions.updateCharacter(char.id, { name: n });
-    actions.toast("manager", "success", tx("已改名为「{0}」", n));
+    onCommit(n);
   };
 
   return (
@@ -266,19 +312,19 @@ function NameInput({ char, disabled }: { char: Character; disabled: boolean }) {
       <input
         value={value}
         disabled={disabled}
-        maxLength={20}
+        maxLength={maxLength}
         spellCheck={false}
-        aria-label={tx("角色名")}
+        aria-label={label}
         aria-invalid={!!error}
-        aria-describedby={error ? `name-err-${char.id}` : undefined}
-        title={disabled ? tx("离线时不能修改") : tx("点击修改角色名")}
+        aria-describedby={error ? errorId : undefined}
+        title={title}
         onChange={e => {
-          setValue(e.target.value);
+          setValue(normalize(e.target.value));
           setError("");
         }}
         onKeyDown={e => {
           if (e.key === "Enter") {
-            const err = check();
+            const err = validate(value.trim());
             if (err) setError(err);
             else e.currentTarget.blur();
           } else if (e.key === "Escape") {
@@ -289,24 +335,181 @@ function NameInput({ char, disabled }: { char: Character; disabled: boolean }) {
         }}
         onBlur={onBlur}
         style={{
-          width: `min(176px, calc(${Math.max(value.length, 2)}em + 14px))`,
+          width: `min(${maxWidth}px, calc(${Math.max(value.length, 2)}em + 14px))`,
         }}
         className={cn(
-          "h-7 rounded-md bg-transparent px-1.5 text-[13px] font-medium text-paper outline-none transition-colors",
+          "h-7 rounded-md bg-transparent px-1.5 text-[13px] outline-none transition-colors",
           "hover:bg-paper/[0.05] focus:bg-paper/[0.04] focus:ring-1 focus:ring-inset focus:ring-cinnabar-text/50",
           "disabled:cursor-default disabled:hover:bg-transparent",
           error &&
-            "ring-1 ring-inset ring-cinnabar-text/70 focus:ring-cinnabar-text/70"
+            "ring-1 ring-inset ring-cinnabar-text/70 focus:ring-cinnabar-text/70",
+          className
         )}
       />
       {error && (
         <span
-          id={`name-err-${char.id}`}
+          id={errorId}
           role="alert"
           className="absolute left-0 top-full z-10 mt-1 whitespace-nowrap rounded-md bg-ink-3 px-2 py-1 text-[12px] text-cinnabar-text shadow-[0_12px_32px_-8px_rgb(0_0_0/0.7)] ring-1 ring-paper/12"
         >
           {error}
         </span>
+      )}
+    </span>
+  );
+}
+
+/** 角色名：点击直接改。同一服务器里不能重名 */
+function NameInput({ char, disabled }: { char: Character; disabled: boolean }) {
+  const { state, actions } = useProto();
+  return (
+    <InlineEdit
+      value={char.name}
+      disabled={disabled}
+      maxLength={20}
+      maxWidth={176}
+      label={tx("角色名")}
+      title={disabled ? tx("离线时不能修改") : tx("点击修改角色名")}
+      errorId={`name-err-${char.id}`}
+      validate={n => nameError(myCharacters(state), n, char.server, char.id)}
+      onReject={(err, n) =>
+        actions.toast(
+          "manager",
+          "error",
+          tx("{0}，已恢复原名", n ? err : tx("角色名不能为空"))
+        )
+      }
+      onCommit={n => {
+        actions.updateCharacter(char.id, { name: n });
+        actions.toast("manager", "success", tx("已改名为「{0}」", n));
+      }}
+      className="font-medium text-paper"
+    />
+  );
+}
+
+/** 服务器：点击直接改，规则和添加角色时一样；改完不能和自己别的角色重名重服 */
+function ServerInput({
+  char,
+  disabled,
+}: {
+  char: Character;
+  disabled: boolean;
+}) {
+  const { state, actions } = useProto();
+  const validate = (v: string) =>
+    !v
+      ? tx("填一下服务器")
+      : !isServerName(v)
+        ? tx("服务器名是 2–8 个汉字")
+        : nameError(myCharacters(state), char.name, v, char.id);
+  return (
+    <InlineEdit
+      value={char.server}
+      disabled={disabled}
+      maxLength={8}
+      maxWidth={150}
+      label={tx("服务器")}
+      title={disabled ? tx("离线时不能修改") : tx("点击修改服务器")}
+      errorId={`server-err-${char.id}`}
+      normalize={v => v.replace(/\s/g, "")}
+      validate={validate}
+      onReject={err =>
+        actions.toast("manager", "error", tx("{0}，已恢复原来的服务器", err))
+      }
+      onCommit={v => {
+        actions.updateCharacter(char.id, { server: v });
+        actions.toast(
+          "manager",
+          "success",
+          tx("「{0}」的服务器改为{1}", char.name, v)
+        );
+      }}
+      className="text-paper-2"
+    />
+  );
+}
+
+/**
+ * 行尾的操作：新建（配装、宏）和删除。悬停整行或键盘聚焦时出现，菜单开着时一直显示。
+ * 只读成员只能新建配装，这时「+」直接打开新建配装。
+ */
+function RowActions({
+  char,
+  disabled,
+  canMacro,
+  onLoadout,
+  onMacro,
+  onRemove,
+}: {
+  char: Character;
+  disabled: boolean;
+  canMacro: boolean;
+  onLoadout: () => void;
+  onMacro: () => void;
+  onRemove: () => void;
+}) {
+  const btn = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const menuLabel = tx("为「{0}」新建", char.name);
+  const item = (icon: NavIconName, label: string, run: () => void) => (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={() => {
+        setOpen(false);
+        run();
+      }}
+      className="flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-[13px] text-paper-2 hover:bg-paper/[0.06] hover:text-paper focus-visible:bg-paper/[0.06] focus-visible:outline-none"
+    >
+      <NavIcon name={icon} className="shrink-0" />
+      {label}
+    </button>
+  );
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100",
+        open && "opacity-100"
+      )}
+    >
+      <button
+        ref={btn}
+        type="button"
+        disabled={disabled}
+        aria-haspopup={canMacro ? "menu" : undefined}
+        aria-expanded={canMacro ? open : undefined}
+        aria-label={canMacro ? menuLabel : tx("新建配装")}
+        title={canMacro ? tx("新建配装或宏") : tx("新建配装")}
+        onClick={() => (canMacro ? setOpen(v => !v) : onLoadout())}
+        className={cn(
+          "inline-grid h-7 w-7 shrink-0 place-items-center rounded-md text-paper-2 transition-colors hover:bg-paper/[0.08] hover:text-paper disabled:opacity-40",
+          open && "bg-paper/[0.08] text-paper"
+        )}
+      >
+        <Plus className="h-4 w-4" />
+      </button>
+      <IconBtn
+        label={tx("删除角色 {0}", char.name)}
+        onClick={onRemove}
+        disabled={disabled}
+      >
+        <Trash2 className="h-4 w-4" />
+      </IconBtn>
+      {canMacro && (
+        <Anchored
+          anchor={btn}
+          open={open}
+          onClose={() => setOpen(false)}
+          width={224}
+          align="end"
+          label={menuLabel}
+        >
+          <div role="menu" aria-label={menuLabel} className="p-1">
+            {item("gear", tx("新建配装"), onLoadout)}
+            {item("schemes", tx("新建宏"), onMacro)}
+          </div>
+        </Anchored>
       )}
     </span>
   );
