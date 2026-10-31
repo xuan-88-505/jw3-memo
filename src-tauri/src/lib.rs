@@ -278,10 +278,38 @@ fn load_data(app: AppHandle) -> Result<Option<String>, String> {
     }
 }
 
+/// 两个窗口的保存命令排队执行：检查文件内容和写入之间不会插进另一次写入
+static DATA_LOCK: Mutex<()> = Mutex::new(());
+
+/// expected 是窗口合并时读到的文件内容（没有文件时为空字符串）。
+/// 文件已经被另一个窗口改了：返回 "conflict"，窗口重新读、合并后再写。None 时直接写。
+/// 调用方要先拿 DATA_LOCK。
+fn write_if_unchanged(path: &Path, json: &str, expected: Option<&str>) -> Result<(), String> {
+    if let Some(expected) = expected {
+        let current = match fs::read_to_string(path) {
+            Ok(s) => s,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(e) => return Err(e.to_string()),
+        };
+        if current != expected {
+            return Err("conflict".into());
+        }
+    }
+    write_atomic(path, json)
+}
+
 #[tauri::command]
-fn save_data(app: AppHandle, window: Window, json: String) -> Result<(), String> {
+fn save_data(
+    app: AppHandle,
+    window: Window,
+    json: String,
+    expected: Option<String>,
+) -> Result<(), String> {
     let path = data_dir(&app)?.join("data.json");
-    write_atomic(&path, &json)?;
+    {
+        let _guard = DATA_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        write_if_unchanged(&path, &json, expected.as_deref())?;
+    }
     // 告诉另一个窗口重新读取；payload 是保存的窗口，它自己会忽略
     let _ = app.emit("tongdiao://data-changed", window.label().to_string());
     Ok(())
@@ -302,6 +330,36 @@ fn backup_data(app: AppHandle) -> Result<Option<String>, String> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(e) => Err(e.to_string()),
     }
+}
+
+/// 加入、登录、退出亲友团之前复制一份 data.json。原文件不动。
+/// 文件名 data.backup-<毫秒>.json，只留最新 5 份。返回备份的文件名；没有数据文件时返回 None。
+#[tauri::command]
+fn copy_data_backup(app: AppHandle) -> Result<Option<String>, String> {
+    let dir = data_dir(&app)?;
+    let src = dir.join("data.json");
+    if !src.exists() {
+        return Ok(None);
+    }
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let name = format!("data.backup-{stamp}.json");
+    fs::copy(&src, dir.join(&name)).map_err(|e| e.to_string())?;
+    let mut old: Vec<String> = fs::read_dir(&dir)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n.starts_with("data.backup-") && n.ends_with(".json"))
+        .collect();
+    // 时间戳位数相同，按名字排序就是按时间排序
+    old.sort();
+    let extra = old.len().saturating_sub(5);
+    for n in old.into_iter().take(extra) {
+        let _ = fs::remove_file(dir.join(n));
+    }
+    Ok(Some(name))
 }
 
 /// 导出数据：路径由前端的保存对话框选出
@@ -603,6 +661,7 @@ pub fn run() {
             load_data,
             save_data,
             backup_data,
+            copy_data_backup,
             write_text_file,
             toggle_panel,
             hide_panel,
@@ -644,4 +703,31 @@ pub fn run() {
         #[cfg(not(target_os = "macos"))]
         let _ = (app, event);
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn write_if_unchanged_detects_other_window() {
+        let dir = std::env::temp_dir().join(format!("tongdiao-cas-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("data.json");
+        let _ = fs::remove_file(&path);
+        // 没有文件：期望空字符串才写
+        write_if_unchanged(&path, "a", Some("")).unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "a");
+        // 另一个窗口写成了 b，本窗口还以为是 a：冲突，不写
+        write_if_unchanged(&path, "b", Some("a")).unwrap();
+        assert_eq!(
+            write_if_unchanged(&path, "c", Some("a")),
+            Err("conflict".to_string())
+        );
+        assert_eq!(fs::read_to_string(&path).unwrap(), "b");
+        // 不比较：直接写
+        write_if_unchanged(&path, "d", None).unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "d");
+        let _ = fs::remove_dir_all(&dir);
+    }
 }

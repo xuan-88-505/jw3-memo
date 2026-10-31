@@ -50,13 +50,25 @@ export function loadData() {
   return invoke<string | null>("load_data");
 }
 
-export function saveData(json: string) {
-  return invoke<void>("save_data", { json });
+/**
+ * 写 data.json。expected 是写之前读到的文件内容（没有文件时为空字符串）：
+ * 文件已被另一个窗口改过时不写，返回 "conflict" 错误。不传就直接写。
+ */
+export function saveData(json: string, expected?: string) {
+  return invoke<void>("save_data", { json, expected: expected ?? null });
+}
+export function isSaveConflict(err: unknown) {
+  return String(err).includes("conflict");
 }
 
 /** data.json 读不出来时改名留作备份；返回备份的文件名 */
 export function backupData() {
   return invoke<string | null>("backup_data");
+}
+
+/** 复制一份 data.json 留作备份（原文件不动）；返回备份的文件名 */
+export function copyDataBackup() {
+  return invoke<string | null>("copy_data_backup");
 }
 
 /** 另一个窗口保存了数据 */

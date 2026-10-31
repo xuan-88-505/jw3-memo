@@ -5,7 +5,8 @@ import { NavIcon } from "@/components/brand/NavIcon";
 import { Avatar } from "@/components/common/ui";
 import { IS_DESKTOP } from "@/lib/desktop";
 import { useSeasonSync } from "@/lib/calcEngine";
-import { ROLE_LABEL } from "@/lib/format";
+import { ROLE_LABEL, relativeTime } from "@/lib/format";
+import { useTeam } from "@/lib/team/TeamSync";
 import { me, navOrder, useProto, type NavSection } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { ChangelogView } from "./ChangelogView";
@@ -39,12 +40,9 @@ function readSidebarCollapsed() {
   }
 }
 
-/** 1.0 单机版没有亲友团 */
-const visibleNav = (list: NavSection[]) =>
-  IS_DESKTOP ? list.filter(k => k !== "team") : list;
-
 export function ManagerApp() {
   const { state, actions } = useProto();
+  const session = useTeam();
   const loading = state.dataState === "loading";
   const self = me(state);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -60,12 +58,19 @@ export function ManagerApp() {
     }
   }, [collapsed]);
 
-  const status =
-    state.dataState === "offline"
-      ? { label: tx("离线"), text: "text-gold", dot: "bg-gold" }
-      : state.dataState === "loading"
-        ? { label: tx("同步中"), text: "text-paper-3", dot: "bg-paper-3" }
-        : { label: tx("在线"), text: "text-jade", dot: "bg-jade" };
+  // 桌面版：只在加入亲友团后显示，状态来自同步引擎；网页原型用模拟的数据状态
+  const showStatus = !IS_DESKTOP || !!session?.account;
+  const syncing = session ? session.status === "syncing" : loading;
+  const offline = state.dataState === "offline";
+  const status = offline
+    ? { label: tx("离线"), text: "text-gold", dot: "bg-gold" }
+    : syncing
+      ? { label: tx("同步中"), text: "text-paper-3", dot: "bg-paper-3" }
+      : { label: tx("在线"), text: "text-jade", dot: "bg-jade" };
+  const lastSync = session?.account?.lastSyncAt;
+  const statusTitle = lastSync
+    ? tx("上次同步：{0}", relativeTime(lastSync))
+    : undefined;
 
   return (
     <div
@@ -95,7 +100,7 @@ export function ManagerApp() {
             className="flex-1 px-2 pt-3"
           >
             <SortableNav
-              items={visibleNav(navOrder(state)).map(k => NAV_BY_KEY[k])}
+              items={navOrder(state).map(k => NAV_BY_KEY[k])}
               activeKey={state.managerSection}
               disabled={loading}
               onSelect={actions.setSection}
@@ -185,7 +190,7 @@ export function ManagerApp() {
                     )}
                   </p>
                   {/* 权限文字放不下就换行，不截断（右边还有在线状态） */}
-                  {!IS_DESKTOP && (
+                  {(!IS_DESKTOP || state.team) && (
                     <p className="text-[11.5px] leading-4 text-paper-3 [overflow-wrap:anywhere]">
                       {self && state.team
                         ? ROLE_LABEL[self.role]
@@ -194,19 +199,21 @@ export function ManagerApp() {
                   )}
                 </div>
               </button>
-              {/* 单机版不联网，没有在线状态。折叠时只留头像右下角的小点 */}
-              {!IS_DESKTOP && (
+              {/* 没加入亲友团时不联网，没有在线状态。折叠时只留头像右下角的小点 */}
+              {showStatus && (
                 <span
+                  title={statusTitle}
                   className={cn(
-                    "pointer-events-none inline-flex shrink-0 items-center gap-1 text-[11.5px]",
+                    "relative z-[1] inline-flex shrink-0 items-center gap-1 text-[11.5px]",
                     status.text,
-                    collapsed ? "absolute left-[26px] top-[32px]" : "relative"
+                    collapsed && "absolute left-[26px] top-[32px]"
                   )}
                 >
                   <span
                     className={cn(
                       "rounded-full",
                       status.dot,
+                      syncing && !offline && "animate-pulse",
                       collapsed ? "h-2 w-2 ring-2 ring-ink" : "h-1.5 w-1.5"
                     )}
                     aria-hidden="true"
@@ -214,6 +221,7 @@ export function ManagerApp() {
                   <span className={cn(collapsed && "sr-only")}>
                     {status.label}
                   </span>
+                  {statusTitle && <span className="sr-only">{statusTitle}</span>}
                 </span>
               )}
             </div>

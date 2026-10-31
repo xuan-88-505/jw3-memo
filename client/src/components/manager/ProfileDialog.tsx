@@ -4,6 +4,7 @@ import { InlineModal } from "@/components/common/overlay";
 import { Avatar, Btn } from "@/components/common/ui";
 import type { CharacterAvatar } from "@/data/types";
 import { ROLE_LABEL } from "@/lib/format";
+import { teamErrorText, useTeam } from "@/lib/team/TeamSync";
 import { isOnline, me, useProto } from "@/state/store";
 import {
   AvatarChoices,
@@ -25,6 +26,9 @@ export function ProfileDialog({
   onClose: () => void;
 }) {
   const { state, actions } = useProto();
+  // 桌面版在亲友团里：资料存到服务器，其他成员同步后看到
+  const session = useTeam();
+  const remote = !!session?.account && !!state.team;
   const self = me(state);
   const online = isOnline(state);
   const [name, setName] = useState("");
@@ -34,6 +38,7 @@ export function ProfileDialog({
   });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [avatarError, setAvatarError] = useState("");
 
   // 每次打开时回到当前资料
@@ -43,6 +48,7 @@ export function ProfileDialog({
     setAvatar(self.avatar ?? { kind: "preset", mood: moodFor(self.name) });
     setError("");
     setBusy(false);
+    setSaving(false);
     setAvatarError("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -56,15 +62,37 @@ export function ProfileDialog({
   const validate = () => {
     if (!n) return tx("填一下昵称");
     if (n.length > NAME_MAX) return tx("昵称最多 {0} 个字", NAME_MAX);
-    if (state.members.some(m => m.id !== self.id && m.name === n))
+    if (
+      state.members.some(
+        m => m.id !== self.id && m.name.trim().toLowerCase() === n.toLowerCase()
+      )
+    )
       return tx("亲友团里已经有人叫「{0}」了", n);
     return "";
   };
 
-  const save = () => {
+  const save = async () => {
+    if (saving) return;
     const err = validate();
     if (err) {
       setError(err);
+      return;
+    }
+    if (remote && session) {
+      setSaving(true);
+      try {
+        await session.updateMe({
+          ...(n !== self.name ? { name: n } : {}),
+          ...(!sameAvatar(avatar, current) ? { avatar } : {}),
+        });
+      } catch (e) {
+        setSaving(false);
+        setError(teamErrorText(e));
+        return;
+      }
+      setSaving(false);
+      actions.toast("manager", "success", tx("已更新个人资料"));
+      onClose();
       return;
     }
     actions.updateMe({ name: n, avatar });
@@ -92,10 +120,10 @@ export function ProfileDialog({
           <Btn
             variant="primary"
             size="md"
-            onClick={save}
-            disabled={!changed || busy || !online}
+            onClick={() => void save()}
+            disabled={!changed || busy || saving || !online}
           >
-            {tx("保存")}
+            {saving ? tx("正在保存") : tx("保存")}
           </Btn>
         </>
       }
@@ -122,18 +150,21 @@ export function ProfileDialog({
                 data-autofocus
                 value={name}
                 maxLength={20}
+                disabled={saving}
                 spellCheck={false}
                 onChange={e => {
                   setName(e.target.value);
                   setError("");
                 }}
-                onKeyDown={e => e.key === "Enter" && save()}
+                onKeyDown={e => e.key === "Enter" && void save()}
                 aria-invalid={!!error}
                 className={inputCls(!!error)}
               />
             </Field>
             <p className="mt-1.5 text-[12px] text-paper-3">
-              {tx("{0} · 亲友团成员都能看到", ROLE_LABEL[self.role])}
+              {state.team
+                ? tx("{0} · 亲友团成员都能看到", ROLE_LABEL[self.role])
+                : tx("只在本机显示")}
             </p>
           </div>
         </div>

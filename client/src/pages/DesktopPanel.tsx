@@ -21,6 +21,7 @@ import {
 } from "@/lib/desktop";
 import { tx, useLang } from "@/lib/i18n";
 import { trackResize, type Rect, type ResizeDir } from "@/lib/panelSize";
+import { lastBusStatus, onStatus } from "@/lib/team/bus";
 import { cn } from "@/lib/utils";
 import { myCharacters, pendingCount, useProto } from "@/state/store";
 
@@ -55,6 +56,21 @@ export default function DesktopPanel() {
   useEffect(() => {
     void setPinned(state.pinned);
   }, [state.pinned]);
+
+  // 亲友团离线状态：同步在管理窗口里跑，面板跟着显示离线条、点重试请管理窗口同步
+  const inTeam = !!state.team;
+  useEffect(() => {
+    if (!inTeam) {
+      if (state.dataState === "offline") actions.setDataState("normal");
+      return;
+    }
+    const apply = (offline: boolean) =>
+      actions.setDataState(offline ? "offline" : "normal");
+    apply(lastBusStatus().offline);
+    const off = onStatus(s => apply(s.offline));
+    return () => void off.then(f => f());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inTeam, actions]);
 
   // 托盘提示里的更新数
   const pending = pendingCount(state);

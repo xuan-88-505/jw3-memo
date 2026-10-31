@@ -29,6 +29,10 @@ import {
   type TrayMotion,
 } from "@/state/store";
 import { cn } from "@/lib/utils";
+import { InlineModal } from "@/components/common/overlay";
+import { ROLE_LABEL, relativeTime } from "@/lib/format";
+import { teamErrorText, useTeam } from "@/lib/team/TeamSync";
+import { LoginCodeDialog } from "./LoginCodeDialog";
 import { SectionHeader, SelectBox, inputCls } from "./shared";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { ME_ID } from "@/data/seed";
@@ -68,6 +72,8 @@ export function SettingsView() {
     <div>
       <SectionHeader title={tx("设置")} />
       <div className="divide-y divide-paper/[0.07]">
+        <AccountGroup />
+
         <SettingGroup title={tx("快捷键")}>
           <HotkeyRow />
         </SettingGroup>
@@ -232,6 +238,132 @@ function AuthorRow() {
 
 /* ---------------- 数据：导出、导入 ---------------- */
 
+/* ---------------- 账号：亲友团登录 ---------------- */
+
+/** 桌面版才有。没加入时引导去亲友团页；加入后显示所在亲友团、生成登录码、退出登录 */
+function AccountGroup() {
+  const { state, actions } = useProto();
+  const session = useTeam();
+  const [codeOpen, setCodeOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [busy, setBusy] = useState(false);
+  if (!session) return null;
+  const acc = session.account;
+  const self = state.members.find(m => m.id === ME_ID);
+  const offline = state.dataState === "offline";
+
+  if (!acc || !state.team)
+    return (
+      <SettingGroup title={tx("账号")}>
+        <SettingRow
+          title={tx("亲友团")}
+          desc={tx("还没加入。加入后和亲友共用方案和记录，换电脑也能登录")}
+        >
+          <Btn size="sm" onClick={() => actions.setSection("team")}>
+            {tx("去加入")}
+          </Btn>
+        </SettingRow>
+      </SettingGroup>
+    );
+
+  const syncing = session.status === "syncing";
+  const parts = [
+    state.team.name,
+    self ? ROLE_LABEL[self.role] : "",
+    offline
+      ? tx("离线")
+      : acc.lastSyncAt
+        ? tx("上次同步：{0}", relativeTime(acc.lastSyncAt))
+        : "",
+  ].filter(Boolean);
+
+  const logout = async () => {
+    setBusy(true);
+    try {
+      await session.logout();
+      setLeaving(false);
+      actions.toast("manager", "success", tx("已退出登录，数据已备份"));
+    } catch (err) {
+      actions.toast("manager", "error", teamErrorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <SettingGroup title={tx("账号")}>
+      <SettingRow
+        title={self?.name ?? tx("亲友团")}
+        desc={parts.join(" · ")}
+      >
+        <Btn
+          size="sm"
+          onClick={() => void session.syncNow()}
+          disabled={syncing}
+          icon={
+            syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : undefined
+          }
+        >
+          {syncing ? tx("正在同步") : tx("立即同步")}
+        </Btn>
+      </SettingRow>
+      <SettingRow
+        title={tx("在另一台电脑登录")}
+        desc={tx("生成登录码，10 分钟内有效")}
+      >
+        <Btn
+          size="sm"
+          onClick={() => setCodeOpen(true)}
+          disabled={offline}
+          title={offline ? tx("离线时不能生成") : undefined}
+        >
+          {tx("生成登录码")}
+        </Btn>
+      </SettingRow>
+      <SettingRow
+        title={tx("退出登录")}
+        desc={tx("退出前自动备份。你的角色、方案、配装和便签留在本机")}
+      >
+        <Btn size="sm" variant="danger" onClick={() => setLeaving(true)}>
+          {tx("退出登录")}
+        </Btn>
+      </SettingRow>
+      <LoginCodeDialog open={codeOpen} onClose={() => setCodeOpen(false)} />
+      <InlineModal
+        open={leaving}
+        onClose={() => !busy && setLeaving(false)}
+        title={tx("退出亲友团登录？")}
+        description={tx(
+          "本机会先备份一份数据。别人的角色和共用的记录会从本机移除，用登录码或邀请码可以再登录。"
+        )}
+        footer={
+          <>
+            <Btn
+              variant="ghost"
+              size="md"
+              onClick={() => setLeaving(false)}
+              disabled={busy}
+            >
+              {tx("取消")}
+            </Btn>
+            <Btn
+              variant="primary"
+              size="md"
+              onClick={() => void logout()}
+              disabled={busy}
+              icon={
+                busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : undefined
+              }
+            >
+              {tx("退出登录")}
+            </Btn>
+          </>
+        }
+      />
+    </SettingGroup>
+  );
+}
+
 /** 文件名里的日期，如 20261030 */
 function today() {
   const d = new Date();
@@ -244,6 +376,8 @@ function DataRows() {
   const fileRef = useRef<HTMLInputElement>(null);
   /** 选好了要导入的文件，等用户确认覆盖 */
   const [pending, setPending] = useState<Partial<ProtoState> | null>(null);
+  // 在亲友团里不能导入：整份替换会把本机的旧数据当成改动同步给亲友
+  const inTeam = !!state.team;
 
   const doExport = async () => {
     try {
@@ -289,7 +423,9 @@ function DataRows() {
       <SettingRow
         title={tx("导入数据")}
         desc={
-          pending ? (
+          inTeam ? (
+            tx("在亲友团里不能导入，先退出登录")
+          ) : pending ? (
             <span className="text-gold">
               {tx("文件里有 {0}。导入后本机现有的数据会被替换。", summary)}
             </span>
@@ -316,7 +452,11 @@ function DataRows() {
             </Btn>
           </>
         ) : (
-          <Btn size="sm" onClick={() => fileRef.current?.click()}>
+          <Btn
+            size="sm"
+            onClick={() => fileRef.current?.click()}
+            disabled={inTeam}
+          >
             {tx("选择文件")}
           </Btn>
         )}

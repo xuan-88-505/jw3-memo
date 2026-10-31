@@ -1214,7 +1214,8 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
   const open = !!pc && pc.schemeId === schemeId;
   const draft = state.drafts[schemeId];
   const [xinfa, mode] = schemeId.split("-") as [string, Mode];
-  const last = latest(findScheme(state, xinfa, mode));
+  // 联网冲突时本地已经是服务器的最新版，要和我改之前的那一版比
+  const last = pc?.base ?? latest(findScheme(state, xinfa, mode));
   const layers = layersOf(xinfa);
 
   const theirs = useMemo(

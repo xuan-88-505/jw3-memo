@@ -61,6 +61,7 @@ import {
   IS_DESKTOP,
   WINDOW_LABEL,
   backupData,
+  isSaveConflict,
   loadData,
   onDataChanged,
   onPanelShown,
@@ -86,8 +87,15 @@ import type {
 import { tx } from "@/lib/i18n";
 import { isNewer, loadoutFromCalc, type CalcResult } from "@/lib/dpsCalc";
 import { needsSeasonSync, seasonSync } from "@/lib/calcEngine";
+import { requestSync } from "@/lib/team/bus";
+import { mergePersisted } from "@/lib/team/merge";
 
 // ---------- 状态 ----------
+
+/** 新建条目 ID 的随机后缀：亲友团里各人的 ID 不会撞，也猜不到 */
+function randSuffix() {
+  return Math.random().toString(36).slice(2, 8);
+}
 
 export type ToastSurface = "panel" | "manager";
 export interface UiToast {
@@ -113,6 +121,8 @@ export interface PendingConflict {
   schemeId: string;
   rival: SchemeVersion;
   note: string;
+  /** 我的改动是基于哪个版本（联网冲突时由服务器给出；原型里就是本地最新版） */
+  base?: SchemeVersion;
 }
 
 export interface ProtoState {
@@ -417,6 +427,7 @@ function desktopInitial(): Partial<ProtoState> {
 
 /** 存进 data.json 的字段：业务数据和本机设置。面板开关、草稿、提示这类界面状态不存 */
 const PERSIST_KEYS = [
+  "team",
   "members",
   "characters",
   "schemes",
@@ -445,6 +456,13 @@ const ARRAY_KEYS = new Set<string>([
   "raidLogs",
   "blacklist",
   "links",
+]);
+
+/** 两个窗口合并文件时，这些对象字段按里面的键逐个合并（配装、便签按条目） */
+const MERGE_RECORD_KEYS: ReadonlySet<string> = new Set([
+  "loadouts",
+  "notes",
+  "hotkeys",
 ]);
 
 const DATA_APP = "tongdiao";
@@ -486,6 +504,16 @@ export function parseData(raw: string): Partial<ProtoState> | null {
     result.notes = adoptGlobalNote(data.note, active);
   }
   if ("navOrder" in out) result.navOrder = normalizeNav(out.navOrder);
+  if ("team" in out) {
+    const t = out.team as Partial<Team> | null;
+    result.team =
+      t && typeof t === "object" && typeof t.name === "string"
+        ? {
+            name: t.name,
+            inviteCode: typeof t.inviteCode === "string" ? t.inviteCode : "",
+          }
+        : null;
+  }
   if ("hotkeys" in out)
     result.hotkeys = {
       ...DEFAULT_HOTKEYS,
@@ -781,7 +809,10 @@ function appendVersion(
     ];
   }
   return schemes.map(s =>
-    s.id === schemeId ? { ...s, versions: [...s.versions, version] } : s
+    // 已经有这个版本号（联网冲突时服务器的版本已经写进来了）就不再加
+    s.id === schemeId && !s.versions.some(v => v.version === version.version)
+      ? { ...s, versions: [...s.versions, version] }
+      : s
   );
 }
 
@@ -930,18 +961,28 @@ function useActions(
           return { dataState };
         }),
       retry: () => {
+        // 桌面版在亲友团里：请管理窗口马上同步一次，结果由同步层更新
+        if (IS_DESKTOP && stateRef.current.team) {
+          requestSync();
+          return;
+        }
         patch({ dataState: "loading" });
         window.setTimeout(() => patch({ dataState: "normal" }), 900);
       },
-      /** 桌面版导入数据：覆盖本机数据，丢掉没保存的草稿 */
-      importData: (data: Partial<ProtoState>) =>
+      /** 桌面版导入数据：覆盖本机数据，丢掉没保存的草稿。亲友团状态不跟着文件变 */
+      importData: (data: Partial<ProtoState>) => {
+        const rest = { ...data };
+        delete rest.team;
         patch({
-          ...data,
+          ...rest,
           drafts: {},
           pendingConflict: null,
           managerIntent: null,
           schemesPage: "list",
-        }),
+        });
+      },
+      /** 亲友团同步层用：按最新状态改数据，不清草稿 */
+      applyTeam: (fn: (s: ProtoState) => Partial<ProtoState>) => update(fn),
 
       // 面板
       dismissCoach: () => patch({ coachSeen: true }),
@@ -1201,7 +1242,7 @@ function useActions(
 
       // 角色
       addCharacter: (c: Omit<Character, "id" | "ownerId" | "synced">) => {
-        const id = `c${Date.now()}`;
+        const id = `c${Date.now()}${randSuffix()}`;
         update(s => ({
           characters: [
             ...s.characters,
@@ -1280,7 +1321,7 @@ function useActions(
         config?: GearConfig;
       }): string => {
         const s = stateRef.current;
-        const id = `lo${Date.now()}`;
+        const id = `lo${Date.now()}${randSuffix()}`;
         const sameXinfa = Object.values(s.loadouts).some(
           l => l.xinfa === p.xinfa
         );
@@ -1433,7 +1474,7 @@ function useActions(
       saveGearDraftAs: (loId: string, draft: GearDraft, name: string) => {
         const lo = stateRef.current.loadouts[loId];
         if (!lo) return null;
-        const id = `lo${Date.now()}`;
+        const id = `lo${Date.now()}${randSuffix()}`;
         const at = new Date().toISOString();
         const saved = applyDraft(lo, draft);
         const made: Loadout = {
@@ -1517,7 +1558,7 @@ function useActions(
       saveEngineGearAs: (loId: string, next: Loadout, name: string) => {
         const lo = stateRef.current.loadouts[loId];
         if (!lo) return null;
-        const id = `lo${Date.now()}`;
+        const id = `lo${Date.now()}${randSuffix()}`;
         const at = new Date().toISOString();
         const made: Loadout = {
           ...next,
@@ -1645,7 +1686,7 @@ function useActions(
             : [
                 {
                   ...input,
-                  id: `r${Date.now().toString(36)}`,
+                  id: `r${Date.now().toString(36)}${randSuffix()}`,
                   by: ME_ID,
                   updatedAt: now,
                 },
@@ -1666,7 +1707,7 @@ function useActions(
             : [
                 {
                   ...input,
-                  id: `b${Date.now().toString(36)}`,
+                  id: `b${Date.now().toString(36)}${randSuffix()}`,
                   by: ME_ID,
                   at: new Date().toISOString(),
                 },
@@ -1688,7 +1729,7 @@ function useActions(
         const added = fresh.length;
         const now = Date.now();
         const items: SharedLink[] = fresh.map((url, i) => ({
-          id: `l${(now + i).toString(36)}`,
+          id: `l${(now + i).toString(36)}${randSuffix()}`,
           url,
           title: autoTitle(url),
           by: ME_ID,
@@ -1718,7 +1759,7 @@ function useActions(
         if (!items.length) return;
         const now = Date.now();
         const fresh: SharedLink[] = items.map((it, i) => ({
-          id: `l${(now + i).toString(36)}i`,
+          id: `l${(now + i).toString(36)}i${randSuffix()}`,
           url: "",
           title: it.title,
           by: ME_ID,
@@ -1879,6 +1920,24 @@ function useDesktopData(
   /** 文件里现在的内容。读到的和要写的一样时不写，避免两个窗口来回通知 */
   const lastJson = useRef<string | null>(null);
 
+  /**
+   * 另一个窗口写了文件，本窗口也有没写进文件的改动：按条目合并，
+   * 只保留本窗口改过的条目，其余用文件里的。返回合并后要写回的内容。
+   */
+  const mergeFrom = (raw: string, theirs: Partial<ProtoState>) => {
+    const base = (lastJson.current && parseData(lastJson.current)) || {};
+    const mine = parseData(serializeData(stateRef.current)) ?? {};
+    const merged = mergePersisted(
+      base as Record<string, unknown>,
+      mine as Record<string, unknown>,
+      theirs as Record<string, unknown>,
+      MERGE_RECORD_KEYS
+    ) as Partial<ProtoState>;
+    lastJson.current = raw;
+    dispatch({ type: "patch", patch: merged });
+    return serializeData({ ...stateRef.current, ...merged });
+  };
+
   useEffect(() => {
     if (!IS_DESKTOP) return;
     let alive = true;
@@ -1891,8 +1950,15 @@ function useDesktopData(
         if (!first && raw && raw === lastJson.current) return;
         const data = raw ? parseData(raw) : null;
         if (raw && data) {
-          lastJson.current = raw;
-          dispatch({ type: "patch", patch: data });
+          const dirty =
+            !first &&
+            lastJson.current !== null &&
+            serializeData(stateRef.current) !== lastJson.current;
+          if (dirty) mergeFrom(raw, data);
+          else {
+            lastJson.current = raw;
+            dispatch({ type: "patch", patch: data });
+          }
         } else if (first) {
           // 没有文件（第一次打开）或文件读不出来：从空数据开始，没改动就不写
           lastJson.current = serializeData(stateRef.current);
@@ -1945,18 +2011,39 @@ function useDesktopData(
   const persisted = PERSIST_KEYS.map(k => state[k]);
   useEffect(() => {
     if (!IS_DESKTOP || !ready) return;
-    const t = window.setTimeout(() => {
-      const json = serializeData(stateRef.current);
-      if (json === lastJson.current) return;
-      lastJson.current = json;
-      saveData(json).catch(err => {
-        console.error("保存数据失败", err);
-        actions.toast(
-          WINDOW_LABEL === "panel" ? "panel" : "manager",
-          "error",
-          tx("保存失败，这次的改动没有写进文件")
-        );
-      });
+    const t = window.setTimeout(async () => {
+      // 写之前读一次文件：另一个窗口刚写过、通知还没到时先合并，不用旧数据盖掉。
+      // 写入时带上读到的内容，两个窗口同时写时后到的那个会收到冲突，重新读、合并再写
+      for (let attempt = 0; attempt < 4; attempt++) {
+        let json = serializeData(stateRef.current);
+        if (json === lastJson.current) return;
+        let raw: string | null | undefined;
+        try {
+          raw = await loadData();
+        } catch {
+          raw = undefined; // 读不了就不比较，照常写
+        }
+        const theirs = raw && raw !== lastJson.current ? parseData(raw) : null;
+        if (raw && theirs) {
+          json = mergeFrom(raw, theirs);
+          if (json === raw) return;
+        }
+        if (json === lastJson.current) return;
+        try {
+          await saveData(json, raw === undefined ? undefined : (raw ?? ""));
+          lastJson.current = json;
+          return;
+        } catch (err) {
+          if (isSaveConflict(err) && attempt < 3) continue;
+          console.error("保存数据失败", err);
+          actions.toast(
+            WINDOW_LABEL === "panel" ? "panel" : "manager",
+            "error",
+            tx("保存失败，这次的改动没有写进文件")
+          );
+          return;
+        }
+      }
     }, 300);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
