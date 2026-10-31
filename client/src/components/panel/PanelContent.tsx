@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
-import { Check, ChevronDown, Copy, Plus } from "lucide-react";
+import { Check, Copy, Plus } from "lucide-react";
 import { Jx3Icon } from "@/components/brand/Marks";
 import { Btn } from "@/components/common/ui";
 import { layersOf } from "@/data/seed";
-import type { Macro, SchemeVersion } from "@/data/types";
+import type { Macro, SchemeVersion, TalentSet } from "@/data/types";
 import { changedLines, type SchemeDiff } from "@/lib/diff";
 import { layerLabel, copyText } from "@/lib/format";
 import { MACRO_LIMIT, cleanMacro, isCommentLine } from "@/lib/macro";
+import { talentSetLabel } from "@/lib/talentSets";
+import { talentSetChangeText } from "@/components/manager/shared";
 import { useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { tx } from "@/lib/i18n";
@@ -17,12 +19,36 @@ import { talentText } from "@/lib/jx3box";
 export function ChangeList({ diff }: { diff: SchemeDiff }) {
   return (
     <ul className="animate-fade space-y-1 text-[12px]">
+      {diff.talentSets.map(c => (
+        <li key={`s${c.setId}`} className="flex items-baseline gap-2">
+          <span className="w-11 shrink-0 text-paper-3">{tx("奇穴")}</span>
+          <span className="min-w-0">
+            <span
+              className={cn(
+                "font-medium",
+                c.kind === "removed"
+                  ? "text-paper-3 line-through"
+                  : "text-paper"
+              )}
+            >
+              {c.name}
+            </span>
+            <span className="ml-1.5 text-paper-3">
+              {talentSetChangeText(c)}
+            </span>
+          </span>
+        </li>
+      ))}
       {diff.talents.map(t => (
-        <li key={`t${t.layer}`} className="flex items-baseline gap-2">
+        <li
+          key={`t${t.setId ?? ""}${t.layer}`}
+          className="flex items-baseline gap-2"
+        >
           <span className="w-11 shrink-0 text-paper-3">
             {tx("第{0}重", layerLabel(t.layer - 1))}
           </span>
           <span className="min-w-0">
+            {t.set && <span className="mr-1.5 text-paper-2">{t.set}</span>}
             {t.from && (
               <>
                 <span className="text-paper-3 line-through">{t.from.name}</span>
@@ -312,61 +338,110 @@ export function MacroCode({
 
 // ---------- 奇穴 ----------
 
+/**
+ * 一套一行：九重的图标横着排，几套上下排着一眼看完。
+ * 面板宽时图标下面写名字；窄时只有图标，悬停看名字，点一下看说明。
+ */
 export function TalentList({
   xinfa,
-  talents,
+  sets,
   compact,
 }: {
   xinfa: string;
-  talents: number[];
+  sets: TalentSet[];
   /** 多心法分段时：紧贴心法小标题 */
   compact?: boolean;
 }) {
   const layers = layersOf(xinfa);
-  const [openLayer, setOpenLayer] = useState<number | null>(null);
-
+  const [open, setOpen] = useState<{ set: string; layer: number } | null>(null);
+  // 只有一套、也没起名字时不写套名
+  const named = sets.length > 1 || sets.some(s => s.name.trim());
   return (
-    <ul className={cn("px-2", compact ? "pb-2" : "py-2")}>
-      {talents.map((pos, i) => {
-        const o = layers[i]?.options.find(x => x.pos === pos);
-        if (!o) return null;
-        const open = openLayer === i;
+    <div
+      className={cn(
+        "@container space-y-3.5 px-3",
+        compact ? "pb-3 pt-0.5" : "py-3"
+      )}
+    >
+      {sets.map((s, si) => {
+        const label = talentSetLabel(s, si);
+        const picks = s.talents.map((pos, i) =>
+          layers[i]?.options.find(x => x.pos === pos)
+        );
+        const sel = open?.set === s.id ? open.layer : null;
+        const detail = sel !== null ? picks[sel] : undefined;
         return (
-          <li key={i}>
-            <button
-              type="button"
-              onClick={() => setOpenLayer(open ? null : i)}
-              aria-expanded={open}
-              className={cn(
-                "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors",
-                open ? "bg-paper/[0.04]" : "hover:bg-paper/[0.035]"
-              )}
-            >
-              <span className="w-4 shrink-0 text-center font-serif text-[12px] text-paper-3">
-                {layerLabel(i)}
-              </span>
-              <Jx3Icon id={o.icon} name={o.name} size={28} />
-              <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                <span className="truncate text-[13px] text-paper">
-                  {o.name}
-                </span>
-              </span>
-              <ChevronDown
-                className={cn(
-                  "h-3.5 w-3.5 shrink-0 text-paper-3/60 transition-transform",
-                  open && "rotate-180"
-                )}
-                aria-hidden="true"
-              />
-            </button>
-            {open && (
-              <p className="animate-fade whitespace-pre-line px-2 pb-2 pl-[62px] pt-0.5 text-[12px] leading-relaxed text-paper-2">
-                {talentText(o.desc)}
+          <section key={s.id} aria-label={named ? label : tx("奇穴")}>
+            {named && (
+              <p className="mb-1.5 px-0.5 text-[12px] font-medium text-paper-2">
+                {label}
               </p>
             )}
-          </li>
+            <div className="grid grid-cols-9 gap-[3px] @[340px]:gap-1">
+              {picks.map((o, i) =>
+                o ? (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() =>
+                      setOpen(sel === i ? null : { set: s.id, layer: i })
+                    }
+                    aria-expanded={sel === i}
+                    aria-label={tx("第{0}重 · {1}", layerLabel(i), o.name)}
+                    title={tx("第{0}重 · {1}", layerLabel(i), o.name)}
+                    className={cn(
+                      "flex min-w-0 flex-col items-center gap-1 rounded-[8px] p-[2px] transition-colors",
+                      sel === i ? "bg-paper/[0.07]" : "hover:bg-paper/[0.045]"
+                    )}
+                  >
+                    <Jx3Icon
+                      id={o.icon}
+                      name={o.name}
+                      size={32}
+                      fluid
+                      className={cn(
+                        "max-w-[44px]",
+                        sel === i && "ring-2 ring-cinnabar/80"
+                      )}
+                    />
+                    {/* 面板拉宽后一格放得下四个字：写名字，放不下就换行，不截断 */}
+                    <span
+                      aria-hidden="true"
+                      className="hidden w-full break-all text-center text-[11px] leading-tight text-paper-2 @[540px]:block"
+                    >
+                      {o.name}
+                    </span>
+                  </button>
+                ) : (
+                  <span
+                    key={i}
+                    aria-hidden="true"
+                    className="m-[2px] aspect-square rounded-[6px] bg-paper/[0.05]"
+                  />
+                )
+              )}
+            </div>
+            {detail && sel !== null && (
+              <div className="mt-1.5 animate-fade rounded-lg bg-paper/[0.04] px-2.5 py-2">
+                <p className="text-[12.5px] text-paper">
+                  <span className="mr-1.5 text-paper-3">
+                    {tx("第{0}重", layerLabel(sel))}
+                  </span>
+                  {detail.name}
+                  {detail.isSkill && (
+                    <span className="ml-1.5 text-[11px] text-paper-3">
+                      {tx("招式")}
+                    </span>
+                  )}
+                </p>
+                <p className="mt-1 whitespace-pre-line text-[12px] leading-relaxed text-paper-2">
+                  {talentText(detail.desc)}
+                </p>
+              </div>
+            )}
+          </section>
         );
       })}
-    </ul>
+    </div>
   );
 }

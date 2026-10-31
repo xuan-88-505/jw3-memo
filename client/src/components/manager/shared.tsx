@@ -2,10 +2,67 @@ import type { ReactNode } from "react";
 import { PixelIcon, type PixelIconName } from "@/components/brand/PixelIcon";
 import { ChevronDown, ChevronLeft } from "lucide-react";
 import { Jx3Icon } from "@/components/brand/Marks";
-import type { SchemeDiff } from "@/lib/diff";
+import type { SchemeDiff, TalentChange, TalentSetChange } from "@/lib/diff";
 import { layerLabel } from "@/lib/format";
+import { MAIN_SET_ID } from "@/lib/talentSets";
 import { cn } from "@/lib/utils";
 import { tx, txn } from "@/lib/i18n";
+
+/** 整套奇穴变化的说明：新增、删除、改名 */
+export function talentSetChangeText(c: TalentSetChange) {
+  return c.kind === "added"
+    ? tx("新增")
+    : c.kind === "removed"
+      ? tx("删除")
+      : tx("改名，原来叫「{0}」", c.oldName);
+}
+
+/**
+ * 有多套奇穴时按套分组：先是有层变化的套（按方案里的顺序），
+ * 再是整套新增的，最后是删掉的
+ */
+export function groupTalentChanges(diff: SchemeDiff) {
+  const groups: {
+    id: string;
+    name: string;
+    event?: TalentSetChange;
+    rows: TalentChange[];
+  }[] = [];
+  for (const t of diff.talents) {
+    // 只有一套时层变化不带套 id，都是第一套的
+    const id = t.setId ?? MAIN_SET_ID;
+    let g = groups.find(x => x.id === id);
+    if (!g) groups.push((g = { id, name: t.set ?? "", rows: [] }));
+    g.rows.push(t);
+  }
+  for (const c of diff.talentSets) {
+    const g = groups.find(x => x.id === c.setId);
+    if (g) {
+      g.event = c;
+      g.name ||= c.name;
+    } else groups.push({ id: c.setId, name: c.name, event: c, rows: [] });
+  }
+  return groups;
+}
+
+function TalentRow({ t }: { t: TalentChange }) {
+  return (
+    <li className="flex items-center gap-2 text-[12.5px]">
+      <span className="w-11 shrink-0 text-paper-3">
+        {tx("第{0}重", layerLabel(t.layer - 1))}
+      </span>
+      {t.from && (
+        <>
+          <Jx3Icon id={t.from.icon} name={t.from.name} size={20} dim />
+          <span className="text-paper-3 line-through">{t.from.name}</span>
+          <span className="text-paper-3">→</span>
+        </>
+      )}
+      <Jx3Icon id={t.to.icon} name={t.to.name} size={20} />
+      <span className="font-medium text-paper">{t.to.name}</span>
+    </li>
+  );
+}
 
 /** 按"旧 → 新"展示两个版本的差异 */
 export function DiffDetails({
@@ -18,41 +75,70 @@ export function DiffDetails({
   if (diff.total === 0) {
     return <p className="text-[12.5px] text-paper-3">{tx("内容没有变化。")}</p>;
   }
+  const multi = diff.talentSets.length > 0 || diff.talents.some(t => t.setId);
   return (
     <div className="space-y-3">
-      {diff.talents.length > 0 && (
+      {diff.talents.length > 0 && !multi && (
         <div>
           <p className="mb-1.5 text-[11.5px] tracking-[0.1em] text-paper-3">
             {tx("奇穴")}
           </p>
           <ul className="space-y-1">
             {diff.talents.map(t => (
-              <li
-                key={t.layer}
-                className="flex items-center gap-2 text-[12.5px]"
-              >
-                <span className="w-11 shrink-0 text-paper-3">
-                  {tx("第{0}重", layerLabel(t.layer - 1))}
-                </span>
-                {t.from && (
-                  <>
-                    <Jx3Icon
-                      id={t.from.icon}
-                      name={t.from.name}
-                      size={20}
-                      dim
-                    />
-                    <span className="text-paper-3 line-through">
-                      {t.from.name}
-                    </span>
-                    <span className="text-paper-3">→</span>
-                  </>
-                )}
-                <Jx3Icon id={t.to.icon} name={t.to.name} size={20} />
-                <span className="font-medium text-paper">{t.to.name}</span>
-              </li>
+              <TalentRow key={t.layer} t={t} />
             ))}
           </ul>
+        </div>
+      )}
+      {multi && (
+        <div>
+          <p className="mb-1.5 text-[11.5px] tracking-[0.1em] text-paper-3">
+            {tx("奇穴")}
+          </p>
+          <div className="space-y-2.5">
+            {groupTalentChanges(diff).map(g => (
+              <div key={g.id}>
+                {(g.name || g.event) && (
+                  <p className="mb-1 text-[12.5px]">
+                    <span
+                      className={cn(
+                        "font-medium",
+                        g.event?.kind === "removed"
+                          ? "text-paper-3 line-through"
+                          : "text-paper"
+                      )}
+                    >
+                      {g.name}
+                    </span>
+                    {g.event && (
+                      <span className="ml-2 text-paper-3">
+                        {talentSetChangeText(g.event)}
+                      </span>
+                    )}
+                  </p>
+                )}
+                {g.event?.picks && g.event.picks.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {g.event.picks.map((o, i) => (
+                      <span
+                        key={i}
+                        title={tx("第{0}重 · {1}", layerLabel(i), o.name)}
+                      >
+                        <Jx3Icon id={o.icon} name={o.name} size={22} />
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {g.rows.length > 0 && (
+                  <ul className="space-y-1">
+                    {g.rows.map(t => (
+                      <TalentRow key={t.layer} t={t} />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {diff.macros.length > 0 && (
@@ -151,7 +237,8 @@ export function DiffDetails({
 
 export function diffSummary(diff: SchemeDiff): string {
   const parts: string[] = [];
-  if (diff.talents.length) parts.push(txn("奇穴 {0} 处", diff.talents.length));
+  const talentCount = diff.talents.length + diff.talentSets.length;
+  if (talentCount) parts.push(txn("奇穴 {0} 处", talentCount));
   if (diff.macros.length) parts.push(tx("宏 {0} 个", diff.macros.length));
   return parts.join(" · ") || tx("无变化");
 }

@@ -1102,5 +1102,13 @@ const dict: Record<string, string> = {
   "已保存 v{0}。v{1} 留在修改记录里。": "Saved v{0}. v{1} remains in the change history.",
   "已放弃这次修改，现在是 v{0}。": "Changes discarded. Now using v{0}.",
   "这个方案在别处也保存了": "This preset was also saved elsewhere",
+  "一套": "Set",
+  "再加一套奇穴": "Add another talent set",
+  "删除「{0}」": "Delete “{0}”",
+  "奇穴 · {0} 套": "Talents · {0} sets",
+  "奇穴套": "Talent sets",
+  "奇穴套名字": "Talent set name",
+  "点击改名": "Click to rename",
+  "第{0}套": "Set {0}",
 };
 export default dict;

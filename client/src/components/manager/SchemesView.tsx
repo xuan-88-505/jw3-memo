@@ -36,7 +36,7 @@ import {
   type Mode,
   type SchemeVersion,
 } from "@/data/types";
-import { diffVersions } from "@/lib/diff";
+import { diffVersions, hasGameChange } from "@/lib/diff";
 import { relativeTime } from "@/lib/format";
 import { jx3boxMacroUrl } from "@/lib/jx3box";
 import { MACRO_LIMIT, cleanMacro, lintMacro } from "@/lib/macro";
@@ -57,6 +57,16 @@ import { cn } from "@/lib/utils";
 import { DiffDetails, Field, diffSummary, inputCls } from "./shared";
 import { XinfaPairSelect } from "./SchoolPicker";
 import { TalentPicker } from "./TalentPicker";
+import { TalentSetTabs } from "./TalentSetTabs";
+import {
+  MAX_TALENT_SETS,
+  copyTalentFields,
+  mapTalentSets,
+  newTalentSetId,
+  sameTalentSets,
+  talentSetsOf,
+  type TalentFields,
+} from "@/lib/talentSets";
 import {
   TalentScanButton,
   TalentScanNotice,
@@ -380,12 +390,9 @@ function NewSchemeDialog({
   );
 }
 
-function sameContent(
-  a: { macros: Macro[]; talents: number[] },
-  b?: SchemeVersion
-) {
+function sameContent(a: { macros: Macro[] } & TalentFields, b?: SchemeVersion) {
   if (!b) return false;
-  if (a.talents.join() !== b.talents.join()) return false;
+  if (!sameTalentSets(a, b)) return false;
   if (a.macros.length !== b.macros.length) return false;
   return a.macros.every((m, i) => {
     const o = b.macros[i];
@@ -633,13 +640,27 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
     !!latest(findScheme(state, xinfa, other)) ||
     !!state.drafts[`${xinfa}-${other}`];
   const hasContent = !!last || !!draft;
-  // 截图识别奇穴：认出的层直接改进草稿
+  // 多套奇穴：当前在看哪一套；刚加的一套直接改名
+  const [activeSet, setActiveSet] = useState<string>("main");
+  const [renamingSet, setRenamingSet] = useState<string | null>(null);
+  const src = draft ?? last;
+  const sets = src ? talentSetsOf(src) : [];
+  // 放弃修改后刚加的那套没了：回到第一套
+  const curSet = sets.find(x => x.id === activeSet) ?? sets[0];
+  const curSetId = curSet?.id ?? "main";
+  const editSet = (id: string, fn: (t: number[]) => number[]) =>
+    actions.editDraft(schemeId, d =>
+      mapTalentSets(d, list =>
+        list.map(x => (x.id === id ? { ...x, talents: fn(x.talents) } : x))
+      )
+    );
+  // 截图识别奇穴：认出的层直接改进草稿里当前这一套
   const scan = useTalentScan({
     xinfa,
-    resetKey: schemeId,
-    talents: draft?.talents ?? last?.talents ?? [],
+    resetKey: `${schemeId}:${curSetId}`,
+    talents: curSet?.talents ?? [],
     enabled: editable && hasContent,
-    onApply: talents => actions.editDraft(schemeId, d => ({ ...d, talents })),
+    onApply: talents => editSet(curSetId, () => talents),
   });
 
   if (!hasContent) {
@@ -677,7 +698,36 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
     );
   }
 
-  const view = draft ?? { macros: last!.macros, talents: last!.talents };
+  const view = draft ?? last!;
+  const baseSets = last ? talentSetsOf(last) : undefined;
+  const addSet = () => {
+    const id = newTalentSetId();
+    // 从当前这一套复制：几套之间通常只差几层
+    actions.editDraft(schemeId, d =>
+      mapTalentSets(d, list => [
+        ...list,
+        { id, name: "", talents: [...(curSet?.talents ?? d.talents)] },
+      ])
+    );
+    setActiveSet(id);
+    setRenamingSet(id);
+  };
+  const renameSet = (id: string, name: string) => {
+    if ((sets.find(x => x.id === id)?.name ?? "") === name) return;
+    actions.editDraft(schemeId, d =>
+      mapTalentSets(d, list =>
+        list.map(x => (x.id === id ? { ...x, name } : x))
+      )
+    );
+  };
+  const removeSet = (id: string) => {
+    const i = sets.findIndex(x => x.id === id);
+    if (i <= 0) return;
+    actions.editDraft(schemeId, d =>
+      mapTalentSets(d, list => list.filter(x => x.id !== id))
+    );
+    setActiveSet(sets[i - 1].id);
+  };
   const dirty = !!draft && !sameContent(draft, last);
   const errors = view.macros.flatMap(m =>
     lintMacro(m.content)
@@ -832,17 +882,49 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
           <SectionLabel
             right={
               editable && (
-                <TalentScanButton
-                  busy={scan.busy}
-                  platform={state.platform}
-                  onClick={() => void scan.pick()}
-                />
+                <div className="flex items-center gap-1.5">
+                  {sets.length < MAX_TALENT_SETS && (
+                    <Btn
+                      variant="secondary"
+                      size="xs"
+                      aria-label={tx("再加一套奇穴")}
+                      title={tx("再加一套奇穴")}
+                      icon={<Plus className="h-3.5 w-3.5" aria-hidden="true" />}
+                      onClick={addSet}
+                    >
+                      {tx("一套")}
+                    </Btn>
+                  )}
+                  <TalentScanButton
+                    busy={scan.busy}
+                    platform={state.platform}
+                    onClick={() => void scan.pick()}
+                  />
+                </div>
               )
             }
           >
-            {tx("奇穴 · 9 层")}
+            {sets.length > 1
+              ? tx("奇穴 · {0} 套", sets.length)
+              : tx("奇穴 · 9 层")}
           </SectionLabel>
           {scan.fileInput}
+          {/* 只剩一套但起了名字（面板会写这个名字）：也显示，才能改名 */}
+          {(sets.length > 1 || !!sets[0]?.name.trim()) && (
+            <div className="mt-3">
+              <TalentSetTabs
+                sets={sets}
+                active={curSetId}
+                baseline={baseSets}
+                editable={editable}
+                renaming={renamingSet}
+                onSelect={setActiveSet}
+                onRename={renameSet}
+                onRemove={removeSet}
+                onRenameEnd={() => setRenamingSet(null)}
+              />
+            </div>
+          )}
           <div className="mt-3">
             {(scan.busy || scan.notice) && (
               <TalentScanNotice
@@ -855,10 +937,15 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
             )}
             <TalentPicker
               xinfa={xinfa}
-              value={view.talents}
-              baseline={last?.talents}
+              value={curSet?.talents ?? view.talents}
+              // 新加的一套上一版没有，不逐层标修改（套名旁边已经标了）
+              baseline={
+                baseSets
+                  ? baseSets.find(x => x.id === curSetId)?.talents
+                  : undefined
+              }
               disabled={!editable}
-              onChange={talents => edit(d => ({ ...d, talents }))}
+              onChange={talents => editSet(curSetId, () => talents)}
             />
           </div>
         </div>
@@ -1068,7 +1155,7 @@ function SaveDialog({
         {
           version: 0,
           macros: draft.macros,
-          talents: draft.talents,
+          ...copyTalentFields(draft),
           note: "",
           authorId: ME_ID,
           at: "",
@@ -1077,9 +1164,11 @@ function SaveDialog({
       ),
     [last, draft]
   );
-  const affected = state.characters.filter(c =>
-    xinfasOf(c).includes(draft.xinfa)
-  );
+  // 只改备注或奇穴套名字时游戏里不用动，不列角色
+  const affected =
+    last && !hasGameChange(diff)
+      ? []
+      : state.characters.filter(c => xinfasOf(c).includes(draft.xinfa));
   const nextV = (last?.version ?? 0) + 1;
 
   const submit = () => {
@@ -1227,7 +1316,7 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
       draft && last
         ? diffVersions(
             last,
-            { ...last, macros: draft.macros, talents: draft.talents },
+            { ...last, macros: draft.macros, ...copyTalentFields(draft) },
             layers
           )
         : null,

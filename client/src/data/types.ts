@@ -56,11 +56,24 @@ export interface Macro {
   note?: string;
 }
 
+/** 第二套起的一套奇穴。同一套在不同版本里 id 不变，用来比较差异 */
+export interface TalentSet {
+  id: string;
+  /** 用户起的名字，比如「AOE」；空着时显示「第二套」 */
+  name: string;
+  /** 和 SchemeVersion.talents 一样：9 个数字 */
+  talents: number[];
+}
+
 export interface SchemeVersion {
   version: number;
   macros: Macro[];
-  /** 9 个数字，每层选中的 pos（从 1 开始） */
+  /** 第一套奇穴：9 个数字，每层选中的 pos（从 1 开始）。配装计算用这一套 */
   talents: number[];
+  /** 第一套的名字；没有时显示「第一套」 */
+  talentsName?: string;
+  /** 第二套起的奇穴。旧数据和只有一套时没有这个字段 */
+  moreTalents?: TalentSet[];
   note: string;
   authorId: string;
   at: string;

@@ -53,7 +53,8 @@ import {
 } from "@/data/links";
 import { MODES } from "@/data/types";
 import type { BuffSelection } from "@/lib/buffs";
-import { diffVersions } from "@/lib/diff";
+import { diffVersions, hasGameChange } from "@/lib/diff";
+import { copyTalentFields } from "@/lib/talentSets";
 import { DEFAULT_HOTKEYS, type Hotkey } from "@/lib/hotkey";
 import type { NoteImage } from "@/lib/image";
 import {
@@ -83,6 +84,7 @@ import type {
   SyncStatus,
   Team,
   CharacterAvatar,
+  TalentSet,
 } from "@/data/types";
 import { tx } from "@/lib/i18n";
 import { isNewer, loadoutFromCalc, type CalcResult } from "@/lib/dpsCalc";
@@ -112,7 +114,10 @@ export interface Draft {
   /** 0 表示新建方案 */
   baseVersion: number;
   macros: Macro[];
+  /** 第一套奇穴；其余几套在 moreTalents，规则同 SchemeVersion */
   talents: number[];
+  talentsName?: string;
+  moreTalents?: TalentSet[];
   /** 新建还没保存的方案，自定义标题先放在草稿里 */
   title?: string;
 }
@@ -875,16 +880,17 @@ function useActions(
       const version: SchemeVersion = {
         version: (last?.version ?? 0) + 1,
         macros: draft.macros,
-        talents: draft.talents,
+        ...copyTalentFields(draft),
         note,
         authorId: ME_ID,
         at: new Date().toISOString(),
       };
-      // 只改了备注：游戏里不用动，已同步的角色继续算已同步
+      // 只改了备注或奇穴套的名字：游戏里不用动，已同步的角色继续算已同步
       const noGameChange =
         !!last &&
-        diffVersions(last, version, layersOf(draft.xinfa)).total === 0;
-      // PVE 方案的奇穴变了：用这个心法、已导入配装的我的角色重算一次
+        !hasGameChange(diffVersions(last, version, layersOf(draft.xinfa)));
+      // PVE 方案的奇穴变了：用这个心法、已导入配装的我的角色重算一次。
+      // 配装计算只用第一套，其余几套变了不用重算
       const talentChanged =
         !last || last.talents.some((t, i) => t !== draft.talents[i]);
       update(st => {
@@ -1133,7 +1139,7 @@ function useActions(
             mode,
             baseVersion: last?.version ?? 0,
             macros: last ? last.macros.map(m => ({ ...m })) : [],
-            talents: last ? [...last.talents] : defaultTalents(),
+            ...(last ? copyTalentFields(last) : { talents: defaultTalents() }),
           };
           return { drafts: { ...s.drafts, [id]: draft }, selectedSchemeId: id };
         }),
@@ -1150,7 +1156,9 @@ function useActions(
               mode,
               baseVersion: last?.version ?? 0,
               macros: last ? last.macros.map(m => ({ ...m })) : [],
-              talents: last ? [...last.talents] : defaultTalents(),
+              ...(last
+                ? copyTalentFields(last)
+                : { talents: defaultTalents() }),
             };
           }
           return { drafts: { ...s.drafts, [schemeId]: fn(draft) } };
@@ -1232,6 +1240,7 @@ function useActions(
           if (
             old &&
             (old.macros.length > 0 ||
+              !!old.moreTalents?.length ||
               old.talents.some((t, i) => t !== blank[i]))
           )
             return "draft";
@@ -1257,7 +1266,7 @@ function useActions(
             mode,
             baseVersion: last.version,
             macros: [...last.macros, macro],
-            talents: last.talents,
+            ...copyTalentFields(last),
           },
           tx("新增宏「{0}」", macro.name)
         );
@@ -1280,7 +1289,9 @@ function useActions(
         const blank = defaultTalents();
         if (
           old &&
-          (old.macros.length > 0 || old.talents.some((t, i) => t !== blank[i]))
+          (old.macros.length > 0 ||
+            !!old.moreTalents?.length ||
+            old.talents.some((t, i) => t !== blank[i]))
         )
           return "draft";
         commitDraft(
@@ -1307,7 +1318,7 @@ function useActions(
             schemes = appendVersion(schemes, pc.schemeId, {
               version: pc.rival.version + 1,
               macros: draft.macros,
-              talents: draft.talents,
+              ...copyTalentFields(draft),
               note:
                 pc.rival.authorId === ME_ID
                   ? tx("{0}（覆盖了 v{1}）", pc.note, pc.rival.version)

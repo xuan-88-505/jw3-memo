@@ -1102,5 +1102,13 @@ const dict: Record<string, string> = {
   "已保存 v{0}。v{1} 留在修改记录里。": "v{0} guardada. La v{1} queda en el historial de cambios.",
   "已放弃这次修改，现在是 v{0}。": "Cambios descartados; ahora está la v{0}.",
   "这个方案在别处也保存了": "Este preset también se guardó en otro lugar",
+  "一套": "Conjunto",
+  "再加一套奇穴": "Añadir otro conjunto de talentos",
+  "删除「{0}」": "Eliminar «{0}»",
+  "奇穴 · {0} 套": "Talentos · {0} conjuntos",
+  "奇穴套": "Conjuntos de talentos",
+  "奇穴套名字": "Nombre del conjunto",
+  "点击改名": "Haz clic para cambiar el nombre",
+  "第{0}套": "Conjunto {0}",
 };
 export default dict;

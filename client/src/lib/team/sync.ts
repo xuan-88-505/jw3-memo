@@ -15,6 +15,7 @@ import {
 } from "@shared/teamApi";
 import { ME_ID } from "@/data/seed";
 import type { Scheme, SchemeVersion } from "@/data/types";
+import { copyTalentFields } from "@/lib/talentSets";
 import type { Draft as SchemeDraft, PendingConflict } from "@/state/store";
 import type { PendingLocal, ShadowEntry } from "./account";
 import { apiBase, assetUrl } from "./api";
@@ -114,7 +115,10 @@ export interface PullPlan {
  */
 export function planPull(
   c: Collections,
-  acc: { shadow: Record<string, ShadowEntry>; rejected: Record<string, string> },
+  acc: {
+    shadow: Record<string, ShadowEntry>;
+    rejected: Record<string, string>;
+  },
   records: EntityRecord[],
   myId: string,
   full: boolean,
@@ -147,7 +151,10 @@ export function planPull(
       continue;
     }
 
-    const remote = localizeImages(r.kind, fromServer(r.kind, r.data, myId, r.ownerId));
+    const remote = localizeImages(
+      r.kind,
+      fromServer(r.kind, r.data, myId, r.ownerId)
+    );
     const rh = hashJson(remote);
     if (L && L.hash === rh) {
       shadow[key] = { v: r.version, h: rh, ...mine };
@@ -244,7 +251,10 @@ export function buildChange(
  */
 export function planPush(
   c: Collections,
-  acc: { shadow: Record<string, ShadowEntry>; rejected: Record<string, string> },
+  acc: {
+    shadow: Record<string, ShadowEntry>;
+    rejected: Record<string, string>;
+  },
   myId: string,
   role: TeamRole | undefined,
   skipSchemes: Set<string> = new Set()
@@ -300,7 +310,10 @@ export function batches(out: Outgoing[], maxBytes = 3_000_000): Outgoing[][] {
   let size = 0;
   for (const o of out) {
     const n = JSON.stringify(o.change).length;
-    if (cur.length && (cur.length >= TEAM_LIMITS.pushBatch || size + n > maxBytes)) {
+    if (
+      cur.length &&
+      (cur.length >= TEAM_LIMITS.pushBatch || size + n > maxBytes)
+    ) {
       list.push(cur);
       cur = [];
       size = 0;
@@ -330,7 +343,10 @@ export interface PushOutcome {
 }
 
 export function applyPushResults(
-  acc: { shadow: Record<string, ShadowEntry>; rejected: Record<string, string> },
+  acc: {
+    shadow: Record<string, ShadowEntry>;
+    rejected: Record<string, string>;
+  },
   sent: Outgoing[],
   results: PushResult[]
 ): PushOutcome {
@@ -346,7 +362,12 @@ export function applyPushResults(
       okCount++;
       delete rejected[o.key];
       if (o.change.deleted) delete shadow[o.key];
-      else shadow[o.key] = { v: r.version, h: o.hash, ...(o.mine ? { m: 1 as const } : {}) };
+      else
+        shadow[o.key] = {
+          v: r.version,
+          h: o.hash,
+          ...(o.mine ? { m: 1 as const } : {}),
+        };
       return;
     }
     if (r.error === "conflict") {
@@ -421,7 +442,7 @@ export function planConflict(
       mode: server.mode,
       baseVersion: rival.version,
       macros: myLast.macros,
-      talents: myLast.talents,
+      ...copyTalentFields(myLast),
     },
     conflict: {
       schemeId: server.id,

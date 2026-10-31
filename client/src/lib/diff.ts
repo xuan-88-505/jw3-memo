@@ -1,4 +1,5 @@
 import type { SchemeVersion, TalentLayer, TalentOption } from "@/data/types";
+import { talentSetLabel, talentSetsOf } from "@/lib/talentSets";
 
 export type DiffOp = { type: "same" | "add" | "del"; text: string };
 
@@ -55,11 +56,28 @@ export interface TalentChange {
   layer: number;
   from?: TalentOption;
   to: TalentOption;
+  /** 有多套时：这一处是哪一套（显示名）。只有一套时不写 */
+  set?: string;
+  /** 有多套时：这一套的 id，显示时按套分组 */
+  setId?: string;
+}
+
+/** 整套的变化：新增、删除、改名。层的变化在 TalentChange 里 */
+export interface TalentSetChange {
+  setId: string;
+  kind: "added" | "removed" | "renamed";
+  /** 显示名：新增、改名是新名字，删除是原来的名字 */
+  name: string;
+  /** 改名前的名字 */
+  oldName?: string;
+  /** 新增的一套：9 层选了什么 */
+  picks?: TalentOption[];
 }
 
 export interface SchemeDiff {
   macros: MacroChange[];
   talents: TalentChange[];
+  talentSets: TalentSetChange[];
   total: number;
 }
 
@@ -69,6 +87,28 @@ export function talentAt(
   pos: number
 ) {
   return layers[layerIndex]?.options.find(o => o.pos === pos);
+}
+
+function diffLayers(
+  oldT: number[] | undefined,
+  newT: number[],
+  layers: TalentLayer[],
+  set?: { id: string; name: string }
+): TalentChange[] {
+  const out: TalentChange[] = [];
+  newT.forEach((pos, i) => {
+    const prevPos = oldT?.[i];
+    if (prevPos === pos) return;
+    const to = talentAt(layers, i, pos);
+    if (!to) return;
+    out.push({
+      layer: i + 1,
+      from: prevPos ? talentAt(layers, i, prevPos) : undefined,
+      to,
+      ...(set ? { set: set.name, setId: set.id } : {}),
+    });
+  });
+  return out;
 }
 
 /** 比较两个版本。oldV 为空表示从没同步过，所有内容都算新增。 */
@@ -134,20 +174,62 @@ export function diffVersions(
     }
   }
 
+  // 奇穴：按套比较。只有一套时和以前一样，不写套名
+  const oldSets = oldV ? talentSetsOf(oldV) : [];
+  const newSets = talentSetsOf(newV);
+  const multi = oldSets.length > 1 || newSets.length > 1;
   const talents: TalentChange[] = [];
-  newV.talents.forEach((pos, i) => {
-    const prevPos = oldV?.talents[i];
-    if (prevPos === pos) return;
-    const to = talentAt(layers, i, pos);
-    if (!to) return;
-    talents.push({
-      layer: i + 1,
-      from: prevPos ? talentAt(layers, i, prevPos) : undefined,
-      to,
+  const talentSets: TalentSetChange[] = [];
+  newSets.forEach((s, i) => {
+    const label = talentSetLabel(s, i);
+    const prevIndex = oldSets.findIndex(o => o.id === s.id);
+    const prev = prevIndex >= 0 ? oldSets[prevIndex] : undefined;
+    // 第一套在第一个版本里一层一层列出来；后加的一套整套算新增
+    if (!prev && i > 0) {
+      talentSets.push({
+        setId: s.id,
+        kind: "added",
+        name: label,
+        picks: s.talents.flatMap((pos, k) => {
+          const o = talentAt(layers, k, pos);
+          return o ? [o] : [];
+        }),
+      });
+      return;
+    }
+    // 没起名的套按顺序叫「第几套」，前面删了一套顺序会变，不算改名
+    if (prev && prev.name.trim() !== s.name.trim()) {
+      talentSets.push({
+        setId: s.id,
+        kind: "renamed",
+        name: label,
+        oldName: talentSetLabel(prev, prevIndex),
+      });
+    }
+    talents.push(
+      ...diffLayers(
+        prev?.talents,
+        s.talents,
+        layers,
+        multi ? { id: s.id, name: label } : undefined
+      )
+    );
+  });
+  oldSets.forEach((o, i) => {
+    if (newSets.some(s => s.id === o.id)) return;
+    talentSets.push({
+      setId: o.id,
+      kind: "removed",
+      name: talentSetLabel(o, i),
     });
   });
 
-  return { macros, talents, total: macros.length + talents.length };
+  return {
+    macros,
+    talents,
+    talentSets,
+    total: macros.length + talents.length + talentSets.length,
+  };
 }
 
 /** 某个宏的哪些行是新的（用于高亮） */
@@ -164,4 +246,9 @@ export function changedLines(
     idx++;
   }
   return result;
+}
+
+/** 游戏里要不要跟着改：只改备注或奇穴套的名字不用 */
+export function hasGameChange(d: SchemeDiff): boolean {
+  return d.total > d.talentSets.filter(c => c.kind === "renamed").length;
 }

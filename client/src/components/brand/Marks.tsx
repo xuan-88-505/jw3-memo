@@ -153,22 +153,26 @@ export function Jx3Icon({
   size = 32,
   className,
   dim,
+  fluid,
 }: {
   id: number;
   name: string;
   size?: number;
   className?: string;
   dim?: boolean;
+  /** 铺满外面的格子并保持正方形；size 只决定缺图时的字号 */
+  fluid?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   return (
     <span
       className={cn(
         "relative inline-grid shrink-0 place-items-center overflow-hidden rounded-[6px] bg-paper/[0.06] ring-1 ring-inset ring-paper/10",
+        fluid && "aspect-square w-full",
         dim && "opacity-45 grayscale",
         className
       )}
-      style={{ width: size, height: size }}
+      style={fluid ? undefined : { width: size, height: size }}
     >
       {failed ? (
         <span
@@ -186,7 +190,11 @@ export function Jx3Icon({
           loading="lazy"
           draggable={false}
           onError={() => setFailed(true)}
-          className="h-full w-full object-cover"
+          className={cn(
+            "h-full w-full object-cover",
+            // 绝对定位：图片自身的宽高不会把格子撑大
+            fluid && "absolute inset-0"
+          )}
         />
       )}
     </span>

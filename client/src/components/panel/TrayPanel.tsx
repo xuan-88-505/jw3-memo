@@ -36,6 +36,7 @@ import { PanelAddCharacter } from "./PanelAddCharacter";
 import { PanelNewScheme } from "./PanelNewScheme";
 import { MacroList, TalentList } from "./PanelContent";
 import { tx } from "@/lib/i18n";
+import { talentSetsOf } from "@/lib/talentSets";
 
 // 多心法分段的折叠状态：按「角色:心法」记，宏和奇穴共用；关面板、重启后保持
 const COLLAPSE_KEY = "tongdiao.panelCollapsed.v1";
@@ -398,7 +399,7 @@ function PanelMain({
                   ) : (
                     <TalentList
                       xinfa={sec.xinfa}
-                      talents={sec.last!.talents}
+                      sets={talentSetsOf(sec.last!)}
                       compact={multi}
                     />
                   );
