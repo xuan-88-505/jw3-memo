@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, ChevronDown, Copy } from "lucide-react";
+import { Check, ChevronDown, Copy, Plus } from "lucide-react";
 import { Jx3Icon } from "@/components/brand/Marks";
 import { Btn } from "@/components/common/ui";
 import { layersOf } from "@/data/seed";
@@ -78,27 +78,40 @@ export function MacroList({
   macros,
   base,
   compact,
+  onAdd,
 }: {
   macros: Macro[];
   base?: SchemeVersion;
   /** 多心法分段时：紧贴心法小标题；没有宏只占一行 */
   compact?: boolean;
+  /** 有就在列表最后加一行「新建宏」；只读成员不传 */
+  onAdd?: () => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const baseMap = useMemo(
     () => new Map((base?.macros ?? []).map(m => [m.id, m])),
     [base]
   );
-  if (!macros.length) {
+  if (!macros.length && (!onAdd || !compact)) {
     return (
-      <p
+      <div
         className={cn(
-          "px-4 text-[12.5px] text-paper-3",
-          compact ? "pb-3 pt-1" : "py-10 text-center"
+          "flex flex-col px-4 text-[12.5px] text-paper-3",
+          compact ? "pb-3 pt-1" : "items-center gap-3 py-10 text-center"
         )}
       >
-        {tx("没有宏")}
-      </p>
+        <p>{tx("没有宏")}</p>
+        {onAdd && (
+          <Btn
+            variant="secondary"
+            size="sm"
+            onClick={onAdd}
+            icon={<Plus className="h-3.5 w-3.5" aria-hidden="true" />}
+          >
+            {tx("新建宏")}
+          </Btn>
+        )}
+      </div>
     );
   }
   return (
@@ -112,7 +125,32 @@ export function MacroList({
           onToggle={() => setOpenId(id => (id === m.id ? null : m.id))}
         />
       ))}
+      {onAdd && <AddMacroRow onClick={onAdd} />}
     </ul>
+  );
+}
+
+/**
+ * 宏列表最后一行：虚线方框占住宏图标的位置，文字和宏名对齐，看起来像空着的一格。
+ * 平时弱，悬停时和宏一样变亮。
+ */
+function AddMacroRow({ onClick }: { onClick: () => void }) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        className="group flex min-h-[44px] w-full items-center gap-2.5 rounded-lg py-1 pl-2 pr-2 text-left text-[13px] text-paper-3 transition-colors hover:bg-paper/[0.035] hover:text-paper focus-visible:bg-paper/[0.035] focus-visible:text-paper"
+      >
+        <span
+          aria-hidden="true"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-dashed border-paper/15 transition-colors group-hover:border-paper/30"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </span>
+        {tx("新建宏")}
+      </button>
+    </li>
   );
 }
 
@@ -160,6 +198,7 @@ export function MacroCard({
 
   return (
     <li
+      data-macro-id={macro.id}
       className={cn(
         "rounded-lg transition-colors",
         open ? "bg-paper/[0.04]" : "hover:bg-paper/[0.035]"

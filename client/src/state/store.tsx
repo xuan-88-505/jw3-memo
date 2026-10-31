@@ -1186,23 +1186,35 @@ function useActions(
         const s = stateRef.current;
         const draft = s.drafts[schemeId];
         if (!draft) return "saved";
-        const last = latest(s.schemes.find(x => x.id === schemeId));
+        const scheme = s.schemes.find(x => x.id === schemeId);
+        const last = latest(scheme);
         if (s.simulateConflict && last) {
           patch({
             pendingConflict: { schemeId, rival: rivalEdit(last), note },
           });
           return "conflict";
         }
+        // 编辑期间这个方案在别处存了新版本：面板里加了宏、另一个窗口或亲友同步下来。
+        // 草稿不写进 data.json，面板看不到它，所以在这里拦住，让用户选，不悄悄盖掉。
+        if (last && draft.baseVersion < last.version) {
+          const base = scheme?.versions.find(
+            v => v.version === draft.baseVersion
+          ) ?? {
+            version: 0,
+            macros: [],
+            talents: defaultTalents(),
+            note: "",
+            authorId: last.authorId,
+            at: last.at,
+          };
+          patch({ pendingConflict: { schemeId, rival: last, note, base } });
+          return "conflict";
+        }
         commitDraft(draft, note);
         return "saved";
       },
       /**
-       * 面板里直接新建：不经过管理窗口，填好的内容直接存成 v1，说明写「新建」。
-       * 已经有方案时返回 "exists"；管理窗口里这个方案有填了内容还没保存的草稿时
-       * 返回 "draft"，不覆盖。
-       */
-      /**
-       * 给某心法某模式的方案加一个宏，从「我的角色」原地新建宏时用。
+       * 给某心法某模式的方案加一个宏：「我的角色」和面板里新建宏时用。
        * 还没有这个方案：新建 v1，只有这个宏；已经有：在最新版本后面加上这个宏，存成新版本。
        * 方案正在编辑、有没保存的修改时返回 "draft"，不动草稿。
        */
@@ -1251,6 +1263,11 @@ function useActions(
         );
         return "added";
       },
+      /**
+       * 面板里直接新建：不经过管理窗口，填好的内容直接存成 v1，说明写「新建」。
+       * 已经有方案时返回 "exists"；管理窗口里这个方案有填了内容还没保存的草稿时
+       * 返回 "draft"，不覆盖。
+       */
       createScheme: (
         xinfa: string,
         mode: Mode,
@@ -1291,12 +1308,15 @@ function useActions(
               version: pc.rival.version + 1,
               macros: draft.macros,
               talents: draft.talents,
-              note: tx(
-                "{0}（覆盖了 {1} 的 v{2}）",
-                pc.note,
-                memberName(st, pc.rival.authorId),
-                pc.rival.version
-              ),
+              note:
+                pc.rival.authorId === ME_ID
+                  ? tx("{0}（覆盖了 v{1}）", pc.note, pc.rival.version)
+                  : tx(
+                      "{0}（覆盖了 {1} 的 v{2}）",
+                      pc.note,
+                      memberName(st, pc.rival.authorId),
+                      pc.rival.version
+                    ),
               authorId: ME_ID,
               at: new Date().toISOString(),
             });

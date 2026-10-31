@@ -133,13 +133,31 @@ function PanelMain({
   const [collapsed, setCollapsed] = useState(readCollapsed);
   // 面板里的新建都原地填表，不打开管理窗口：scheme 新建方案，char 添加角色
   const [creating, setCreating] = useState<null | "scheme" | "char">(null);
+  // 给已有方案加宏：记下是哪个心法；保存后滚到新宏
+  const [addingTo, setAddingTo] = useState<string | null>(null);
+  const [justAdded, setJustAdded] = useState<string | null>(null);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
   const mine = myCharacters(state);
   const char = mine.find(c => c.id === state.activeCharId) ?? mine[0];
   // 换了角色：要新建的心法也变了，收起新建方案的表单
   useEffect(() => {
     setCreating(c => (c === "scheme" ? null : c));
+    setAddingTo(null);
   }, [char.id]);
+  // 离开宏页签就收起新建宏的表单
+  useEffect(() => {
+    if (tab !== "macro") setAddingTo(null);
+  }, [tab]);
+  useEffect(() => {
+    if (!justAdded) return;
+    const el = document.querySelector<HTMLElement>(
+      `[data-macro-id="${CSS.escape(justAdded)}"]`
+    );
+    el?.scrollIntoView({ block: "nearest" });
+    el?.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
+    setJustAdded(null);
+  }, [justAdded]);
+  const canAdd = me(state)?.role !== "viewer";
   // 多心法角色（双心法、学了流派）：列表按心法分段，每段一个小标题
   const xinfas = xinfasOf(char);
   const multi = xinfas.length > 1;
@@ -326,6 +344,26 @@ function PanelMain({
           {tab === "note" ? (
             // 每个角色一份：按角色 id 重新挂载，切角色时内容跟着变
             <NotePad key={char.id} charId={char.id} />
+          ) : addingTo && tab === "macro" ? (
+            <PanelNewScheme
+              key={`${char.id}-add-${addingTo}`}
+              kind="macro"
+              xinfas={[addingTo]}
+              mode={mode}
+              // 多心法时写明加到哪个方案；只有一个心法时不用说
+              context={
+                multi
+                  ? sections.find(x => x.xinfa === addingTo)?.scheme?.title ||
+                    addingTo
+                  : undefined
+              }
+              onDone={id => {
+                setAddingTo(null);
+                if (id) setJustAdded(id);
+              }}
+              onCancel={() => setAddingTo(null)}
+              onOpenManager={id => openManager("schemes", id)}
+            />
           ) : creating === "scheme" && missing.length > 0 ? (
             // 在宏、奇穴之间切页签时表单不重置，已经填的内容还在
             <PanelNewScheme
@@ -355,6 +393,7 @@ function PanelMain({
                       macros={sec.last!.macros}
                       base={sec.base}
                       compact={multi}
+                      onAdd={canAdd ? () => setAddingTo(sec.xinfa) : undefined}
                     />
                   ) : (
                     <TalentList

@@ -11,23 +11,29 @@ import { cn } from "@/lib/utils";
 import { useProto } from "@/state/store";
 
 /**
- * 面板里原地新建方案，不打开管理窗口。
- * 宏页签里点「新建」填一个宏（图标、名称、说明、内容）；奇穴页签里点「新建」选奇穴。
- * 保存后直接存成 v1，面板回到列表。Esc 或「取消」回到原来的样子。
+ * 面板里原地新建，不打开管理窗口。
+ * 宏页签：填一个宏（图标、名称、说明、内容）。心法还没有方案时存成 v1；
+ * 已经有方案（宏列表最后的「新建宏」）时加到最新版本后面，存成新版本。
+ * 奇穴页签：给还没有方案的心法选奇穴，存成 v1。
+ * 保存后面板回到列表。Esc 或「取消」回到原来的样子。
  */
 export function PanelNewScheme({
   kind,
   xinfas,
   mode,
+  context,
   onDone,
   onCancel,
   onOpenManager,
 }: {
   kind: "macro" | "talent";
-  /** 还没有方案的心法；多于一个时可以切换 */
+  /** 要存到哪些心法；多于一个时可以切换 */
   xinfas: string[];
   mode: Mode;
-  onDone: () => void;
+  /** 标题旁边弱显示存到哪里，多心法角色给已有方案加宏时用 */
+  context?: string;
+  /** 新建宏时带上新宏的 id，列表可以滚到它 */
+  onDone: (macroId?: string) => void;
   onCancel: () => void;
   /** 管理窗口里有这个方案没保存的草稿时，去那里处理 */
   onOpenManager: (schemeId: string) => void;
@@ -53,33 +59,30 @@ export function PanelNewScheme({
   const canSave = kind === "talent" || (!!name.trim() && !empty && !over);
   const save = () => {
     if (!canSave) return;
-    const result = actions.createScheme(
-      xinfa,
-      mode,
-      kind === "macro"
-        ? {
-            macros: [
-              {
-                id: `${xinfa}-${mode}-n${Date.now()}`,
-                name: name.trim(),
-                icon,
-                content: content.trim(),
-                note: note.trim(),
-              },
-            ],
-          }
-        : { talents }
-    );
+    if (kind === "macro") {
+      const macroId = `${xinfa}-${mode}-n${Date.now()}`;
+      const result = actions.addMacro(xinfa, mode, {
+        id: macroId,
+        name: name.trim(),
+        icon,
+        content: content.trim(),
+        note: note.trim(),
+      });
+      if (result === "draft") {
+        setBlocked(true);
+        return;
+      }
+      actions.toast("panel", "success", tx("已保存宏"));
+      onDone(macroId);
+      return;
+    }
+    const result = actions.createScheme(xinfa, mode, { talents });
     if (result === "draft") {
       setBlocked(true);
       return;
     }
     if (result === "created") {
-      actions.toast(
-        "panel",
-        "success",
-        kind === "macro" ? tx("已保存宏") : tx("已保存奇穴")
-      );
+      actions.toast("panel", "success", tx("已保存奇穴"));
     }
     onDone();
   };
@@ -99,9 +102,14 @@ export function PanelNewScheme({
     >
       <h2
         id="panel-new-title"
-        className="mb-4 text-[14px] font-medium text-paper"
+        className="mb-4 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[14px] font-medium text-paper"
       >
         {kind === "macro" ? tx("新建宏") : tx("新建奇穴")}
+        {context && (
+          <span className="min-w-0 text-[12px] font-normal text-paper-3 [overflow-wrap:anywhere]">
+            {context}
+          </span>
+        )}
       </h2>
 
       {xinfas.length > 1 && (

@@ -1235,6 +1235,8 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
   );
   if (!open || !pc || !last) return null;
   const rivalName = memberName(state, pc.rival.authorId);
+  // 新版本是自己在别处存的：面板里新建了宏，或另一台电脑上改了
+  const self = pc.rival.authorId === ME_ID;
 
   return (
     <InlineModal
@@ -1243,15 +1245,29 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
       dismissible={false}
       tone="warning"
       width={520}
-      title={tx("{0} 刚刚也保存了这个方案", rivalName)}
-      description={tx(
-        "你是基于 v{0} 改的。{1} 在 {2}保存了 v{3}：“{4}”。两份改动不一样，要选一个。",
-        last.version,
-        rivalName,
-        relativeTime(pc.rival.at),
-        pc.rival.version,
-        pc.rival.note
-      )}
+      title={
+        self
+          ? tx("这个方案在别处也保存了")
+          : tx("{0} 刚刚也保存了这个方案", rivalName)
+      }
+      description={
+        self
+          ? tx(
+              "你是基于 v{0} 改的。面板或另一台电脑上{1}保存了 v{2}：“{3}”。两份改动不一样，要选一个。",
+              last.version,
+              relativeTime(pc.rival.at),
+              pc.rival.version,
+              pc.rival.note
+            )
+          : tx(
+              "你是基于 v{0} 改的。{1} 在 {2}保存了 v{3}：“{4}”。两份改动不一样，要选一个。",
+              last.version,
+              rivalName,
+              relativeTime(pc.rival.at),
+              pc.rival.version,
+              pc.rival.note
+            )
+      }
       footer={
         <>
           <Btn
@@ -1262,11 +1278,13 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
               actions.toast(
                 "manager",
                 "info",
-                tx(
-                  "已放弃你的修改，现在是 {0} 的 v{1}。",
-                  rivalName,
-                  pc.rival.version
-                )
+                self
+                  ? tx("已放弃这次修改，现在是 v{0}。", pc.rival.version)
+                  : tx(
+                      "已放弃你的修改，现在是 {0} 的 v{1}。",
+                      rivalName,
+                      pc.rival.version
+                    )
               );
             }}
           >
@@ -1280,12 +1298,18 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
               actions.toast(
                 "manager",
                 "success",
-                tx(
-                  "已保存 v{0}。{1} 的 v{2} 留在修改记录里。",
-                  pc.rival.version + 1,
-                  rivalName,
-                  pc.rival.version
-                )
+                self
+                  ? tx(
+                      "已保存 v{0}。v{1} 留在修改记录里。",
+                      pc.rival.version + 1,
+                      pc.rival.version
+                    )
+                  : tx(
+                      "已保存 v{0}。{1} 的 v{2} 留在修改记录里。",
+                      pc.rival.version + 1,
+                      rivalName,
+                      pc.rival.version
+                    )
               );
             }}
           >
@@ -1299,12 +1323,18 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
           [
             [
               "theirs",
-              tx(
-                "{0} 的改动（v{1} → v{2}）",
-                rivalName,
-                last.version,
-                pc.rival.version
-              ),
+              self
+                ? tx(
+                    "别处的改动（v{0} → v{1}）",
+                    last.version,
+                    pc.rival.version
+                  )
+                : tx(
+                    "{0} 的改动（v{1} → v{2}）",
+                    rivalName,
+                    last.version,
+                    pc.rival.version
+                  ),
               theirs,
             ],
             ["mine", tx("你的改动（基于 v{0}）", last.version), mine],

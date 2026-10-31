@@ -1096,5 +1096,11 @@ const dict: Record<string, string> = {
   "新建配装或宏": "New gear set or macro",
   "点击修改服务器": "Click to edit server",
   "还没有「{0} {1}」方案，保存时一起新建": "No “{0} {1}” preset yet. Saving creates it.",
+  "{0}（覆盖了 v{1}）": "{0} (overwrote v{1})",
+  "你是基于 v{0} 改的。面板或另一台电脑上{1}保存了 v{2}：“{3}”。两份改动不一样，要选一个。": "Your changes are based on v{0}. v{2} was saved {1} in the panel or on another computer: “{3}”. The two sets of changes differ, so you need to choose one.",
+  "别处的改动（v{0} → v{1}）": "Changes from elsewhere (v{0} → v{1})",
+  "已保存 v{0}。v{1} 留在修改记录里。": "Saved v{0}. v{1} remains in the change history.",
+  "已放弃这次修改，现在是 v{0}。": "Changes discarded. Now using v{0}.",
+  "这个方案在别处也保存了": "This preset was also saved elsewhere",
 };
 export default dict;

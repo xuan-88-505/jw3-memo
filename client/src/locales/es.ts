@@ -1096,5 +1096,11 @@ const dict: Record<string, string> = {
   "新建配装或宏": "Crear conjunto de equipo o macro",
   "点击修改服务器": "Haz clic para cambiar el servidor",
   "还没有「{0} {1}」方案，保存时一起新建": "Aún no hay preset «{0} {1}». Se creará al guardar.",
+  "{0}（覆盖了 v{1}）": "{0} (sobrescribió v{1})",
+  "你是基于 v{0} 改的。面板或另一台电脑上{1}保存了 v{2}：“{3}”。两份改动不一样，要选一个。": "Tus cambios se basan en v{0}. Se guardó v{2} {1} en el panel u otro ordenador: \"{3}\". Los cambios son distintos; debes elegir uno.",
+  "别处的改动（v{0} → v{1}）": "Cambios de otro lugar (v{0} → v{1})",
+  "已保存 v{0}。v{1} 留在修改记录里。": "v{0} guardada. La v{1} queda en el historial de cambios.",
+  "已放弃这次修改，现在是 v{0}。": "Cambios descartados; ahora está la v{0}.",
+  "这个方案在别处也保存了": "Este preset también se guardó en otro lugar",
 };
 export default dict;
