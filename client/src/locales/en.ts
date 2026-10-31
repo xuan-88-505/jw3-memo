@@ -1110,5 +1110,6 @@ const dict: Record<string, string> = {
   "奇穴套名字": "Talent set name",
   "点击改名": "Click to rename",
   "第{0}套": "Set {0}",
+  "新增宏": "New macro",
 };
 export default dict;

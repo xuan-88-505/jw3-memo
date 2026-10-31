@@ -795,28 +795,17 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
           }
           actions={
             <>
+              {/* 另一个模式从左栏心法行的「+」或「新建」建；修改记录从左栏底部进 */}
               {editable && (
                 <Btn
                   variant="secondary"
                   size="sm"
-                  aria-label={tx("添加宏")}
-                  title={tx("添加宏")}
+                  aria-label={tx("新增宏")}
+                  title={tx("新增宏")}
                   icon={<Plus className="h-3.5 w-3.5" />}
                   onClick={addMacro}
                 >
-                  {tx("宏")}
-                </Btn>
-              )}
-              {last && editable && !otherExists && (
-                <Btn
-                  variant="secondary"
-                  size="sm"
-                  aria-label={tx("添加 {0} 方案", other)}
-                  title={tx("添加 {0} 方案", other)}
-                  icon={<Plus className="h-3.5 w-3.5" />}
-                  onClick={() => actions.startDraft(xinfa, other)}
-                >
-                  {other}
+                  {tx("新增")}
                 </Btn>
               )}
               <a
@@ -833,17 +822,6 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
                   aria-hidden="true"
                 />
               </a>
-              {last && (
-                <Btn
-                  variant="secondary"
-                  size="sm"
-                  aria-label={tx("历史版本")}
-                  title={tx("历史版本")}
-                  className="w-7 px-0"
-                  icon={<History className="h-3.5 w-3.5" />}
-                  onClick={() => actions.openChangelog(xinfa)}
-                />
-              )}
             </>
           }
         />

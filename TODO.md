@@ -822,3 +822,10 @@
 - 验证：`pnpm check` 通过；`pnpm test` 7 个文件 67 项通过（新增 `client/src/lib/talentSets.test.ts` 16 项：旧数据读成一套、只剩一套不写多余字段、复制不共用数组、套名空格不算改动、整套新增/删除/改名、某套某重的变化、删中间一套不误报改名、只改套名不算游戏改动、推到服务器带上几套、同步哈希不变）；`pnpm build`、`pnpm build:static` 通过；`cargo fmt --check`、`cargo test` 8 项通过（本次没改 Rust）。
 - 新测试 `/tmp/team2/sets_test.py` 41 项通过（桌面版两个窗口，假 Tauri 接口）：面板单套不写套名、九重一排、正方形不溢出、点图标出说明再点收起；编辑器加一套直接改名、从当前套复制、改 AOE 不影响第一套、保存 v2 存进 `moreTalents`；面板两套上下排、说明出在对应套下面；通知写「AOE 新增」；300 宽一排放得下、600 宽图标下写名字不截断；改名、第一套不能删、悬停出删除、保存 v3；修改记录写删除和「改名，原来叫「第一套」」；只改套名保存不列角色、角色同步跟到 v4；Esc 取消、放弃修改回第一套、满 6 套不能再加、方向键切换；英文 Set 2 / Talents · 2 sets 不溢出；无脚本错误。
 - 回归全部通过：panel_add 42、char_test 45、desktop_mock 50、lang_team 50、lang_test 12、authorrow 26、feedback 36、talentocr 53、manual_loadout 27、native smoke 11、jx3box 75、schemehdr 36。jx3box 第 C 01 项按新的面板交互改为逐个点图标读说明（仍检查说明用 pre-line、没有 `<br/>`）。
+
+## 方案标题行只留新增和魔盒（2026-11-01）
+用户要求：「这个入口去掉。这里就叫新增/新建」（框出「+ PVP」和历史版本，箭头指「+ 宏」）。
+- [x] 方案标题行去掉「+ PVP」和历史版本按钮；另一个模式从左栏心法行的「+」或「新建」建，修改记录从左栏底部进。
+- [x] 「+ 宏」改为「+ 新增」，悬停提示和读屏名「新增宏」；新文案翻译成英日韩西，西语「新增」改为 Nuevo。
+- 验证：`pnpm check` 通过；`pnpm test` 7 个文件 67 项通过；`pnpm build`、`pnpm build:static` 通过；缺词扫描 0 条（本次没改 Rust）。`/tmp/schemehdr/test2.py` 改为检查新标题行，54 项通过：五种语言和西语窄窗口下只有「新增」和魔盒两个按钮、文字和读屏名正确、没有 PVP 按钮和历史版本按钮、同高同行间距 6px、不溢出、左栏还有修改记录入口。回归全部通过：jx3box 75（标题行顺序改为魔盒在最后）、sets_test 41（修改记录改从左栏进）、panel_add 42、char_test 45、desktop_mock 50、lang_team 50、lang_test 12、authorrow 26、feedback 36、talentocr 53、manual_loadout 27、native smoke 11。
+

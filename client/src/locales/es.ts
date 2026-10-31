@@ -194,7 +194,7 @@ const dict: Record<string, string> = {
   "宏": "Macro",
   "宏名称": "Nombre de la macro",
   "已修改": "Modificado",
-  "新增": "Añadido",
+  "新增": "Nuevo",
   "去掉注释和空行后的字符数（含换行）": "Número de caracteres sin comentarios ni líneas vacías (incluye saltos de línea)",
   "删除宏 {0}": "Eliminar macro {0}",
   "{0} 的备注": "Comentario de {0}",
@@ -1110,5 +1110,6 @@ const dict: Record<string, string> = {
   "奇穴套名字": "Nombre del conjunto",
   "点击改名": "Haz clic para cambiar el nombre",
   "第{0}套": "Conjunto {0}",
+  "新增宏": "Nueva macro",
 };
 export default dict;

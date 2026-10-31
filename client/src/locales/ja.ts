@@ -1110,5 +1110,6 @@ const dict: Record<string, string> = {
   "奇穴套名字": "奇穴セット名",
   "点击改名": "クリックして名前を変更",
   "第{0}套": "セット{0}",
+  "新增宏": "マクロを追加",
 };
 export default dict;
