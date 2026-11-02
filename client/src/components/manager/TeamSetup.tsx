@@ -1,11 +1,11 @@
-import { useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import {
   TEAM_LIMITS,
   normalizeInviteCode,
   normalizeLoginCode,
 } from "@shared/teamApi";
-import { Btn } from "@/components/common/ui";
+import { Btn, Segmented } from "@/components/common/ui";
 import { PixelScene } from "@/components/brand/PixelIcon";
 import { SEED_TEAM } from "@/data/seed";
 import { TeamApiError } from "@/lib/team/api";
@@ -17,6 +17,7 @@ import {
 import { isOnline, me, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { SectionHeader, inputCls } from "./shared";
+import { PasswordInput, shake } from "./AccountFields";
 import { tx } from "@/lib/i18n";
 
 const NAME_MAX = 12;
@@ -183,36 +184,32 @@ function SetupFrame({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * 输错时输入框左右抖一下（系统开了减少动态效果时不抖）。
- * 用 Web Animations，不改 className，重新渲染不会打断。
- */
-function shake(el: HTMLElement | null) {
-  if (!el || typeof el.animate !== "function") return;
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  el.animate(
-    [
-      { transform: "translateX(0)" },
-      { transform: "translateX(-5px)" },
-      { transform: "translateX(5px)" },
-      { transform: "translateX(-3px)" },
-      { transform: "translateX(3px)" },
-      { transform: "translateX(0)" },
-    ],
-    { duration: 360, easing: "ease-out" }
-  );
+type Busy = "create" | "join" | "login" | "password" | null;
+
+/** 设置页的「登录」按钮：下次打开亲友团页时直接显示登录界面 */
+let loginIntent = false;
+export function openTeamLogin() {
+  loginIntent = true;
 }
 
-type Busy = "create" | "join" | "login" | null;
+const fieldLabel = "mb-2 block text-[13.5px] font-medium text-paper";
 
 /**
- * 桌面版：昵称 → 创建 /「或」/ 用邀请码加入；第二台电脑点下面的「用登录码登录」。
+ * 桌面版：昵称 → 创建 /「或」/ 用邀请码加入；在别的电脑加入过点下面的「登录」，
+ * 用账号密码或登录码登录。
  * 加入、登录前本机数据会先自动备份一份。
  */
 function DesktopSetup({ session }: { session: TeamSession }) {
   const { state, actions } = useProto();
   const self = me(state);
-  const [mode, setMode] = useState<"new" | "login">("new");
+  const [mode, setMode] = useState<"new" | "login">(() =>
+    loginIntent ? "login" : "new"
+  );
+  // 只在挂载后清掉，开发模式下初始化函数会跑两次
+  useEffect(() => {
+    loginIntent = false;
+  }, []);
+  const [method, setMethod] = useState<"password" | "code">("password");
   const [busy, setBusy] = useState<Busy>(null);
   const [nick, setNick] = useState(self?.name ?? "");
   const [nickError, setNickError] = useState("");
@@ -222,14 +219,28 @@ function DesktopSetup({ session }: { session: TeamSession }) {
   const [codeError, setCodeError] = useState("");
   const [login, setLogin] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [remember, setRemember] = useState(true);
+  /** 输错密码后要把光标放回密码框；等表单不再禁用后再放 */
+  const [refocusPw, setRefocusPw] = useState(0);
   const nickId = useId();
   const nameId = useId();
   const codeId = useId();
   const loginId = useId();
+  const userId = useId();
+  const pwId = useId();
   const nickRef = useRef<HTMLInputElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
   const loginRef = useRef<HTMLInputElement>(null);
+  const userRef = useRef<HTMLInputElement>(null);
+  const pwRef = useRef<HTMLInputElement>(null);
+  const pwFieldsRef = useRef<HTMLDivElement>(null);
   const locked = busy !== null;
+  useEffect(() => {
+    if (refocusPw && !locked) pwRef.current?.focus();
+  }, [refocusPw, locked]);
 
   const checkNick = () => {
     const n = nick.trim();
@@ -244,9 +255,27 @@ function DesktopSetup({ session }: { session: TeamSession }) {
   };
 
   /** 按错误类型放到对应输入框下面 */
-  const fail = (err: unknown, where: "name" | "code" | "login") => {
+  const fail = (
+    err: unknown,
+    where: "name" | "code" | "login" | "password"
+  ) => {
     const text = teamErrorText(err);
     const code = err instanceof TeamApiError ? err.code : null;
+    if (where === "password") {
+      if (code === "rate_limited") {
+        const sec = (err as TeamApiError).retryAfter ?? 60;
+        setPwError(
+          tx("试的次数太多，{0} 分钟后再试", Math.max(1, Math.ceil(sec / 60)))
+        );
+      } else setPwError(text);
+      if (code === "credentials_invalid") {
+        // 和系统登录一样：抖一下，清空密码，光标回到密码框
+        shake(pwFieldsRef.current);
+        setPassword("");
+        setRefocusPw(n => n + 1);
+      }
+      return;
+    }
     if (code === "nickname_taken") {
       setNickError(text);
       shake(nickRef.current);
@@ -267,7 +296,7 @@ function DesktopSetup({ session }: { session: TeamSession }) {
     kind: Exclude<Busy, null>,
     fn: () => Promise<void>,
     ok: string,
-    where: "name" | "code" | "login"
+    where: "name" | "code" | "login" | "password"
   ) => {
     setBusy(kind);
     try {
@@ -319,62 +348,203 @@ function DesktopSetup({ session }: { session: TeamSession }) {
       shake(loginRef.current);
       return;
     }
-    void run("login", () => session.login(c), tx("已登录亲友团"), "login");
+    void run(
+      "login",
+      () => session.login(c, remember),
+      tx("已登录亲友团"),
+      "login"
+    );
+  };
+  const signInPassword = () => {
+    const u = username.trim();
+    if (!u) {
+      setPwError(tx("先填用户名"));
+      userRef.current?.focus();
+      return;
+    }
+    if (!password) {
+      setPwError(tx("先填密码"));
+      pwRef.current?.focus();
+      return;
+    }
+    void run(
+      "password",
+      () => session.loginPassword({ username: u, password, remember }),
+      tx("已登录亲友团"),
+      "password"
+    );
   };
 
   const spinner = <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />;
 
-  if (mode === "login")
+  const rememberBox = (
+    <label
+      title={tx("不勾选时，退出软件后自动退出登录")}
+      className="inline-flex cursor-pointer select-none items-center gap-1.5 text-[13px] text-paper-2"
+    >
+      <input
+        type="checkbox"
+        checked={remember}
+        onChange={e => setRemember(e.target.checked)}
+        disabled={locked}
+        className="h-3.5 w-3.5 accent-[var(--color-cinnabar)]"
+      />
+      {tx("记住我")}
+    </label>
+  );
+  const footer = (kind: "password" | "login") => (
+    <div className="mt-1 flex items-center justify-between gap-3">
+      {rememberBox}
+      <Btn
+        type="submit"
+        variant="primary"
+        size="md"
+        disabled={locked}
+        className="h-9 min-w-[76px] px-4"
+      >
+        {busy === kind ? spinner : tx("登录")}
+      </Btn>
+    </div>
+  );
+
+  if (mode === "login") {
+    const pane = (on: boolean) =>
+      cn("[grid-area:1/1]", !on && "invisible");
     return (
       <SetupFrame>
-        <Step
-          className="mt-10"
-          label={tx("用登录码登录")}
-          htmlFor={loginId}
-          hint={
-            <span className={loginError ? "text-cinnabar-text" : undefined}>
+        <div className="mt-8 flex justify-center">
+          <Segmented
+            size="md"
+            label={tx("登录方式")}
+            value={method}
+            onChange={m => {
+              if (locked) return;
+              setMethod(m);
+              window.setTimeout(
+                () =>
+                  (m === "password" ? userRef : loginRef).current?.focus(),
+                0
+              );
+            }}
+            options={[
+              { value: "password", label: tx("账号密码") },
+              { value: "code", label: tx("登录码") },
+            ]}
+          />
+        </div>
+        {/* 两种方式叠在同一格里，切换时高度不变，下面的链接不跳 */}
+        <div className="mt-6 grid">
+          <form
+            className={pane(method === "password")}
+            aria-hidden={method !== "password"}
+            onSubmit={e => {
+              e.preventDefault();
+              if (!locked) signInPassword();
+            }}
+          >
+            <div ref={pwFieldsRef}>
+              <label htmlFor={userId} className={fieldLabel}>
+                {tx("用户名")}
+              </label>
+              <input
+                ref={userRef}
+                id={userId}
+                value={username}
+                autoFocus
+                onChange={e => {
+                  setUsername(e.target.value);
+                  setPwError("");
+                }}
+                maxLength={64}
+                disabled={locked}
+                spellCheck={false}
+                autoCapitalize="off"
+                autoComplete="username"
+                aria-invalid={!!pwError || undefined}
+                aria-describedby={`${pwId}-msg`}
+                className={cn(inputCls(!!pwError), "h-9 w-full")}
+              />
+              <label htmlFor={pwId} className={cn(fieldLabel, "mt-3")}>
+                {tx("密码")}
+              </label>
+              <PasswordInput
+                ref={pwRef}
+                id={pwId}
+                value={password}
+                onChange={e => {
+                  setPassword(e.target.value);
+                  setPwError("");
+                }}
+                maxLength={200}
+                disabled={locked}
+                autoComplete="current-password"
+                invalid={!!pwError}
+                aria-describedby={`${pwId}-msg`}
+              />
+            </div>
+            <p
+              id={`${pwId}-msg`}
+              role={pwError ? "alert" : undefined}
+              className={cn(
+                "mt-2 min-h-[18px] text-[12px]",
+                pwError ? "text-cinnabar-text" : "text-paper-3"
+              )}
+            >
+              {pwError || tx("在「设置 → 账号」里设置过登录密码才能用")}
+            </p>
+            {footer("password")}
+          </form>
+          <form
+            className={pane(method === "code")}
+            aria-hidden={method !== "code"}
+            onSubmit={e => {
+              e.preventDefault();
+              if (!locked) signIn();
+            }}
+          >
+            <label htmlFor={loginId} className={fieldLabel}>
+              {tx("登录码")}
+            </label>
+            <input
+              ref={loginRef}
+              id={loginId}
+              value={login}
+              onChange={e => {
+                setLogin(e.target.value);
+                setLoginError("");
+              }}
+              placeholder="XXXX-XXXX"
+              maxLength={12}
+              disabled={locked}
+              spellCheck={false}
+              autoComplete="off"
+              aria-invalid={!!loginError || undefined}
+              aria-describedby={`${loginId}-msg`}
+              className={cn(
+                inputCls(!!loginError),
+                "h-9 w-full font-mono uppercase tracking-wider placeholder:tracking-normal"
+              )}
+            />
+            <p
+              id={`${loginId}-msg`}
+              role={loginError ? "alert" : undefined}
+              className={cn(
+                "mt-2 min-h-[18px] text-[12px]",
+                loginError ? "text-cinnabar-text" : "text-paper-3"
+              )}
+            >
               {loginError ||
                 tx("在已经登录的电脑上打开「设置 → 账号」，生成登录码")}
-            </span>
-          }
-        >
-          <input
-            ref={loginRef}
-            id={loginId}
-            value={login}
-            autoFocus
-            onChange={e => {
-              setLogin(e.target.value);
-              setLoginError("");
-            }}
-            onKeyDown={e => e.key === "Enter" && !locked && signIn()}
-            placeholder="XXXX-XXXX"
-            maxLength={12}
-            disabled={locked}
-            spellCheck={false}
-            autoComplete="off"
-            aria-invalid={!!loginError}
-            aria-describedby={`${loginId}-msg`}
-            className={cn(
-              inputCls(!!loginError),
-              "h-9 flex-1 font-mono uppercase tracking-wider placeholder:tracking-normal"
-            )}
-          />
-          <Btn
-            variant="primary"
-            size="md"
-            onClick={signIn}
-            disabled={locked}
-            className="h-9 min-w-[76px] px-4"
-          >
-            {busy === "login" ? spinner : tx("登录")}
-          </Btn>
-        </Step>
+            </p>
+            {footer("login")}
+          </form>
+        </div>
         <SwitchLink disabled={locked} onClick={() => setMode("new")}>
           {tx("还没加入过？创建或用邀请码加入")}
         </SwitchLink>
       </SetupFrame>
     );
+  }
 
   return (
     <SetupFrame>
@@ -492,7 +662,7 @@ function DesktopSetup({ session }: { session: TeamSession }) {
       </Step>
 
       <SwitchLink disabled={locked} onClick={() => setMode("login")}>
-        {tx("在别的电脑加入过？用登录码登录")}
+        {tx("在别的电脑加入过？登录")}
       </SwitchLink>
     </SetupFrame>
   );

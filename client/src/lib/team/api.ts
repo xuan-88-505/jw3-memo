@@ -5,6 +5,7 @@
  * 写 `tongdiao.apiBase` 指向本地开发服务，例如 http://127.0.0.1:3000。
  */
 import type {
+  AccountInfo,
   AuthResult,
   ClientPlatform,
   CreateTeamRequest,
@@ -13,7 +14,9 @@ import type {
   JoinTeamRequest,
   LoginCodeResponse,
   MemberPatch,
+  PasswordLoginRequest,
   PushResponse,
+  SetAccountRequest,
   SyncResponse,
   TeamError,
   TeamErrorCode,
@@ -131,6 +134,13 @@ export const teamApi = {
     request<AuthResult>("POST", "/api/team/login", {
       json: { code, platform },
     }),
+  loginPassword: (body: PasswordLoginRequest) =>
+    request<AuthResult>("POST", "/api/team/login/password", { json: body }),
+  /** 登录密码：没设置时 username 是 null */
+  account: (token: string) =>
+    request<AccountInfo>("GET", "/api/team/account", { token }),
+  setAccount: (token: string, body: SetAccountRequest) =>
+    request<AccountInfo>("PATCH", "/api/team/account", { token, json: body }),
   logout: (token: string) =>
     request<{ ok: true }>("POST", "/api/team/logout", { token, json: {} }),
   /** 生成登录码，用来在另一台电脑登录。memberId 不填是给自己；给别人生成限管理员 */

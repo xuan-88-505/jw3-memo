@@ -6,6 +6,9 @@ import {
   nicknameKey,
   normalizeInviteCode,
   normalizeLoginCode,
+  passwordProblem,
+  usernameKey,
+  usernameProblem,
   type ClientPlatform,
   type EntityKind,
   type EntityRecord,
@@ -165,6 +168,49 @@ export function parseLoginRequest(value: unknown) {
   const code = normalizeLoginCode(body.code);
   if (!/^[A-Z0-9]{8}$/.test(code)) return null;
   return { code, platform: body.platform as ClientPlatform };
+}
+
+export type ParsedAccountRequest =
+  | { ok: true; username?: { display: string; key: string }; password?: string }
+  | { ok: false; error: "invalid" | "username_invalid" | "password_invalid" };
+
+/**
+ * 校验设置登录密码请求：{ username?, password? }。用户名去首尾空格、统一全角半角；
+ * 密码原样保留（首尾空格也算），只检查长度。哪一项都没填算 invalid。
+ * 密码不能和用户名相同：用这次填的用户名，没填就用 currentUsername。
+ */
+export function parseAccountRequest(value: unknown, currentUsername: string | null): ParsedAccountRequest {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { ok: false, error: "invalid" };
+  const body = value as Record<string, unknown>;
+  if (body.username !== undefined && typeof body.username !== "string") return { ok: false, error: "username_invalid" };
+  if (body.password !== undefined && typeof body.password !== "string") return { ok: false, error: "password_invalid" };
+  if (body.username === undefined && body.password === undefined) return { ok: false, error: "invalid" };
+  let username: { display: string; key: string } | undefined;
+  if (typeof body.username === "string") {
+    const display = body.username.trim().normalize("NFKC");
+    if (usernameProblem(display)) return { ok: false, error: "username_invalid" };
+    username = { display, key: usernameKey(display) };
+  }
+  if (typeof body.password === "string") {
+    if (passwordProblem(body.password, username?.display ?? currentUsername ?? undefined))
+      return { ok: false, error: "password_invalid" };
+  }
+  return {
+    ok: true,
+    ...(username ? { username } : {}),
+    ...(typeof body.password === "string" ? { password: body.password } : {}),
+  };
+}
+
+/** 校验密码登录请求。格式不对时按「用户名或密码不对」处理，不提示是哪一项 */
+export function parsePasswordLogin(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const body = value as Record<string, unknown>;
+  if (typeof body.username !== "string" || typeof body.password !== "string") return null;
+  if (body.platform !== "win" && body.platform !== "mac") return null;
+  const display = body.username.trim().normalize("NFKC");
+  if (!display || charLength(display) > 64 || !body.password || charLength(body.password) > 200) return null;
+  return { key: usernameKey(display), password: body.password, platform: body.platform as ClientPlatform };
 }
 
 /** 校验成员资料修改请求。 */
@@ -373,6 +419,13 @@ export class TeamRateLimiter {
       }
     }
     return 0;
+  }
+
+  /** 只查不计数：已经到上限时返回要等的秒数，否则 0。配合 take 实现「只数失败次数」 */
+  wait(key: string, limit: number, windowMs: number, now = Date.now()) {
+    const list = (this.hits.get(key) ?? []).filter(time => now - time < windowMs);
+    if (list.length < limit) return 0;
+    return Math.max(1, Math.ceil((list[0] + windowMs - now) / 1000));
   }
 
   get size() {

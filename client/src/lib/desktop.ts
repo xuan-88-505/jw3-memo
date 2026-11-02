@@ -33,6 +33,20 @@ export const RELEASES_URL = "https://github.com/xuan-88-505/jw3-memo/releases";
 /** 已发布的网站。桌面版页面不在网站上，调用服务器接口（如意见反馈）时用这个地址 */
 export const SITE_ORIGIN = "https://tongdiao-k5ujnxu8.manus.space";
 
+/**
+ * 软件这次启动的编号：两个窗口相同，退出重开后变。
+ * 用来实现登录时不勾「记住我」。读不到（网页原型、旧版本）时返回 null
+ */
+export async function bootId(): Promise<string | null> {
+  if (!IS_DESKTOP) return null;
+  try {
+    const id = await invoke<string>("boot_id");
+    return typeof id === "string" && id ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 /** 面板请管理窗口打开某一页 */
 export interface OpenManagerRequest {
   section?: string;

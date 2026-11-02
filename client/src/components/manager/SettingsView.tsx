@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, Loader2, RotateCcw } from "lucide-react";
+import { AlertTriangle, Loader2, Pencil, RotateCcw } from "lucide-react";
 import { Crown } from "@/components/brand/Crown";
 import { Btn, Segmented } from "@/components/common/ui";
 import {
@@ -33,6 +33,8 @@ import { InlineModal } from "@/components/common/overlay";
 import { ROLE_LABEL, relativeTime } from "@/lib/format";
 import { teamErrorText, useTeam } from "@/lib/team/TeamSync";
 import { LoginCodeDialog } from "./LoginCodeDialog";
+import { LoginPasswordDialog, NicknameDialog } from "./AccountDialogs";
+import { openTeamLogin } from "./TeamSetup";
 import { SectionHeader, SelectBox, inputCls } from "./shared";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { ME_ID } from "@/data/seed";
@@ -240,13 +242,25 @@ function AuthorRow() {
 
 /* ---------------- 账号：亲友团登录 ---------------- */
 
-/** 桌面版才有。没加入时引导去亲友团页；加入后显示所在亲友团、生成登录码、退出登录 */
+/**
+ * 桌面版才有。没加入时引导去亲友团页加入或登录；
+ * 加入后显示所在亲友团、改昵称、设置登录密码、生成登录码、退出登录
+ */
 function AccountGroup() {
   const { state, actions } = useProto();
   const session = useTeam();
   const [codeOpen, setCodeOpen] = useState(false);
+  const [nickOpen, setNickOpen] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [busy, setBusy] = useState(false);
+  const token = session?.account?.token;
+  const offlineNow = state.dataState === "offline";
+  // 打开设置时问一次服务器：有没有设置登录密码、用户名是什么
+  useEffect(() => {
+    if (token && !offlineNow) void session?.refreshLogin().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, offlineNow]);
   if (!session) return null;
   const acc = session.account;
   const self = state.members.find(m => m.id === ME_ID);
@@ -263,10 +277,26 @@ function AccountGroup() {
             {tx("去加入")}
           </Btn>
         </SettingRow>
+        <SettingRow
+          title={tx("登录")}
+          desc={tx("在别的电脑加入过，用账号密码或登录码登录")}
+        >
+          <Btn
+            size="sm"
+            onClick={() => {
+              openTeamLogin();
+              actions.setSection("team");
+            }}
+          >
+            {tx("登录")}
+          </Btn>
+        </SettingRow>
       </SettingGroup>
     );
 
   const syncing = session.status === "syncing";
+  /** undefined：还没问到服务器（离线或正在问） */
+  const username = acc.username;
   const parts = [
     state.team.name,
     self ? ROLE_LABEL[self.role] : "",
@@ -295,6 +325,20 @@ function AccountGroup() {
       <SettingRow
         title={self?.name ?? tx("亲友团")}
         desc={parts.join(" · ")}
+        titleAction={
+          self ? (
+            <button
+              type="button"
+              onClick={() => setNickOpen(true)}
+              disabled={offline}
+              aria-label={tx("改昵称")}
+              title={offline ? tx("离线时不能修改") : tx("改昵称")}
+              className="-my-1 rounded p-1 text-paper-3 opacity-0 transition-opacity hover:text-paper focus-visible:opacity-100 group-hover:opacity-100 disabled:cursor-not-allowed"
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          ) : undefined
+        }
       >
         <Btn
           size="sm"
@@ -305,6 +349,23 @@ function AccountGroup() {
           }
         >
           {syncing ? tx("正在同步") : tx("立即同步")}
+        </Btn>
+      </SettingRow>
+      <SettingRow
+        title={tx("登录密码")}
+        desc={
+          username
+            ? tx("用户名：{0}", username)
+            : tx("设置后，换电脑或退出后可以用用户名和密码登录")
+        }
+      >
+        <Btn
+          size="sm"
+          onClick={() => setPwOpen(true)}
+          disabled={offline || username === undefined}
+          title={offline ? tx("离线时不能修改") : undefined}
+        >
+          {username ? tx("修改") : tx("设置登录密码")}
         </Btn>
       </SettingRow>
       <SettingRow
@@ -329,13 +390,26 @@ function AccountGroup() {
         </Btn>
       </SettingRow>
       <LoginCodeDialog open={codeOpen} onClose={() => setCodeOpen(false)} />
+      <NicknameDialog open={nickOpen} onClose={() => setNickOpen(false)} />
+      <LoginPasswordDialog
+        open={pwOpen}
+        onClose={() => setPwOpen(false)}
+        username={username ?? null}
+      />
       <InlineModal
         open={leaving}
         onClose={() => !busy && setLeaving(false)}
         title={tx("退出亲友团登录？")}
-        description={tx(
-          "本机会先备份一份数据。别人的角色和共用的记录会从本机移除，用登录码或邀请码可以再登录。"
-        )}
+        description={
+          username
+            ? tx(
+                "本机会先备份一份数据。别人的角色和共用的记录会从本机移除，用用户名「{0}」和密码可以再登录。",
+                username
+              )
+            : tx(
+                "本机会先备份一份数据。别人的角色和共用的记录会从本机移除。你还没设置登录密码，之后要用登录码或邀请码才能再登录。"
+              )
+        }
         footer={
           <>
             <Btn
@@ -682,20 +756,35 @@ function SettingRow({
   title,
   desc,
   titleId,
+  titleAction,
   children,
 }: {
   title: string;
   desc?: ReactNode;
   titleId?: string;
+  /** 跟在标题后面的小操作，鼠标移到这一行才出现 */
+  titleAction?: ReactNode;
   /** 右侧操作；纯信息行不传 */
   children?: ReactNode;
 }) {
   return (
-    <div className="flex min-h-[60px] items-center gap-6 py-3">
+    <div className="group flex min-h-[60px] items-center gap-6 py-3">
       <div className="min-w-0 flex-1">
-        <h3 id={titleId} className="text-[14px] font-medium text-paper">
-          {title}
-        </h3>
+        {titleAction ? (
+          <div className="flex min-w-0 items-center gap-1">
+            <h3
+              id={titleId}
+              className="truncate text-[14px] font-medium text-paper"
+            >
+              {title}
+            </h3>
+            {titleAction}
+          </div>
+        ) : (
+          <h3 id={titleId} className="text-[14px] font-medium text-paper">
+            {title}
+          </h3>
+        )}
         {desc && <p className="mt-0.5 text-[12.5px] text-paper-3">{desc}</p>}
       </div>
       {children != null && (

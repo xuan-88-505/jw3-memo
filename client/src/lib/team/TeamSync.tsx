@@ -25,12 +25,15 @@ import type {
   EntityRecord,
   LoginCodeResponse,
   MemberPatch,
+  SetAccountRequest,
   TeamRole,
 } from "@shared/teamApi";
+import { TEAM_LIMITS } from "@shared/teamApi";
 import { ME_ID } from "@/data/seed";
 import type { CharacterAvatar, Scheme } from "@/data/types";
 import {
   DESKTOP_PLATFORM,
+  bootId,
   copyDataBackup,
   onPanelShown,
   openManager,
@@ -93,7 +96,17 @@ export interface TeamSession {
   syncNow: () => Promise<void>;
   create: (p: { teamName: string; nickname: string }) => Promise<void>;
   join: (p: { inviteCode: string; nickname: string }) => Promise<void>;
-  login: (code: string) => Promise<void>;
+  /** remember=false：只在软件这次运行期间保持登录 */
+  login: (code: string, remember?: boolean) => Promise<void>;
+  loginPassword: (p: {
+    username: string;
+    password: string;
+    remember: boolean;
+  }) => Promise<void>;
+  /** 向服务器问登录密码的用户名，存进账号；没设置返回 null */
+  refreshLogin: () => Promise<string | null>;
+  /** 设置或修改登录密码。第一次两项都要填 */
+  setLogin: (p: SetAccountRequest) => Promise<void>;
   logout: () => Promise<void>;
   /** memberId 是本地 id（自己是 ME_ID） */
   loginCode: (memberId?: string) => Promise<LoginCodeResponse>;
@@ -125,6 +138,22 @@ export function teamErrorText(err: unknown): string {
       return tx("登录码不对或已过期");
     case "nickname_taken":
       return tx("这个昵称已经有人用了");
+    case "username_taken":
+      return tx("这个用户名已经有人用了");
+    case "username_invalid":
+      return tx(
+        "用户名要 {0}–{1} 个字，可以用中文、字母、数字和 _ - .",
+        TEAM_LIMITS.usernameMin,
+        TEAM_LIMITS.usernameMax
+      );
+    case "password_invalid":
+      return tx(
+        "密码要 {0}–{1} 位，不能和用户名相同",
+        TEAM_LIMITS.passwordMin,
+        TEAM_LIMITS.passwordMax
+      );
+    case "credentials_invalid":
+      return tx("用户名或密码不对");
     case "last_admin":
       return tx("亲友团至少要有一个管理员");
     case "forbidden":
@@ -175,6 +204,12 @@ export function TeamSyncProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<Account | null>(loadAccount);
   const [status, setStatus] = useState<TeamStatus>("idle");
   const accRef = useRef(account);
+  // 用户名单独记一份：同步途中拿旧账号对象保存时，不会把刚问到的用户名盖掉
+  const userRef = useRef<{ token: string; username: string | null } | null>(
+    account && account.username !== undefined
+      ? { token: account.token, username: account.username }
+      : null
+  );
 
   const engine = useRef<ReturnType<typeof createEngine> | null>(null);
   if (!engine.current)
@@ -195,10 +230,22 @@ export function TeamSyncProvider({ children }: { children: ReactNode }) {
       },
       account: () => accRef.current,
       saveAccount: a => {
+        const u = userRef.current;
+        if (a && u && u.token === a.token && a.username !== u.username)
+          a = { ...a, username: u.username };
         accRef.current = a;
         setAccount(a);
         if (a) saveAccount(a);
         else clearAccount();
+      },
+      setUsername: (token, username) => {
+        userRef.current = { token, username };
+        const cur = accRef.current;
+        if (!cur || cur.token !== token || cur.username === username) return;
+        const next = { ...cur, username };
+        accRef.current = next;
+        setAccount(next);
+        saveAccount(next);
       },
       setStatus,
     });
@@ -207,7 +254,7 @@ export function TeamSyncProvider({ children }: { children: ReactNode }) {
   // 启动：有账号就同步；文件里还记着亲友团但本机没有账号（比如换了系统账户）就按退出处理
   useEffect(() => {
     e.start();
-    if (accRef.current) void e.run("full");
+    if (accRef.current) void e.resume();
     else if (stateRef.current.team) e.leaveLocal(null);
     const offSync = onSyncRequest(() => void e.run("full", { force: true }));
     const offShown = onPanelShown(() => e.pullSoon());
@@ -255,6 +302,9 @@ export function TeamSyncProvider({ children }: { children: ReactNode }) {
       create: e.create,
       join: e.join,
       login: e.login,
+      loginPassword: e.loginPassword,
+      refreshLogin: e.refreshLogin,
+      setLogin: e.setLogin,
       logout: e.logout,
       loginCode: e.loginCode,
       updateMe: e.updateMe,
@@ -276,6 +326,8 @@ interface EngineDeps {
   actions: () => ReturnType<typeof useProto>["actions"];
   account: () => Account | null;
   saveAccount: (a: Account | null) => void;
+  /** 记下登录密码的用户名（只对这个令牌的账号生效） */
+  setUsername: (token: string, username: string | null) => void;
   setStatus: (s: TeamStatus) => void;
 }
 
@@ -660,12 +712,21 @@ function createEngine(d: EngineDeps) {
     return avatarToServer(av);
   }
 
-  async function begin(res: AuthResult, mode: "create" | "join" | "login") {
+  async function begin(
+    res: AuthResult,
+    mode: "create" | "join" | "login",
+    opts: { remember?: boolean } = {}
+  ) {
     // 改本机数据前先备份一份 data.json（接口成功后才备份，输错码不会多出备份）
     await backup();
     const s = d.state();
     const prevAvatar = me(s)?.avatar;
     let acc = newAccount(res.token, res.memberId, res.team.id);
+    // 不记住登录：记下这次启动的编号，下次启动编号变了就退出（读不到编号时按记住处理）
+    if (opts.remember === false) {
+      const id = await bootId();
+      if (id) acc = { ...acc, session: id };
+    }
     const members = membersFromServer(res.members, res.memberId);
     const base: Partial<ProtoState> = {
       team: teamFromServer(res.team),
@@ -728,9 +789,57 @@ function createEngine(d: EngineDeps) {
     await begin(res, "join");
   }
 
-  async function login(code: string) {
+  async function login(code: string, remember = true) {
     const res = await teamApi.login(code, DESKTOP_PLATFORM);
-    await begin(res, "login");
+    await begin(res, "login", { remember });
+    void refreshLogin().catch(() => {});
+  }
+
+  async function loginPassword(p: {
+    username: string;
+    password: string;
+    remember: boolean;
+  }) {
+    const res = await teamApi.loginPassword({
+      username: p.username,
+      password: p.password,
+      platform: DESKTOP_PLATFORM,
+    });
+    await begin(res, "login", { remember: p.remember });
+    void refreshLogin().catch(() => {});
+  }
+
+  const refreshLogin = () =>
+    guard(async () => {
+      const a = need();
+      const info = await teamApi.account(a.token);
+      // 令牌换了（中途退出、重新登录）就不写
+      d.setUsername(a.token, info.username);
+      return info.username;
+    });
+
+  const setLogin = (p: SetAccountRequest) =>
+    guard(async () => {
+      const a = need();
+      const info = await teamApi.setAccount(a.token, p);
+      d.setUsername(a.token, info.username);
+    });
+
+  /**
+   * 启动时：上次登录没勾「记住我」、软件又重开过，就按退出处理（备份、推完改动、作废令牌）。
+   * 其余情况照常同步
+   */
+  async function resume() {
+    const a = d.account();
+    if (!a) return;
+    if (a.session) {
+      const id = await bootId();
+      if (id && id !== a.session) {
+        await logout();
+        return;
+      }
+    }
+    await run("full");
   }
 
   /** 本机按退出处理：留下自己的东西，去掉别人的 */
@@ -896,6 +1005,10 @@ function createEngine(d: EngineDeps) {
     create,
     join,
     login,
+    loginPassword,
+    refreshLogin,
+    setLogin,
+    resume,
     logout,
     loginCode,
     updateMe,

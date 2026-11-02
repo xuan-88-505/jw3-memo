@@ -268,6 +268,23 @@ fn show_manager(app: &AppHandle) {
 
 // ---------- 前端调用的命令 ----------
 
+/// 软件这次启动的编号：第一次调用时生成，进程退出前不变，两个窗口拿到的一样。
+/// 登录时不勾「记住我」，前端记下它；下次启动编号变了就按退出处理。
+static BOOT_ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+#[tauri::command]
+fn boot_id() -> String {
+    BOOT_ID
+        .get_or_init(|| {
+            let nanos = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0);
+            format!("{}-{:x}", std::process::id(), nanos)
+        })
+        .clone()
+}
+
 #[tauri::command]
 fn load_data(app: AppHandle) -> Result<Option<String>, String> {
     let path = data_dir(&app)?.join("data.json");
@@ -673,6 +690,7 @@ pub fn run() {
             set_tray_badge,
             set_tray_motion,
             set_ui_texts,
+            boot_id,
         ])
         .on_window_event(on_window_event)
         .setup(|app| {
@@ -708,6 +726,14 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn boot_id_is_stable_within_process() {
+        let a = boot_id();
+        assert!(!a.is_empty());
+        assert_eq!(a, boot_id());
+        assert!(a.starts_with(&format!("{}-", std::process::id())));
+    }
 
     #[test]
     fn write_if_unchanged_detects_other_window() {

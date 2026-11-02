@@ -177,6 +177,28 @@ export interface FileUploadResponse {
   src: string;
 }
 
+/**
+ * 登录密码：绑定在亲友团成员上，可选。
+ * GET /api/team/account → AccountInfo；PUT /api/team/account ← SetAccountRequest → AccountInfo
+ */
+export interface AccountInfo {
+  /** 没设置过登录密码时是 null */
+  username: string | null;
+}
+
+/** 第一次设置两项都要填；之后可以只改其中一项 */
+export interface SetAccountRequest {
+  username?: string;
+  password?: string;
+}
+
+/** POST /api/team/login/password，成功返回 AuthResult */
+export interface PasswordLoginRequest {
+  username: string;
+  password: string;
+  platform: ClientPlatform;
+}
+
 export type TeamErrorCode =
   | "invalid"
   | "unauthorized"
@@ -188,7 +210,11 @@ export type TeamErrorCode =
   | "last_admin"
   | "too_large"
   | "rate_limited"
-  | "server_error";
+  | "server_error"
+  | "username_invalid"
+  | "username_taken"
+  | "password_invalid"
+  | "credentials_invalid";
 
 export interface TeamError {
   error: TeamErrorCode;
@@ -206,6 +232,10 @@ export const TEAM_LIMITS = {
   fileBytes: 2 * 1024 * 1024,
   fileTypes: ["image/png", "image/jpeg", "image/webp"],
   loginCodeMinutes: 10,
+  usernameMin: 2,
+  usernameMax: 20,
+  passwordMin: 6,
+  passwordMax: 64,
 } as const;
 
 /** 邀请码、登录码用的字符：去掉容易看错的 0 O 1 I L */
@@ -227,4 +257,41 @@ export function normalizeLoginCode(raw: string): string {
 /** 昵称比较用：去首尾空格、转小写 */
 export function nicknameKey(name: string): string {
   return name.trim().toLowerCase();
+}
+
+/** 用户名比较用：全角半角统一（NFKC）、转小写。不分大小写，全站唯一 */
+export function usernameKey(name: string): string {
+  return name.normalize("NFKC").toLowerCase();
+}
+
+/** 用户名：中文、字母、数字和 _ - .，不能有空格，第一个字符是文字或数字 */
+const USERNAME_RE = /^[\p{L}\p{N}][\p{L}\p{N}_.-]*$/u;
+
+export type UsernameProblem = "empty" | "short" | "long" | "chars";
+
+/** 检查用户名，合格返回 null。长度按字符算（一个汉字算 1） */
+export function usernameProblem(name: string): UsernameProblem | null {
+  const n = name.normalize("NFKC");
+  const len = Array.from(n).length;
+  if (len === 0) return "empty";
+  if (!USERNAME_RE.test(n)) return "chars";
+  if (len < TEAM_LIMITS.usernameMin) return "short";
+  if (len > TEAM_LIMITS.usernameMax) return "long";
+  return null;
+}
+
+export type PasswordProblem = "empty" | "short" | "long" | "same";
+
+/** 检查密码，合格返回 null。不能和用户名相同（不分大小写） */
+export function passwordProblem(
+  password: string,
+  username?: string
+): PasswordProblem | null {
+  const len = Array.from(password).length;
+  if (len === 0) return "empty";
+  if (len < TEAM_LIMITS.passwordMin) return "short";
+  if (len > TEAM_LIMITS.passwordMax) return "long";
+  if (username && usernameKey(password) === usernameKey(username))
+    return "same";
+  return null;
 }

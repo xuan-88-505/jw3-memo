@@ -4,15 +4,18 @@ import {
   deviceTokens,
   entities,
   loginCodes,
+  memberLogins,
   members,
   teamFiles,
   teams,
 } from "../drizzle/schema";
 import { getDb } from "./db";
+import { dummyHash, hashPassword, verifyPassword } from "./password";
 import { storagePut } from "./storage";
 import {
   TEAM_LIMITS,
   nicknameKey,
+  type AccountInfo,
   type AuthResult,
   type EntityRecord,
   type PushResult,
@@ -30,11 +33,13 @@ import {
   generateInviteCode,
   generateLoginCode,
   generateToken,
+  parseAccountRequest,
   parseCreateRequest,
   parseEntityChange,
   parseJoinRequest,
   parseLoginRequest,
   parseMemberPatch,
+  parsePasswordLogin,
   parseTeamName,
   randomId,
   sha256,
@@ -55,6 +60,18 @@ const joinLimiter = new TeamRateLimiter();
 const loginLimiter = new TeamRateLimiter();
 const fileLimiter = new TeamRateLimiter();
 const pushLimiter = new TeamRateLimiter();
+const accountLimiter = new TeamRateLimiter();
+const passwordLimiter = new TeamRateLimiter();
+/** 同一个用户名输错的次数（只数失败） */
+const passwordFailLimiter = new TeamRateLimiter();
+const PASSWORD_FAILS = 5;
+const PASSWORD_FAIL_WINDOW = 15 * 60 * 1000;
+
+const ACCOUNT_ERROR_TEXT = {
+  invalid: "请求内容不对",
+  username_invalid: `用户名要 ${TEAM_LIMITS.usernameMin}–${TEAM_LIMITS.usernameMax} 个字，可以用中文、字母、数字和 _ - .`,
+  password_invalid: `密码要 ${TEAM_LIMITS.passwordMin}–${TEAM_LIMITS.passwordMax} 位，不能和用户名相同`,
+} as const;
 
 type Database = NonNullable<Awaited<ReturnType<typeof getDb>>>;
 type TeamAuth = {
@@ -504,6 +521,156 @@ export function registerTeamRoutes(app: Express) {
     })
   );
 
+  /* ---------------- 登录密码（可选，绑定在成员上） ---------------- */
+
+  app.get("/api/team/account", requireAuth(async (_req, res, auth) => {
+    const db = await getDb();
+    if (!db) {
+      sendError(res, 503, "server_error", "服务暂不可用");
+      return;
+    }
+    const rows = await db
+      .select({ username: memberLogins.username })
+      .from(memberLogins)
+      .where(eq(memberLogins.memberId, auth.member.id))
+      .limit(1);
+    res.json({ username: rows[0]?.username ?? null } satisfies AccountInfo);
+  }));
+
+  app.patch("/api/team/account", express.json({ limit: "64kb" }), requireAuth(async (req, res, auth) => {
+    if (!takeRateLimit(res, accountLimiter, auth.member.id, 10, 10 * 60 * 1000)) return;
+    const db = await getDb();
+    if (!db) {
+      sendError(res, 503, "server_error", "服务暂不可用");
+      return;
+    }
+    const currentRows = await db.select().from(memberLogins).where(eq(memberLogins.memberId, auth.member.id)).limit(1);
+    const current = currentRows[0] ?? null;
+    const input = parseAccountRequest(req.body, current?.username ?? null);
+    if (!input.ok) {
+      sendError(res, 400, input.error, ACCOUNT_ERROR_TEXT[input.error]);
+      return;
+    }
+    // 第一次设置：用户名和密码都要有
+    if (!current && !input.username) {
+      sendError(res, 400, "username_invalid", ACCOUNT_ERROR_TEXT.username_invalid);
+      return;
+    }
+    if (!current && input.password === undefined) {
+      sendError(res, 400, "password_invalid", ACCOUNT_ERROR_TEXT.password_invalid);
+      return;
+    }
+    const passwordHash = input.password !== undefined ? await hashPassword(input.password) : undefined;
+    try {
+      const result = await db.transaction(async tx => {
+        const wanted = input.username;
+        if (wanted) {
+          const holders = await tx
+            .select({ memberId: memberLogins.memberId, liveId: members.id, removedAt: members.removedAt })
+            .from(memberLogins)
+            .leftJoin(members, eq(members.id, memberLogins.memberId))
+            .where(eq(memberLogins.usernameKey, wanted.key))
+            .for("update");
+          const holder = holders[0];
+          if (holder && holder.memberId !== auth.member.id) {
+            // 用户名属于已经移出的成员：收回来给这次用
+            if (holder.liveId && !holder.removedAt) return { state: "taken" as const };
+            await tx.delete(memberLogins).where(eq(memberLogins.memberId, holder.memberId));
+          }
+        }
+        const now = new Date();
+        if (current) {
+          await tx
+            .update(memberLogins)
+            .set({
+              ...(wanted ? { username: wanted.display, usernameKey: wanted.key } : {}),
+              ...(passwordHash ? { passwordHash } : {}),
+              updatedAt: now,
+            })
+            .where(eq(memberLogins.memberId, auth.member.id));
+        } else {
+          await tx.insert(memberLogins).values({
+            memberId: auth.member.id,
+            username: wanted!.display,
+            usernameKey: wanted!.key,
+            passwordHash: passwordHash!,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+        return { state: "ok" as const, username: wanted?.display ?? current!.username };
+      });
+      if (result.state === "taken") {
+        sendError(res, 409, "username_taken", "这个用户名已经有人用了");
+        return;
+      }
+      res.json({ username: result.username } satisfies AccountInfo);
+    } catch (error) {
+      // 两个人同时抢同一个用户名：唯一索引兜底
+      if (duplicateKey(error)) {
+        sendError(res, 409, "username_taken", "这个用户名已经有人用了");
+        return;
+      }
+      throw error;
+    }
+  }));
+
+  app.post(
+    "/api/team/login/password",
+    express.json({ limit: "64kb" }),
+    asyncRoute(async (req, res) => {
+      if (!takeRateLimit(res, passwordLimiter, clientIp(req), 10, 10 * 60 * 1000)) return;
+      const input = parsePasswordLogin(req.body);
+      if (!input) {
+        sendError(res, 400, "credentials_invalid", "用户名或密码不对");
+        return;
+      }
+      const wait = passwordFailLimiter.wait(input.key, PASSWORD_FAILS, PASSWORD_FAIL_WINDOW);
+      if (wait) {
+        sendError(res, 429, "rate_limited", "输错次数太多，请稍后再试", wait);
+        return;
+      }
+      const db = await getDb();
+      if (!db) {
+        sendError(res, 503, "server_error", "服务暂不可用");
+        return;
+      }
+      const rows = await db
+        .select({ passwordHash: memberLogins.passwordHash, member: members, team: teams })
+        .from(memberLogins)
+        .innerJoin(members, eq(members.id, memberLogins.memberId))
+        .innerJoin(teams, eq(teams.id, members.teamId))
+        .where(and(eq(memberLogins.usernameKey, input.key), isNull(members.removedAt)))
+        .limit(1);
+      const row = rows[0];
+      // 用户名不存在也算一次哈希，响应时间不暴露用户名是否存在
+      const ok = await verifyPassword(input.password, row?.passwordHash ?? (await dummyHash()));
+      if (!row || !ok) {
+        passwordFailLimiter.take(input.key, PASSWORD_FAILS, PASSWORD_FAIL_WINDOW);
+        sendError(res, 400, "credentials_invalid", "用户名或密码不对");
+        return;
+      }
+      const token = generateToken();
+      const now = new Date();
+      await db.insert(deviceTokens).values({
+        id: randomId(),
+        memberId: row.member.id,
+        tokenHash: sha256(token),
+        platform: input.platform,
+        createdAt: now,
+        lastSeenAt: now,
+      });
+      const m = row.member;
+      const auth: TeamAuth = {
+        tokenId: "",
+        lastSeenAt: now,
+        member: { id: m.id, teamId: m.teamId, nickname: m.nickname, role: m.role, color: m.color, avatar: m.avatar, joinedAt: m.joinedAt },
+        team: { id: row.team.id, name: row.team.name, inviteCode: row.team.inviteCode, seq: Number(row.team.seq) },
+      };
+      res.json(await authResult(db, auth, token));
+    })
+  );
+
   app.post("/api/team/logout", express.json({ limit: "64kb" }), requireAuth(async (_req, res, auth) => {
     const db = await getDb();
     if (!db) {
@@ -753,6 +920,8 @@ export function registerTeamRoutes(app: Express) {
       let seq = Number(teamRows[0]?.seq ?? 0);
       await tx.update(members).set({ removedAt: now }).where(eq(members.id, targetId));
       await tx.update(deviceTokens).set({ revokedAt: now }).where(and(eq(deviceTokens.memberId, targetId), isNull(deviceTokens.revokedAt)));
+      // 登录密码一起删掉，用户名可以再用
+      await tx.delete(memberLogins).where(eq(memberLogins.memberId, targetId));
       // 被移除成员的角色一起删掉；其他人下次同步时收到删除
       const chars = await tx
         .select({ entityId: entities.entityId, version: entities.version })

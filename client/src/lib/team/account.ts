@@ -42,6 +42,13 @@ export interface Account {
   needFull: boolean;
   /** 最后一次同步成功的时间（ISO） */
   lastSyncAt: string | null;
+  /** 登录密码的用户名：null 是没设置，undefined 是还没问过服务器 */
+  username?: string | null;
+  /**
+   * 登录时没勾「记住我」：记下软件这次启动的编号。
+   * 下次启动编号变了，就按退出处理。记住登录时没有这一项
+   */
+  session?: string;
 }
 
 export const emptyPending = (): PendingLocal => ({
@@ -100,6 +107,12 @@ export function loadAccount(): Account | null {
       },
       needFull: a.needFull === true,
       lastSyncAt: typeof a.lastSyncAt === "string" ? a.lastSyncAt : null,
+      ...(typeof a.username === "string" || a.username === null
+        ? { username: a.username }
+        : {}),
+      ...(typeof a.session === "string" && a.session
+        ? { session: a.session }
+        : {}),
     };
   } catch {
     return null;

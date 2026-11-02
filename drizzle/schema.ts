@@ -125,6 +125,23 @@ export const loginCodes = mysqlTable(
   ]
 );
 
+/**
+ * 成员的登录密码（可选）。一个成员最多一组；用户名不分大小写全站唯一（usernameKey）。
+ * 密码只存 scrypt 加盐哈希。成员被移出时删掉这一行，用户名可以再用。
+ */
+export const memberLogins = mysqlTable(
+  "member_logins",
+  {
+    memberId: varchar("memberId", { length: 32 }).primaryKey(),
+    username: varchar("username", { length: 64 }).notNull(),
+    usernameKey: varchar("usernameKey", { length: 64 }).notNull(),
+    passwordHash: varchar("passwordHash", { length: 200 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [uniqueIndex("member_logins_usernameKey_unique").on(table.usernameKey)]
+);
+
 /** 团队同步的条目。删除后保留墓碑，以便其他设备在增量同步时清理本地数据。 */
 export const entities = mysqlTable(
   "entities",
