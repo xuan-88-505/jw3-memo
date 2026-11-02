@@ -876,6 +876,16 @@ export function currentLoadout(
   return best;
 }
 
+/**
+ * 关联到这个角色的全部配装，最近改过或导入的在前。
+ * 排序稳定，时间相同时保持原顺序，所以第一套就是 currentLoadout。
+ */
+export function charLoadouts(state: ProtoState, charId: string): Loadout[] {
+  return Object.values(state.loadouts)
+    .filter(lo => lo.charId === charId)
+    .sort((a, b) => loadoutTouchedAt(b) - loadoutTouchedAt(a));
+}
+
 /** 技改后重算（原型：按版本号给一个稳定的小幅变化） */
 function recalcAfterPatch(
   st: ProtoState,

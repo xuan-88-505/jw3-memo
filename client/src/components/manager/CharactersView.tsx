@@ -18,6 +18,7 @@ import {
 } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { AvatarPicker } from "./AvatarPicker";
+import { CharLoadoutCell } from "./CharLoadoutCell";
 import { NewLoadoutDialog } from "./gear/NewLoadoutDialog";
 import { NewMacroDialog } from "./NewMacroDialog";
 import { EmptyState, SectionHeader } from "./shared";
@@ -121,74 +122,54 @@ export function CharactersView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-paper/[0.07]">
-              {mine.map(c => {
-                const lo = loadoutOf.get(c.id) ?? null;
-                return (
-                  <tr
-                    key={c.id}
-                    className="group/row transition-colors hover:bg-paper/[0.025]"
-                  >
-                    <td className={TD}>
-                      <span className="flex items-center gap-2.5">
-                        <button
-                          type="button"
-                          onClick={() => setAvatarFor(c.id)}
-                          aria-label={tx("更换「{0}」的头像", c.name)}
-                          title={tx("更换头像")}
-                          className="group relative shrink-0 rounded-[8px]"
+              {mine.map(c => (
+                <tr
+                  key={c.id}
+                  className="group/row transition-colors hover:bg-paper/[0.025]"
+                >
+                  <td className={TD}>
+                    <span className="flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setAvatarFor(c.id)}
+                        aria-label={tx("更换「{0}」的头像", c.name)}
+                        title={tx("更换头像")}
+                        className="group relative shrink-0 rounded-[8px]"
+                      >
+                        <CharAvatar character={c} size={44} />
+                        <span
+                          className="absolute inset-0 grid place-items-center rounded-[8px] bg-black/55 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                          aria-hidden="true"
                         >
-                          <CharAvatar character={c} size={44} />
-                          <span
-                            className="absolute inset-0 grid place-items-center rounded-[8px] bg-black/55 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-                            aria-hidden="true"
-                          >
-                            <Pencil className="h-3.5 w-3.5 text-white" />
-                          </span>
-                        </button>
-                        <span className="flex min-w-0 flex-col items-start">
-                          <NameInput char={c} disabled={!online} />
-                          <SchoolCell char={c} disabled={!online} />
+                          <Pencil className="h-3.5 w-3.5 text-white" />
                         </span>
+                      </button>
+                      <span className="flex min-w-0 flex-col items-start">
+                        <NameInput char={c} disabled={!online} />
+                        <SchoolCell char={c} disabled={!online} />
                       </span>
-                    </td>
-                    {showScore && (
-                      <td className={TD}>
-                        {lo && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              actions.selectLoadout(lo.id);
-                              actions.setSection("gear");
-                            }}
-                            title={`${lo.name} · ${lo.xinfa}`}
-                            aria-label={tx(
-                              "装分 {0}，打开配装「{1}」",
-                              lo.panel.score.toLocaleString("en-US"),
-                              lo.name
-                            )}
-                            className="-mx-1.5 rounded-md px-1.5 py-0.5 tabular-nums text-paper transition-colors hover:bg-paper/[0.06]"
-                          >
-                            {lo.panel.score.toLocaleString("en-US")}
-                          </button>
-                        )}
-                      </td>
-                    )}
+                    </span>
+                  </td>
+                  {showScore && (
                     <td className={TD}>
-                      <ServerInput char={c} disabled={!online} />
+                      <CharLoadoutCell char={c} />
                     </td>
-                    <td className={cn(TD, "text-right")}>
-                      <RowActions
-                        char={c}
-                        disabled={!online}
-                        canMacro={editable}
-                        onLoadout={() => setLoadoutFor(c)}
-                        onMacro={() => setMacroFor(c)}
-                        onRemove={() => setRemoving(c)}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
+                  )}
+                  <td className={TD}>
+                    <ServerInput char={c} disabled={!online} />
+                  </td>
+                  <td className={cn(TD, "text-right")}>
+                    <RowActions
+                      char={c}
+                      disabled={!online}
+                      canMacro={editable}
+                      onLoadout={() => setLoadoutFor(c)}
+                      onMacro={() => setMacroFor(c)}
+                      onRemove={() => setRemoving(c)}
+                    />
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

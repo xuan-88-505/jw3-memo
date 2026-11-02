@@ -1142,5 +1142,8 @@ const dict: Record<string, string> = {
   "这是{0}的奇穴，当前是{1}": "Estos talentos son de {0}, pero el actual es {1}",
   "这是怀旧服的镇派编码，这里只能导入旗舰端奇穴": "Es un código de 镇派 de JX3 Classic. Aquí solo se pueden importar talentos de la edición insignia",
   "粘贴奇穴": "Pegar talentos",
+  "{0} 套": "{0} conjuntos",
+  "「{0}」的配装": "Conjuntos de equipo de «{0}»",
+  "装分 {0}，「{1}」有 {2} 套配装，选一套打开": "Puntuación de equipo {0}. «{1}» tiene {2} conjuntos de equipo. Elige uno para abrir",
 };
 export default dict;
