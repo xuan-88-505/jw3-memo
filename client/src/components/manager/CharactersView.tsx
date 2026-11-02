@@ -93,7 +93,7 @@ export function CharactersView() {
         />
       ) : (
         <div className={TABLE_WRAP}>
-          <table className="w-full table-fixed text-left text-[13px]">
+          <table className="row-table w-full table-fixed text-left text-[13px]">
             <colgroup>
               {showScore ? (
                 <>
@@ -106,7 +106,7 @@ export function CharactersView() {
               <col className="w-[180px]" />
               <col className="w-[88px]" />
             </colgroup>
-            <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
+            <thead className="text-[12px] text-paper-3">
               <tr>
                 <th className="px-3 py-2.5 font-normal">{tx("角色")}</th>
                 {showScore && (
@@ -122,12 +122,9 @@ export function CharactersView() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-paper/[0.07]">
+            <tbody>
               {mine.map(c => (
-                <tr
-                  key={c.id}
-                  className="group/row transition-colors hover:bg-paper/[0.025]"
-                >
+                <tr key={c.id} className="row-hover group/row">
                   <td className={TD}>
                     <span className="flex items-center gap-2.5">
                       <button

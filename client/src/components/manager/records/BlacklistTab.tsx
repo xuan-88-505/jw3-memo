@@ -126,7 +126,7 @@ export function BlacklistTab({
         <EmptyState icon="thunder" title={tx("避雷名单是空的")} />
       ) : (
         <div className={TABLE_WRAP}>
-          <table className="w-full table-fixed text-left text-[13px]">
+          <table className="row-table w-full table-fixed text-left text-[13px]">
             <colgroup>
               <col className="w-[168px]" />
               <col className="w-[96px]" />
@@ -134,7 +134,7 @@ export function BlacklistTab({
               <col />
               <col className="w-[132px]" />
             </colgroup>
-            <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
+            <thead className="text-[12px] text-paper-3">
               <tr>
                 <th className="px-3 py-2.5 font-normal">{tx("角色")}</th>
                 <th className="px-3 py-2.5 font-normal">{tx("服务器")}</th>
@@ -143,7 +143,7 @@ export function BlacklistTab({
                 <th className="px-3 py-2.5 font-normal">{tx("记录")}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-paper/[0.07]">
+            <tbody>
               {rows.map(b => {
                 const by = state.members.find(m => m.id === b.by);
                 const role = roleByUid(b.uid);
@@ -151,9 +151,7 @@ export function BlacklistTab({
                   <tr
                     key={b.id}
                     onClick={writable ? () => onEdit({ id: b.id }) : undefined}
-                    className={cn(
-                      writable && "cursor-pointer hover:bg-paper/[0.025]"
-                    )}
+                    className={cn(writable && "row-hover cursor-pointer")}
                   >
                     <td className="px-3 py-2.5">
                       <button

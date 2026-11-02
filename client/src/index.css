@@ -206,6 +206,119 @@
     background: transparent;
   }
 
+  /*
+   * 整行悬停（规则见 plan.md「整行悬停底色伸出 12px、圆角 8px」）
+   * 表头线、行间线和页标题左右对齐；悬停底色左右各伸出 12px，圆角 8px，
+   * 当前行上下两条分隔线一起隐藏。
+   */
+  .row-table,
+  .row-pill {
+    --row-line: color-mix(in oklab, var(--color-paper) 7%, transparent);
+    --row-hover: color-mix(in oklab, var(--color-paper) 2.5%, transparent);
+  }
+
+  /*
+   * 表格：给 <table>，能悬停的行再给 <tr class="row-hover">。
+   * 不靠 tr 定位画底色：老版本 Safari 不支持 tr 的 position: relative
+    * （WebKit 2026-04 才修），macOS 版用的就是系统 Safari 内核。
+   * 所以底色画在单元格上：中间格直接给底色；首末格（td 的 relative 各内核都支持）
+   * 用 ::before 往外伸 12px，圆角在伸出去的那一端，整段只抗锯齿一次。
+   * 不用 border-radius + box-shadow：格子的圆角和阴影各抗锯齿一次，
+   * 圆角处会留一道比底色暗 1–2 级的细弧线。
+   * 也不用 clip-path：它会裁掉格子里的弹层（我的角色首格的心法菜单是 absolute，
+   * 不走 portal），鼠标停在行上时菜单只剩格子那么大。
+   * ::before 不设 z-index、格子也不建层叠上下文，菜单的 z-30 才盖得住下面几行。
+   * 代价是它以 2.5% 叠在首末格内容上面，看不出来；pointer-events: none 不挡点击。
+   * 底色都只画到内边距盒（不含上边框那 1px），首末格和中间格上沿对齐。
+   * 分隔线画在单元格上（separate 模式，每格的边框各自独立）。
+   * 底色不做渐变：伸出去的部分和中间格分属两个元素，渐变时可能不同步。
+   */
+  .row-table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .row-table > thead > tr > th {
+    border-bottom: 1px solid var(--row-line);
+  }
+  .row-table > tbody > tr + tr > td {
+    border-top: 1px solid var(--row-line);
+  }
+  .row-table > tbody > tr.row-hover:hover > td {
+    background-color: var(--row-hover);
+    background-clip: padding-box;
+    border-top-color: transparent;
+  }
+  .row-table > tbody > tr.row-hover:hover + tr > td {
+    border-top-color: transparent;
+  }
+  /* 第一行的「上面那条线」是表头线，悬停第一行时也隐藏 */
+  .row-table:has(> tbody > tr.row-hover:first-child:hover) > thead > tr > th {
+    border-bottom-color: transparent;
+  }
+  /* 首末格一直是 relative，悬停时不改布局和层叠 */
+  .row-table > tbody > tr.row-hover > td:first-child,
+  .row-table > tbody > tr.row-hover > td:last-child {
+    position: relative;
+  }
+  .row-table > tbody > tr.row-hover > td:first-child::before,
+  .row-table > tbody > tr.row-hover > td:last-child::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .row-table > tbody > tr.row-hover > td:first-child::before {
+    left: -12px;
+    border-radius: 8px 0 0 8px;
+  }
+  .row-table > tbody > tr.row-hover > td:last-child::before {
+    right: -12px;
+    border-radius: 0 8px 8px 0;
+  }
+  /* 只有一格的行：两边都伸 */
+  .row-table > tbody > tr.row-hover > td:first-child:last-child::before {
+    left: -12px;
+    right: -12px;
+    border-radius: 8px;
+  }
+  .row-table > tbody > tr.row-hover:hover > td:first-child,
+  .row-table > tbody > tr.row-hover:hover > td:last-child {
+    background-color: transparent;
+  }
+  .row-table > tbody > tr.row-hover:hover > td:first-child::before,
+  .row-table > tbody > tr.row-hover:hover > td:last-child::before {
+    background-color: var(--row-hover);
+  }
+
+  /*
+   * 列表行（<li>）：底色画在伪元素上，左右各伸 12px。
+   * li 是普通块，position: relative 各内核都支持。
+   * 分隔线也在这里画，外层 <ul> 不要再用 divide-y：Tailwind 的 divide 在 utilities 层，
+   * 会盖掉这里悬停时的透明边框。
+   */
+  .row-pill {
+    position: relative;
+    isolation: isolate;
+  }
+  .row-pill + .row-pill {
+    border-top: 1px solid var(--row-line);
+  }
+  .row-pill::before {
+    content: "";
+    position: absolute;
+    inset: 0 -12px;
+    z-index: -1;
+    border-radius: 8px;
+    pointer-events: none;
+  }
+  .row-pill:hover::before {
+    background-color: var(--row-hover);
+  }
+  .row-pill:hover,
+  .row-pill:hover + .row-pill {
+    border-top-color: transparent;
+  }
+
   .skeleton {
     background: linear-gradient(90deg, #24221e 0%, #2e2b26 50%, #24221e 100%);
     background-size: 200% 100%;

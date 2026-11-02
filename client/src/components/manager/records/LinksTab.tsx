@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { useImageViewer } from "@/components/common/ImageViewer";
 import { InlineModal } from "@/components/common/overlay";
-import { DIVIDE } from "@/components/common/surface";
 import { Avatar, Btn, IconBtn, Segmented } from "@/components/common/ui";
 import { ME_ID } from "@/data/seed";
 import {
@@ -241,7 +240,7 @@ export function LinksTab() {
         {links.length === 0 ? (
           <EmptyState icon="pigeon" title={tx("还没有链接或图片")} />
         ) : (
-          <ul className={cn("mt-4", DIVIDE)} aria-label={tx("链接和图片")}>
+          <ul className="mt-4" aria-label={tx("链接和图片")}>
             {links.map(l => {
               const mine = l.by === ME_ID;
               const canChange = writable && (mine || isAdmin);
@@ -270,7 +269,7 @@ export function LinksTab() {
               return (
                 <li
                   key={l.id}
-                  className="group/row relative flex items-center gap-3 py-2.5 transition-colors hover:bg-paper/[0.025]"
+                  className="row-pill group/row flex items-center gap-3 py-2.5"
                 >
                   {img ? (
                     <img

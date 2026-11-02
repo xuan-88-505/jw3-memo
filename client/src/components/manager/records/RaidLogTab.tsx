@@ -196,9 +196,9 @@ export function RaidLogTab({
         <div
           ref={fade.ref}
           style={fade.style}
-          className={cn(TABLE_WRAP, "overflow-x-auto")}
+          className={cn(TABLE_WRAP, "-mx-3 scroll-px-3 overflow-x-auto px-3")}
         >
-          <table className="w-full min-w-[812px] table-fixed text-left text-[13px]">
+          <table className="row-table w-full min-w-[812px] table-fixed text-left text-[13px]">
             <colgroup>
               <col className="w-[112px]" />
               <col className="w-[128px]" />
@@ -208,7 +208,7 @@ export function RaidLogTab({
               <col className="w-[88px]" />
               <col />
             </colgroup>
-            <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
+            <thead className="text-[12px] text-paper-3">
               <tr>
                 <SortTh
                   label={tx("时间")}
@@ -232,7 +232,7 @@ export function RaidLogTab({
                 <th className="px-3 py-2.5 font-normal">{tx("备注")}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-paper/[0.07]">
+            <tbody>
               {rows.map(r => {
                 const w = fmtWhen(r.at);
                 const char = state.characters.find(c => c.id === r.charId);
@@ -246,7 +246,7 @@ export function RaidLogTab({
                     onClick={writable ? () => onEdit(r.id) : undefined}
                     className={cn(
                       "group",
-                      writable && "cursor-pointer hover:bg-paper/[0.025]"
+                      writable && "row-hover cursor-pointer"
                     )}
                     title={
                       isSolo(state)

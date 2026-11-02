@@ -343,3 +343,8 @@
 - 失败的节点：北京电信 3 项都是 DNS 解析超时；南京腾讯云 1 项测量超时。都是节点自身超时，不是被拦。
 - Globalping 的 HTTP 测量只支持 GET/HEAD/OPTIONS，测不了真正的 POST/PATCH。新接口和已实测的入团、同步接口在同一个域名、同一个服务上，预检放行即请求能到达；真正的 POST/PATCH 在国内节点上未验证。
 - 从境外机器对线上跑完整流程（建团、设置中文用户名和密码、输错统一提示、另一台电脑用密码登录到同一个成员、只改密码、旧密码失效、退出后令牌作废）11/11 通过，脚本 `/tmp/team2/live_account_test.py`，测试团已删除。境外单次请求 3–5 秒，建团也要 4 秒，慢在服务器和数据库往返，不是密码哈希。
+
+- Safari 不支持 `<tr>` 的 `position: relative`（2026-11-02 23:49 UTC+8 查证）：
+  - WebKit 缺陷 240961「position: relative doesn't work as expected on table row」，2022-05-26 报告，2026-04-11 以 310995@main 修复（RESOLVED FIXED）。评论称这个问题存在约 23 年。来源：https://bugs.webkit.org/show_bug.cgi?id=240961
+  - 文章（2024-06-11）实测 Safari 16.6 上 `tr { position: relative }` 无效，tr 里绝对定位的伪元素会铺满整个视口；变通做法 `transform: translate(0)` + `clip-path: inset(0)` 有副作用。来源：https://mtsknn.fi/blog/relative-tr-in-safari/
+  - 结论：macOS 版用系统 WKWebView，老系统的 Safari 内核没有这个修复。整行悬停底色不能用 tr 定位的伪元素，改为画在单元格上、首末格用 box-shadow 往外伸。Playwright 自带的 WebKit 27.2 已含修复，测不出老内核的问题。
