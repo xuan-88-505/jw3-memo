@@ -1,6 +1,6 @@
 [package]
 name = "tongdiao"
-version = "1.0.3"
+version = "2.0.0"
 description = "备忘录（JW3 Memo）：剑网3 宏与奇穴管理"
 edition = "2021"
 
