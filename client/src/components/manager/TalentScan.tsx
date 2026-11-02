@@ -1,8 +1,10 @@
 /**
- * 截图识别奇穴：方案页「奇穴」标题右边的按钮，和奇穴上方的结果提示。
+ * 截图识别奇穴：方案页「奇穴」标题右边的按钮，和奇穴上方的结果提示。面板「新建奇穴」也用。
  *
  * - 在方案页任何地方按 Ctrl+V / ⌘V 粘贴截图就识别；弹窗里、剪贴板里有文字时不管。
  * - 点按钮先读剪贴板里的图片，没有图片就打开选文件。
+ * - 面板（filePicker=false）不打开选文件：系统的选文件窗口会抢走焦点，面板一失焦就收起。
+ *   剪贴板里没有图片时提示先截图。
  * - 认出的层直接改进草稿，没认出的层保持原样；提示里可以撤销。
  */
 import { useEffect, useRef, useState } from "react";
@@ -51,6 +53,8 @@ export function useTalentScan({
   talents,
   enabled,
   onApply,
+  filePicker = true,
+  pasteKey = "Ctrl+V",
 }: {
   xinfa: string;
   /** 换方案时清掉提示 */
@@ -58,6 +62,10 @@ export function useTalentScan({
   talents: number[];
   enabled: boolean;
   onApply: (next: number[]) => void;
+  /** 剪贴板里没有图片时打开选文件；面板里关掉 */
+  filePicker?: boolean;
+  /** 关掉选文件时，提示里写的粘贴快捷键 */
+  pasteKey?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -155,7 +163,12 @@ export function useTalentScan({
     if (latest.current.busy) return;
     const img = await readClipboardImage();
     if (img) void runRef.current(img);
-    else choose();
+    else if (filePicker) choose();
+    else
+      setNotice({
+        kind: "error",
+        text: tx("剪贴板里没有图片。截图后按 {0} 粘贴", pasteKey),
+      });
   };
   const undo = () => {
     if (notice?.kind !== "done") return;
@@ -183,10 +196,11 @@ export function useTalentScan({
     busy,
     notice,
     pick,
-    choose,
+    /** 关掉选文件时没有 */
+    choose: filePicker ? choose : undefined,
     undo,
     dismiss: () => setNotice(null),
-    fileInput,
+    fileInput: filePicker ? fileInput : null,
   };
 }
 
@@ -194,12 +208,17 @@ export function TalentScanButton({
   busy,
   platform,
   onClick,
+  pasteOnly = false,
 }: {
   busy: boolean;
   platform: Platform;
   onClick: () => void;
+  /** 只读剪贴板、不选文件（面板） */
+  pasteOnly?: boolean;
 }) {
-  const hint = tx("粘贴（{0}）或选择奇穴截图，自动选上", pasteHint(platform));
+  const hint = pasteOnly
+    ? tx("粘贴奇穴截图（{0}），自动选上", pasteHint(platform))
+    : tx("粘贴（{0}）或选择奇穴截图，自动选上", pasteHint(platform));
   return (
     <Btn
       variant="secondary"
@@ -237,7 +256,8 @@ export function TalentScanNotice({
   busy: boolean;
   notice: Notice | null;
   onUndo: () => void;
-  onChoose: () => void;
+  /** 没有时不显示「选择图片」 */
+  onChoose?: () => void;
   onClose: () => void;
 }) {
   // 识别中和结果用同一个提示条，读屏会读出变化
@@ -289,7 +309,7 @@ export function TalentScanNotice({
           {tx("撤销")}
         </Btn>
       )}
-      {notice.kind === "error" && (
+      {notice.kind === "error" && onChoose && (
         <Btn variant="ghost" size="xs" onClick={onChoose}>
           {tx("选择图片")}
         </Btn>

@@ -2,9 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { Btn, Segmented } from "@/components/common/ui";
 import { IconPickerButton } from "@/components/common/IconPicker";
 import { TalentPicker } from "@/components/manager/TalentPicker";
+import {
+  TalentScanButton,
+  TalentScanNotice,
+  useTalentScan,
+} from "@/components/manager/TalentScan";
 import { inputCls } from "@/components/manager/shared";
 import { defaultTalents } from "@/data/seed";
 import type { Scheme } from "@/data/types";
+import { pasteHint } from "@/lib/format";
 import { MACRO_LIMIT, cleanMacro } from "@/lib/macro";
 import { tx } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -16,6 +22,8 @@ import { PanelForm } from "./PanelForm";
  * 宏页签：填一个宏（图标、名称、说明、内容）。给了 target（宏列表最后的「新建宏」）时
  * 作为一段加到这个方案的最新版本后面，存成新版本；否则给心法新建一个 PVE 方案，存成 v1。
  * 奇穴页签：给还没有方案的心法选奇穴，新建一个 PVE 方案，存成 v1。
+ * 奇穴可以粘贴截图（Ctrl+V / ⌘V）自动选上；标题右边的「识别截图」读剪贴板里的图片。
+ * 面板不打开选文件：选文件窗口会抢走焦点，面板一失焦就收起。
  * 保存后面板回到列表。Esc 或「取消」回到原来的样子。「取消 / 保存」固定在面板底部。
  */
 export function PanelNewScheme({
@@ -40,7 +48,7 @@ export function PanelNewScheme({
   /** 管理窗口里有这个方案没保存的草稿时，去那里处理 */
   onOpenManager: (schemeId: string) => void;
 }) {
-  const { actions } = useProto();
+  const { state, actions } = useProto();
   const [xinfa, setXinfa] = useState(xinfas[0]);
   const [icon, setIcon] = useState(13);
   const [name, setName] = useState("");
@@ -54,6 +62,16 @@ export function PanelNewScheme({
     if (kind === "macro") nameRef.current?.focus();
     else first.current?.querySelector<HTMLElement>("[role=tab]")?.focus();
   }, [kind]);
+  // 截图识别：认出的层直接改进表单，换心法时提示清掉
+  const scan = useTalentScan({
+    xinfa,
+    resetKey: xinfa,
+    talents,
+    enabled: kind === "talent",
+    onApply: setTalents,
+    filePicker: false,
+    pasteKey: pasteHint(state.platform),
+  });
 
   const cleaned = cleanMacro(content);
   const over = cleaned.length > MACRO_LIMIT;
@@ -120,17 +138,30 @@ export function PanelNewScheme({
         </>
       }
     >
-      <h2
-        id="panel-new-title"
-        className="mb-4 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[14px] font-medium text-paper"
-      >
-        {kind === "macro" ? tx("新建宏") : tx("新建奇穴")}
-        {context && (
-          <span className="min-w-0 text-[12px] font-normal text-paper-3 [overflow-wrap:anywhere]">
-            {context}
-          </span>
+      <div className="mb-4 flex items-start gap-2">
+        <h2
+          id="panel-new-title"
+          // 20px 行高上下各留 2px，和右边 24px 高的按钮居中对齐
+          className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5 py-[2px] text-[14px] font-medium leading-5 text-paper"
+        >
+          {kind === "macro" ? tx("新建宏") : tx("新建奇穴")}
+          {context && (
+            <span className="min-w-0 text-[12px] font-normal text-paper-3 [overflow-wrap:anywhere]">
+              {context}
+            </span>
+          )}
+        </h2>
+        {kind === "talent" && (
+          <div className="shrink-0">
+            <TalentScanButton
+              busy={scan.busy}
+              platform={state.platform}
+              pasteOnly
+              onClick={() => void scan.pick()}
+            />
+          </div>
         )}
-      </h2>
+      </div>
 
       {xinfas.length > 1 && (
         <div className="mb-4">
@@ -205,6 +236,14 @@ export function PanelNewScheme({
         </div>
       ) : (
         <div ref={first}>
+          {(scan.busy || scan.notice) && (
+            <TalentScanNotice
+              busy={scan.busy}
+              notice={scan.notice}
+              onUndo={scan.undo}
+              onClose={scan.dismiss}
+            />
+          )}
           <TalentPicker
             xinfa={xinfa}
             value={talents}

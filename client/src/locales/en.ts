@@ -1133,5 +1133,7 @@ const dict: Record<string, string> = {
   "第 {0} 段": "Macro {0}",
   "给{0}新建方案": "New {0} preset",
   "这个方案还没保存，删除后填的内容不会保留。": "This preset hasn't been saved. Anything you entered will be lost.",
+  "剪贴板里没有图片。截图后按 {0} 粘贴": "No image on the clipboard. Take a screenshot, then press {0} to paste",
+  "粘贴奇穴截图（{0}），自动选上": "Paste a talent screenshot ({0}) to fill in the talents",
 };
 export default dict;
