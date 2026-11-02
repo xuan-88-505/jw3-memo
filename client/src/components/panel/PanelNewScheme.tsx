@@ -162,7 +162,6 @@ export function PanelNewScheme({
             <TalentScanButton
               busy={scan.busy}
               platform={state.platform}
-              pasteOnly
               onClick={() => void scan.pick()}
             />
           </div>

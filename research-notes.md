@@ -324,3 +324,9 @@
   - 真实编码样本（cms.jx3box.com 铁牢律宏帖 109709、110226）：`{"version":"v20261029","xf":"铁牢律","sq":"3,4,2,4,4,3,4,5,11","client":"std"}`；同一帖子里还有 `v20261030` 的编码。
   - 魔盒数据 `https://data.jx3box.com/talent/std/{version}.json` 返回 `access-control-allow-origin: *`；结构为 心法 → "1".."9" → pos → {name, icon, desc, pos…}，第 8、9 层是 `{_type, _follow:"7"}`。v20261029 与 v20261030 共 1159 个选项只有焚影圣诀 1 处不同。index.json 当前列 v20261030 苍生铸世、v20260524 暗影千机、v20251225 山海源流、v20250721 太极秘录、v20250217 丝路风语…
   - 用户截图（铁牢律：号令三军 战心 列甲 崩决 疾雨 劲风 定军 力撼河山 振甲）按 v20261030 对应序列 `3,4,2,3,4,2,4,5,11`。
+- 键盘粘贴奇穴在 Mac 上没反应的原因（2026-11-02 21:10 UTC+8 查证）：
+  - WebKit 缺陷 https://bugs.webkit.org/show_bug.cgi?id=75891 「Safari fails to fire paste events (onpaste, onbeforepaste) attached to the document (or body) when Cmd-V is pressed and the focus is not in a text input or text area node」。评论 1（2013）：beforepaste 在 Cmd-V 和打开编辑菜单时都不触发；评论 2：当时 `enabledPaste` 只看 `canPaste()`，不看 `canDHTMLPaste()`。评论 17（2026-03-12，Ryosuke Niwa）：已由 https://github.com/WebKit/WebKit/pull/38127 修复，状态 RESOLVED CONFIGURATION CHANGED。
+  - 结论：旧版 macOS 系统 WebKit（Tauri 在 Mac 上用系统 WKWebView）焦点不在输入框时按 ⌘V 不触发 paste，beforepaste 也没用。哪个 macOS/Safari 版本带上修复：未验证。
+  - Playwright WebKit 2370（2026 年构建，Linux）已带修复：不处理 beforepaste 也会触发 paste，所以沙盒里复现不了。
+  - Tauri 2.12.5 `app.rs`：`enable_macos_default_menu` 默认 true，没设菜单时用 `Menu::default`，里面有 `PredefinedMenuItem::paste`（⌘V）。
+  - 做法：桌面版焦点不在输入框时拦下粘贴键（preventDefault），直接用剪贴板插件读系统剪贴板；不依赖 paste 事件。

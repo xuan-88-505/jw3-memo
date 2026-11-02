@@ -39,7 +39,7 @@ import {
   type SchemeVersion,
 } from "@/data/types";
 import { diffVersions, hasGameChange } from "@/lib/diff";
-import { relativeTime } from "@/lib/format";
+import { pasteHint, relativeTime } from "@/lib/format";
 import { jx3boxMacroUrl } from "@/lib/jx3box";
 import { MACRO_LIMIT, cleanMacro, lintMacro } from "@/lib/macro";
 import {
@@ -708,6 +708,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
     talents: curSet?.talents ?? [],
     enabled: editable && hasContent,
     onApply: talents => editSet(curSetId, () => talents),
+    pasteKey: pasteHint(state.platform),
   });
 
   // 左栏只列出有内容的方案，删掉后这里也不会再显示它

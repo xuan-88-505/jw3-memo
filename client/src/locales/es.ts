@@ -1134,14 +1134,13 @@ const dict: Record<string, string> = {
   "新加的，未保存": "Macro nueva, sin guardar",
   "剪贴板里没有奇穴。截图或在魔盒复制奇穴后按 {0} 粘贴": "No hay talentos en el portapapeles. Haz una captura o copia los talentos en JX3Box y pulsa {0} para pegarlos",
   "和魔盒奇穴一样，没有改动": "Igual que los talentos de JX3Box; no hay cambios",
-  "导入奇穴": "Importar talentos",
   "已切到{0}，按魔盒奇穴选上 {1} 层": "Se cambió a {0} y se aplicaron {1} de 9 niveles de JX3Box",
   "按魔盒奇穴选上 {0} 层": "Se aplicaron {0} de 9 niveles de JX3Box",
   "没拿到魔盒 {0} 版本的奇穴数据，检查网络后再试": "No se pudieron obtener los datos de talentos de la versión {0} de JX3Box. Revisa la red e inténtalo de nuevo",
   "粘贴奇穴截图或魔盒复制的奇穴（{0}），自动选上": "Pega una captura de talentos o talentos copiados de JX3Box ({0}) para rellenarlos",
-  "粘贴奇穴截图或魔盒复制的奇穴（{0}），自动选上；剪贴板里没有就选择截图": "Pega una captura de talentos o talentos copiados de JX3Box ({0}) para rellenarlos. Si el portapapeles no tiene nada, elige una captura",
   "这个奇穴编码和{0}对不上，没有改动": "Este código de talentos no coincide con {0}; no hay cambios",
   "这是{0}的奇穴，当前是{1}": "Estos talentos son de {0}, pero el actual es {1}",
   "这是怀旧服的镇派编码，这里只能导入旗舰端奇穴": "Es un código de 镇派 de JX3 Classic. Aquí solo se pueden importar talentos de la edición insignia",
+  "粘贴奇穴": "Pegar talentos",
 };
 export default dict;

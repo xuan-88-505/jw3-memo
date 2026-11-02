@@ -1134,14 +1134,13 @@ const dict: Record<string, string> = {
   "新加的，未保存": "New macro, unsaved",
   "剪贴板里没有奇穴。截图或在魔盒复制奇穴后按 {0} 粘贴": "No talents on the clipboard. Take a screenshot or copy talents on JX3Box, then press {0} to paste",
   "和魔盒奇穴一样，没有改动": "Same as the JX3Box talents, nothing changed",
-  "导入奇穴": "Import talents",
   "已切到{0}，按魔盒奇穴选上 {1} 层": "Switched to {0} and applied {1} of 9 tiers from JX3Box",
   "按魔盒奇穴选上 {0} 层": "Applied {0} of 9 tiers from JX3Box",
   "没拿到魔盒 {0} 版本的奇穴数据，检查网络后再试": "Couldn't get JX3Box talent data for version {0}. Check your network and try again",
   "粘贴奇穴截图或魔盒复制的奇穴（{0}），自动选上": "Paste a talent screenshot or talents copied from JX3Box ({0}) to fill in the talents",
-  "粘贴奇穴截图或魔盒复制的奇穴（{0}），自动选上；剪贴板里没有就选择截图": "Paste a talent screenshot or talents copied from JX3Box ({0}) to fill in the talents. If the clipboard has neither, choose a screenshot",
   "这个奇穴编码和{0}对不上，没有改动": "This talent code doesn't match {0}. Nothing changed",
   "这是{0}的奇穴，当前是{1}": "These talents are for {0}, but the current one is {1}",
   "这是怀旧服的镇派编码，这里只能导入旗舰端奇穴": "This is a JX3 Classic (镇派) code. Only Flagship talents can be imported here",
+  "粘贴奇穴": "Paste talents",
 };
 export default dict;
