@@ -71,6 +71,12 @@ export function PanelNewScheme({
     onApply: setTalents,
     filePicker: false,
     pasteKey: pasteHint(state.platform),
+    // 魔盒奇穴是这个角色的另一个心法：直接切过去
+    xinfas,
+    onSwitchXinfa: x => {
+      setXinfa(x);
+      setBlocked(false);
+    },
   });
 
   const cleaned = cleanMacro(content);

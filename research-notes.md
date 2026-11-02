@@ -317,3 +317,10 @@
 - 面板百分比算法（`功能模块/基础设置/面板信息/index.tsx`）：会心 min(等级/系数×100, 100)；会效 min(等级/系数×100+175, 300)；破防、无双 等级/系数×100；加速 min(等级/系数, 0.25)×100。
 - 有一个中文文件名 `static/media/有限求解.*.py`。Tauri 2.12.5 读取内置资源时会做 percent 解码，可以正常加载。
 - 截图识别奇穴 正式版（2026-10-31）：在浏览器里用 canvas 比对魔盒图标，不上传截图。魔盒图标服务器 `icon.jx3box.com` 返回 `access-control-allow-origin: *`，可以 fetch 后读像素。奇穴数据：`https://data.jx3box.com/talent/std/index.json` 列出版本，当前用 v20261030（苍生铸世）。同一个图标会在不同版本、不同奇穴间复用（如列甲和烈雷都是 635），所以必须用当季数据，并按所在层区分。结果：游戏内铁牢律奇穴条 9/9；备忘录奇穴区截图（幽罗引）8/8 可认的层全对。本机耗时约 1.0–1.4 秒（图标已下载时）。从沙箱访问图标服务器很慢（单个 3–8 秒，并发 24 个时被拒连接），国内网络下未验证。
+- 魔盒宏页面「复制奇穴编码 / 文字 / 序列」（2026-11-02 20:20 UTC+8 查证）：
+  - 来源代码：魔盒公开仓库 https://github.com/JX3BOX/macro （已归档，宏库迁到 pve）`src/views/Single.vue`：编码按钮 `copy(item.talent)` 复制帖子里存的原始字符串；序列按钮 `getTalentSQ` 取 `JSON.parse(talent).sq`；文字按钮复制奇穴模拟器 `t.txt.toString()`（名字用英文逗号连接）。
+  - 奇穴模拟器 https://github.com/JX3BOX/jx3box-talent `index.js`：`sq` 每一项是这一层选的 pos；`level._follow` 时取被跟随的层（第 8、9 层跟随第 7 层）；没选的层 pos 为 0，文字写「第一重」这类（`empty_data`）；会按 `version` 下载 `${version}.json` 渲染，所以老帖显示的是老版本的奇穴。
+  - 怀旧服用 `@jx3box/jx3box-talent2`（https://www.npmjs.com/package/@jx3box/jx3box-talent2 ），编码带 `client:"origin"`，是镇派，不是奇穴。
+  - 真实编码样本（cms.jx3box.com 铁牢律宏帖 109709、110226）：`{"version":"v20261029","xf":"铁牢律","sq":"3,4,2,4,4,3,4,5,11","client":"std"}`；同一帖子里还有 `v20261030` 的编码。
+  - 魔盒数据 `https://data.jx3box.com/talent/std/{version}.json` 返回 `access-control-allow-origin: *`；结构为 心法 → "1".."9" → pos → {name, icon, desc, pos…}，第 8、9 层是 `{_type, _follow:"7"}`。v20261029 与 v20261030 共 1159 个选项只有焚影圣诀 1 处不同。index.json 当前列 v20261030 苍生铸世、v20260524 暗影千机、v20251225 山海源流、v20250721 太极秘录、v20250217 丝路风语…
+  - 用户截图（铁牢律：号令三军 战心 列甲 崩决 疾雨 劲风 定军 力撼河山 振甲）按 v20261030 对应序列 `3,4,2,3,4,2,4,5,11`。

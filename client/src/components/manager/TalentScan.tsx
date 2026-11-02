@@ -1,27 +1,37 @@
 /**
- * 截图识别奇穴：方案页「奇穴」标题右边的按钮，和奇穴上方的结果提示。面板「新建奇穴」也用。
+ * 导入奇穴：方案页「奇穴」标题右边的「导入」按钮，和奇穴上方的结果提示。面板「新建奇穴」也用。
+ * 能导入两类内容：奇穴截图（在本机比对图标）；魔盒宏页面复制的奇穴编码、奇穴文字、奇穴序列（lib/talentCode）。
  *
- * - 在方案页任何地方按 Ctrl+V / ⌘V 粘贴截图就识别；弹窗里、剪贴板里有文字时不管。
- * - 点按钮先读剪贴板里的图片，没有图片就打开选文件。
+ * - 在方案页任何地方按 Ctrl+V / ⌘V 粘贴就导入；弹窗里不管。
+ *   焦点在输入框里时按普通文字粘贴，不当成奇穴。
+ * - 点按钮先读剪贴板里的图片，再读文字；都不是奇穴就打开选文件。
  * - 面板（filePicker=false）不打开选文件：系统的选文件窗口会抢走焦点，面板一失焦就收起。
- *   剪贴板里没有图片时提示先截图。
+ *   剪贴板里没有奇穴时提示先复制。
+ * - 魔盒内容是这个角色的另一个心法时（面板传 xinfas），直接切过去；撤销时切回来。
  * - 认出的层直接改进草稿，没认出的层保持原样；提示里可以撤销。
  */
 import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  ClipboardPaste,
   Info,
   Loader2,
-  ScanLine,
   X,
 } from "lucide-react";
 import type { Platform } from "@/data/types";
 import { layersOf } from "@/data/seed";
+import { TALENTS } from "@/data/talents";
 import { Btn } from "@/components/common/ui";
-import { readClipboardImage } from "@/lib/desktop";
+import { readClipboardImage, readClipboardText } from "@/lib/desktop";
 import { pasteHint } from "@/lib/format";
 import { getLang, tx } from "@/lib/i18n";
+import {
+  type TalentImport,
+  needsFetch,
+  parseTalentText,
+  resolveTalentImport,
+} from "@/lib/talentCode";
 import {
   TalentScanError,
   mergePicks,
@@ -30,22 +40,38 @@ import {
 } from "@/lib/talentScan";
 import { clipboardImages } from "./records/NoteImages";
 
+/** image = 截图识别；jx3box = 魔盒复制的奇穴 */
+type Source = "image" | "jx3box";
+
 type Notice =
   | {
       kind: "done";
+      source: Source;
       found: number;
       missed: number[];
       before: number[];
       after: number[];
+      /** 切到了这个心法；撤销时切回 prevXinfa */
+      switched?: string;
+      prevXinfa?: string;
     }
-  | { kind: "same"; found: number; missed: number[] }
-  | { kind: "error"; text: string };
+  | { kind: "same"; source: Source; found: number; missed: number[] }
+  /** pick：截图出错时可以改选图片；魔盒文字出错时选图片没有意义，不给 */
+  | { kind: "error"; text: string; pick?: boolean };
 
-/** 至少认出这么多层才算奇穴截图 */
+/** 至少认出这么多层才算奇穴 */
 const MIN_FOUND = 3;
+
+const ALL_XINFA = Object.keys(TALENTS);
 
 const joinLayers = (layers: number[]) =>
   layers.join(getLang() === "zh" ? "、" : ", ");
+
+/** 焦点在能输入文字的地方：粘贴的文字交给它 */
+const isTextField = (t: Element | null) =>
+  !!t?.closest(
+    'input:not([type=checkbox]):not([type=radio]):not([type=button]), textarea, [contenteditable=""], [contenteditable="true"]'
+  );
 
 export function useTalentScan({
   xinfa,
@@ -55,6 +81,8 @@ export function useTalentScan({
   onApply,
   filePicker = true,
   pasteKey = "Ctrl+V",
+  xinfas,
+  onSwitchXinfa,
 }: {
   xinfa: string;
   /** 换方案时清掉提示 */
@@ -62,20 +90,36 @@ export function useTalentScan({
   talents: number[];
   enabled: boolean;
   onApply: (next: number[]) => void;
-  /** 剪贴板里没有图片时打开选文件；面板里关掉 */
+  /** 剪贴板里没有奇穴时打开选文件；面板里关掉 */
   filePicker?: boolean;
   /** 关掉选文件时，提示里写的粘贴快捷键 */
   pasteKey?: string;
+  /** 魔盒内容属于这些心法时可以直接切过去（面板：这个角色的心法） */
+  xinfas?: string[];
+  onSwitchXinfa?: (xinfa: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   // 换方案后，之前没跑完的识别结果作废
   const seq = useRef(0);
-  const latest = useRef({ xinfa, talents, onApply, busy });
-  latest.current = { xinfa, talents, onApply, busy };
+  // 导入时自己切了心法（resetKey 跟着变），这一次不清提示
+  const skipReset = useRef(false);
+  const latest = useRef({
+    xinfa,
+    xinfas,
+    talents,
+    onApply,
+    onSwitchXinfa,
+    busy,
+  });
+  latest.current = { xinfa, xinfas, talents, onApply, onSwitchXinfa, busy };
 
   useEffect(() => {
+    if (skipReset.current) {
+      skipReset.current = false;
+      return;
+    }
     seq.current += 1;
     setBusy(false);
     setNotice(null);
@@ -94,6 +138,39 @@ export function useTalentScan({
       setNotice(null);
   }, [talents, notice]);
 
+  /** 把每层的选择合进当前奇穴；target 和当前心法不同时先切心法 */
+  const apply = (
+    target: string,
+    picks: (number | null)[],
+    found: number,
+    source: Source
+  ) => {
+    const { xinfa, talents: before } = latest.current;
+    const pool = (layersOf(target)[6]?.options ?? []).map(o => o.pos);
+    const after = mergePicks(before, picks, pool);
+    const missed = picks.flatMap((p, i) => (p === null ? [i + 1] : []));
+    const switched = target !== xinfa ? target : undefined;
+    if (!switched && after.join() === before.join()) {
+      setNotice({ kind: "same", source, found, missed });
+      return;
+    }
+    if (switched) {
+      skipReset.current = true;
+      latest.current.onSwitchXinfa?.(target);
+    }
+    latest.current.onApply(after);
+    setNotice({
+      kind: "done",
+      source,
+      found,
+      missed,
+      before,
+      after,
+      switched,
+      prevXinfa: switched ? xinfa : undefined,
+    });
+  };
+
   const run = async (src: Blob | ImageData) => {
     if (latest.current.busy) return;
     const my = ++seq.current;
@@ -108,24 +185,17 @@ export function useTalentScan({
         setNotice({
           kind: "error",
           text: tx("没认出奇穴。截图要包含奇穴图标，并且是{0}的", xinfa),
+          pick: true,
         });
         return;
       }
-      const before = latest.current.talents;
-      const pool = (layersOf(xinfa)[6]?.options ?? []).map(o => o.pos);
-      const after = mergePicks(before, r.picks, pool);
-      const missed = r.picks.flatMap((p, i) => (p === null ? [i + 1] : []));
-      if (after.join() === before.join()) {
-        setNotice({ kind: "same", found: r.found, missed });
-        return;
-      }
-      latest.current.onApply(after);
-      setNotice({ kind: "done", found: r.found, missed, before, after });
+      apply(xinfa, r.picks, r.found, "image");
     } catch (e) {
       if (my !== seq.current) return;
       const code = e instanceof TalentScanError ? e.code : "decode";
       setNotice({
         kind: "error",
+        pick: true,
         text:
           code === "icons"
             ? tx("奇穴图标下载失败，检查网络后再试")
@@ -140,17 +210,75 @@ export function useTalentScan({
   const runRef = useRef(run);
   runRef.current = run;
 
-  // 方案页任何地方粘贴截图
+  /**
+   * 导入魔盒复制的奇穴。返回 false = 不是奇穴（序列、文字对不上），交给调用方处理；
+   * 编码一定是奇穴，对不上也提示。
+   */
+  const runText = async (imp: TalentImport) => {
+    if (latest.current.busy) return true;
+    const my = ++seq.current;
+    const { xinfa, xinfas } = latest.current;
+    // 别的版本的编码要下载数据，期间显示「正在识别…」
+    const slow = needsFetch(imp);
+    if (slow) setBusy(true);
+    setNotice(null);
+    try {
+      const r = await resolveTalentImport(imp, {
+        xinfa,
+        xinfas,
+        allXinfa: ALL_XINFA,
+        layersOf,
+        minFound: MIN_FOUND,
+      });
+      if (my !== seq.current) return true;
+      if (r.ok) {
+        apply(r.xinfa, r.picks, r.found, "jx3box");
+        return true;
+      }
+      if (r.reason === "nomatch" && imp.kind !== "code") return false;
+      setNotice({
+        kind: "error",
+        text:
+          r.reason === "origin"
+            ? tx("这是怀旧服的镇派编码，这里只能导入旗舰端奇穴")
+            : r.reason === "xinfa"
+              ? tx("这是{0}的奇穴，当前是{1}", r.xinfa ?? "", xinfa)
+              : r.reason === "empty"
+                ? tx("{0}还没有奇穴数据", r.xinfa ?? xinfa)
+                : r.reason === "version"
+                  ? tx(
+                      "没拿到魔盒 {0} 版本的奇穴数据，检查网络后再试",
+                      r.version ?? ""
+                    )
+                  : tx("这个奇穴编码和{0}对不上，没有改动", xinfa),
+      });
+      return true;
+    } finally {
+      if (slow && my === seq.current) setBusy(false);
+    }
+  };
+  const runTextRef = useRef(runText);
+  runTextRef.current = runText;
+
+  // 方案页任何地方粘贴截图或魔盒奇穴
   useEffect(() => {
     if (!enabled) return;
     const onPaste = (e: ClipboardEvent) => {
       if (e.defaultPrevented) return;
       const t = e.target instanceof Element ? e.target : null;
       if (t?.closest('[role="dialog"]')) return;
+      const text = e.clipboardData?.getData("text/plain").trim() ?? "";
+      if (text) {
+        // 输入框里粘贴文字是正常输入，不抢
+        if (isTextField(t)) return;
+        const imp = parseTalentText(text);
+        if (!imp) return;
+        e.preventDefault();
+        void runTextRef.current(imp);
+        return;
+      }
       const files = clipboardImages(e);
       if (!files.length) return;
-      // 从网页复制的内容同时带文字和图片，这时按普通文字粘贴
-      if (e.clipboardData?.getData("text/plain").trim()) return;
       e.preventDefault();
       void runRef.current(files[0]);
     };
@@ -162,16 +290,28 @@ export function useTalentScan({
   const pick = async () => {
     if (latest.current.busy) return;
     const img = await readClipboardImage();
-    if (img) void runRef.current(img);
-    else if (filePicker) choose();
+    if (img) {
+      void runRef.current(img);
+      return;
+    }
+    const imp = parseTalentText(await readClipboardText());
+    if (imp && (await runTextRef.current(imp))) return;
+    if (filePicker) choose();
     else
       setNotice({
         kind: "error",
-        text: tx("剪贴板里没有图片。截图后按 {0} 粘贴", pasteKey),
+        text: tx(
+          "剪贴板里没有奇穴。截图或在魔盒复制奇穴后按 {0} 粘贴",
+          pasteKey
+        ),
       });
   };
   const undo = () => {
     if (notice?.kind !== "done") return;
+    if (notice.prevXinfa) {
+      skipReset.current = true;
+      latest.current.onSwitchXinfa?.(notice.prevXinfa);
+    }
     latest.current.onApply(notice.before);
     setNotice(null);
   };
@@ -217,14 +357,17 @@ export function TalentScanButton({
   pasteOnly?: boolean;
 }) {
   const hint = pasteOnly
-    ? tx("粘贴奇穴截图（{0}），自动选上", pasteHint(platform))
-    : tx("粘贴（{0}）或选择奇穴截图，自动选上", pasteHint(platform));
+    ? tx("粘贴奇穴截图或魔盒复制的奇穴（{0}），自动选上", pasteHint(platform))
+    : tx(
+        "粘贴奇穴截图或魔盒复制的奇穴（{0}），自动选上；剪贴板里没有就选择截图",
+        pasteHint(platform)
+      );
   return (
     <Btn
       variant="secondary"
       size="xs"
       title={hint}
-      aria-label={tx("识别截图")}
+      aria-label={tx("导入奇穴")}
       aria-busy={busy || undefined}
       disabled={busy}
       // 文字不变，只换图标，免得按钮宽度跳
@@ -232,12 +375,12 @@ export function TalentScanButton({
         busy ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
         ) : (
-          <ScanLine className="h-3.5 w-3.5" aria-hidden="true" />
+          <ClipboardPaste className="h-3.5 w-3.5" aria-hidden="true" />
         )
       }
       onClick={onClick}
     >
-      {tx("识别截图")}
+      {tx("导入")}
     </Btn>
   );
 }
@@ -275,16 +418,23 @@ export function TalentScanNotice({
     "missed" in notice && notice.missed.length
       ? tx("第 {0} 层没认出，保持原样", joinLayers(notice.missed))
       : "";
-  const text =
+  const head =
     notice.kind === "error"
       ? notice.text
       : notice.kind === "same"
-        ? [tx("认出 {0} 层，和现在的一样", notice.found), missedText]
-            .filter(Boolean)
-            .join(tx("；"))
-        : [tx("认出 {0} 层，已选上", notice.found), missedText]
-            .filter(Boolean)
-            .join(tx("；"));
+        ? notice.source === "jx3box"
+          ? tx("和魔盒奇穴一样，没有改动")
+          : tx("认出 {0} 层，和现在的一样", notice.found)
+        : notice.source === "jx3box"
+          ? notice.switched
+            ? tx(
+                "已切到{0}，按魔盒奇穴选上 {1} 层",
+                notice.switched,
+                notice.found
+              )
+            : tx("按魔盒奇穴选上 {0} 层", notice.found)
+          : tx("认出 {0} 层，已选上", notice.found);
+  const text = [head, missedText].filter(Boolean).join(tx("；"));
   const Icon =
     notice.kind === "error"
       ? AlertTriangle
@@ -309,7 +459,7 @@ export function TalentScanNotice({
           {tx("撤销")}
         </Btn>
       )}
-      {notice.kind === "error" && onChoose && (
+      {notice.kind === "error" && notice.pick && onChoose && (
         <Btn variant="ghost" size="xs" onClick={onChoose}>
           {tx("选择图片")}
         </Btn>

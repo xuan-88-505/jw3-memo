@@ -177,6 +177,20 @@ export async function readClipboardImage(): Promise<Blob | ImageData | null> {
   return null;
 }
 
+/** 读剪贴板里的文字；没有文字或读不了返回空字符串 */
+export async function readClipboardText(): Promise<string> {
+  try {
+    if (IS_DESKTOP) {
+      const { readText } = await import("@tauri-apps/plugin-clipboard-manager");
+      return (await readText()) ?? "";
+    }
+    return (await navigator.clipboard?.readText?.()) ?? "";
+  } catch {
+    // 剪贴板里不是文字、没有权限，都按没有文字处理
+    return "";
+  }
+}
+
 export async function openExternal(url: string) {
   const { openUrl } = await import("@tauri-apps/plugin-opener");
   await openUrl(url);
