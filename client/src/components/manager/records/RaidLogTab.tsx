@@ -1,3 +1,4 @@
+import { TABLE_WRAP } from "@/components/common/surface";
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
@@ -16,6 +17,7 @@ import {
 } from "@/data/records";
 import { ME_ID } from "@/data/seed";
 import { cn } from "@/lib/utils";
+import { useScrollFade } from "@/hooks/useScrollFade";
 import { canEdit, isOnline, memberName, useProto, isSolo } from "@/state/store";
 import { EmptyState, Field, inputCls, SelectBox } from "../shared";
 import { NoteComposer, NoteThumbs, useNoteImages } from "./NoteImages";
@@ -72,6 +74,7 @@ export function RaidLogTab({
   onEdit: (id: string | "new" | null) => void;
 }) {
   const { state } = useProto();
+  const fade = useScrollFade<HTMLDivElement>();
   const [period, setPeriod] = useState<Period>("month");
   const [charFilter, setCharFilter] = useState("all");
   // 默认最新的在上面；切到工资时先看最高的
@@ -187,8 +190,15 @@ export function RaidLogTab({
           }
         />
       ) : (
-        <div className="-mx-3">
-          <table className="w-full table-fixed text-left text-[13px]">
+        // 前 6 列是固定宽度；表格最少 812px，备注列至少留约 120px。
+        // 窗口窄时整张表左右滚动，不截表头、不丢备注图片；
+        // 哪一边还有内容就淡出那一边，提示可以滚
+        <div
+          ref={fade.ref}
+          style={fade.style}
+          className={cn(TABLE_WRAP, "overflow-x-auto")}
+        >
+          <table className="w-full min-w-[812px] table-fixed text-left text-[13px]">
             <colgroup>
               <col className="w-[112px]" />
               <col className="w-[128px]" />

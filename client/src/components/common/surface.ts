@@ -26,8 +26,12 @@ export const ROW_ACTIVE = "bg-paper/[0.04]";
 /** 行悬停 */
 export const ROW_HOVER = "hover:bg-paper/[0.025]";
 
-/** 表格：不套卡片，左右外扩 12px 让文字和页标题对齐 */
-export const TABLE_WRAP = "-mx-3 overflow-x-auto";
+/**
+ * 表格外层：不外扩。表头线、行间线和页标题、右上角操作左右对齐；
+ * 首列不留左内边距、末列不留右内边距，首列文字也和页标题对齐。
+ */
+export const TABLE_WRAP =
+  "[&_th:first-child]:pl-0 [&_td:first-child]:pl-0 [&_th:last-child]:pr-0 [&_td:last-child]:pr-0";
 export const TABLE = "w-full border-collapse text-[13px]";
 export const THEAD_ROW =
   "border-b border-paper/[0.07] text-left text-[12px] text-paper-3";

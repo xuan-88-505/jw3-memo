@@ -1,3 +1,4 @@
+import { TABLE_WRAP } from "@/components/common/surface";
 import { useEffect, useRef, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
@@ -91,7 +92,7 @@ export function CharactersView() {
           }
         />
       ) : (
-        <div className="-mx-3">
+        <div className={TABLE_WRAP}>
           <table className="w-full table-fixed text-left text-[13px]">
             <colgroup>
               {showScore ? (

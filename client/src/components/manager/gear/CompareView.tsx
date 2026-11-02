@@ -1,3 +1,4 @@
+import { TABLE_WRAP } from "@/components/common/surface";
 import { ArrowDown, ArrowLeftRight, ArrowUp, Plus } from "lucide-react";
 import { useState } from "react";
 import { XinfaMark } from "@/components/brand/Marks";
@@ -195,8 +196,8 @@ export function CompareView({
 
   return (
     <div className="space-y-6">
-      <div className="-mx-3">
-        <div className="flex justify-end px-3">
+      <div className={TABLE_WRAP}>
+        <div className="flex justify-end">
           <Segmented
             size="xs"
             label={tx("增益")}

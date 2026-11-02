@@ -1,3 +1,4 @@
+import { TABLE_WRAP } from "@/components/common/surface";
 import { useRef, useState } from "react";
 import {
   Check,
@@ -153,7 +154,7 @@ function TeamDetail() {
 
       {session && <PendingBar />}
 
-      <div className="-mx-3">
+      <div className={TABLE_WRAP}>
         <table className="w-full text-left text-[13px]">
           <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
             <tr>
@@ -173,10 +174,8 @@ function TeamDetail() {
               ).length;
               const isMe = m.id === ME_ID;
               return (
-                <tr
-                  key={m.id}
-                  className="transition-colors hover:bg-paper/[0.025]"
-                >
+                // 行本身不能点，不加整行悬停
+                <tr key={m.id}>
                   <td className="px-3 py-2.5">
                     <span className="flex items-center gap-2.5">
                       <Avatar member={m} size={28} />
@@ -263,7 +262,7 @@ function TeamDetail() {
       <h2 className="mb-1 mt-7 border-t border-paper/[0.07] pt-7 text-[14px] font-medium text-paper">
         {tx("权限说明")}
       </h2>
-      <div className="-mx-3">
+      <div className={TABLE_WRAP}>
         <table className="w-full text-[13px]">
           <thead className="border-b border-paper/[0.07] text-[12px] text-paper-3">
             <tr>

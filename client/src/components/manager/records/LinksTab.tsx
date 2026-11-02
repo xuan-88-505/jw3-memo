@@ -241,10 +241,7 @@ export function LinksTab() {
         {links.length === 0 ? (
           <EmptyState icon="pigeon" title={tx("还没有链接或图片")} />
         ) : (
-          <ul
-            className={cn("-mx-3 mt-4", DIVIDE)}
-            aria-label={tx("链接和图片")}
-          >
+          <ul className={cn("mt-4", DIVIDE)} aria-label={tx("链接和图片")}>
             {links.map(l => {
               const mine = l.by === ME_ID;
               const canChange = writable && (mine || isAdmin);
@@ -273,7 +270,7 @@ export function LinksTab() {
               return (
                 <li
                   key={l.id}
-                  className="group/row relative flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-paper/[0.025]"
+                  className="group/row relative flex items-center gap-3 py-2.5 transition-colors hover:bg-paper/[0.025]"
                 >
                   {img ? (
                     <img

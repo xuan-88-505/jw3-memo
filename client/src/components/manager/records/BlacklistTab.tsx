@@ -1,3 +1,4 @@
+import { TABLE_WRAP } from "@/components/common/surface";
 import { AlertTriangle, Check, ShieldAlert, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { InlineModal } from "@/components/common/overlay";
@@ -124,7 +125,7 @@ export function BlacklistTab({
       {rows.length === 0 ? (
         <EmptyState icon="thunder" title={tx("避雷名单是空的")} />
       ) : (
-        <div className="-mx-3">
+        <div className={TABLE_WRAP}>
           <table className="w-full table-fixed text-left text-[13px]">
             <colgroup>
               <col className="w-[168px]" />
