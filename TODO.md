@@ -883,5 +883,5 @@
 - [x] 国内访问实测（Globalping 中国大陆 30 个节点，`/tmp/cnnet/gp3.py`）：`/api/health` 29/30，中位 2.07 秒；桌面来源跨域预检 29/30 放行。失败的无锡移动节点和 10-30 那次一样是 `ECONNRESET`。详见 `research-notes.md`。
 - [x] 版本 1.0.3 → 2.0.0：`package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、设置页显示的版本号。
 - [x] README：「不需要登录」改为自己用不用登录、加入亲友团用邀请码和昵称；加「从 1.x 升级到 2.0」（直接覆盖安装，数据会转换成新格式，不建议装回 1.x）；「数据」改写为单机和亲友团两种情况；新增「亲友团」一节（创建、加入、第二台电脑登录、三种权限、可见范围、冲突、自动备份、服务器在境外）。
-- [ ] 推标签 `v2.0.0` 触发 GitHub Actions 打包；打包完成后在 Release 说明最前面加「本版更新」。
+- [x] 推标签 `v2.0.0`（提交 `f467247`）触发 GitHub Actions 打包，运行 41421900889 成功：Windows 11 分 58 秒，Mac 也通过。Release「备忘录 JW3 Memo v2.0.0」已发布并标为 Latest，文件 `JW3-Memo_2.0.0_windows_x64-setup.exe`（9.4 MB）、`JW3-Memo_2.0.0_darwin_universal.dmg`（20.0 MB）、`JW3-Memo_2.0.0_darwin_universal.app.tar.gz`。说明最前面已加「本版更新」。
 - 未验证：Windows 和 Mac 真机上的安装、覆盖升级和亲友团同步；国内家用宽带上的同步体验。
