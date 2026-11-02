@@ -150,7 +150,7 @@ export function TalentPicker({
                 <>
                   <span
                     aria-hidden="true"
-                    className="absolute right-1 top-1 h-2 w-2 rounded-[2px] bg-cinnabar"
+                    className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-gold"
                   />
                   <span className="sr-only">{tx("已修改")}</span>
                 </>
@@ -318,7 +318,7 @@ function Tile({
       )}
       {changed && (
         <span
-          className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-[2px] bg-cinnabar"
+          className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-gold"
           aria-label={tx("已修改")}
         />
       )}

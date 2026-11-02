@@ -158,7 +158,7 @@ export function TalentSetTabs({
             {changed(s) && (
               <span
                 aria-hidden="true"
-                className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-[2px] bg-cinnabar"
+                className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-gold"
               />
             )}
           </span>

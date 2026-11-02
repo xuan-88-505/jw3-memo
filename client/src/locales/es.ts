@@ -1135,5 +1135,6 @@ const dict: Record<string, string> = {
   "这个方案还没保存，删除后填的内容不会保留。": "Este preset aún no se ha guardado. Se perderá lo que hayas escrito.",
   "剪贴板里没有图片。截图后按 {0} 粘贴": "No hay ninguna imagen en el portapapeles. Haz una captura y pulsa {0} para pegarla",
   "粘贴奇穴截图（{0}），自动选上": "Pega una captura de talentos ({0}) para rellenarlos",
+  "新加的，未保存": "Macro nueva, sin guardar",
 };
 export default dict;

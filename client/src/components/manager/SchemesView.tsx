@@ -1191,21 +1191,40 @@ function MacroEditor({
           size={30}
           disabled={!editable}
         />
-        <input
-          ref={nameRef}
-          value={macro.name}
-          readOnly={!editable}
-          onChange={e => onChange({ name: e.target.value })}
-          maxLength={20}
-          aria-label={tx("宏名称")}
-          placeholder={tx("宏名称")}
-          className="h-8 min-w-0 flex-1 rounded-md bg-transparent px-1.5 text-[14px] font-medium text-paper placeholder:text-paper-3 hover:bg-paper/[0.04] focus:bg-paper/[0.04] focus:outline-none focus:ring-1 focus:ring-paper/20 read-only:hover:bg-transparent"
-        />
-        {modified && (
-          <span className="text-[11.5px] text-gold">
-            {base ? tx("已修改") : tx("新增")}
+        {/* 名字框按内容宽，「未保存」圆点紧跟在名字后面（和左栏、底栏的圆点同一个意思） */}
+        <span className="flex min-w-0 items-center">
+          {/* 隐藏的同字号文字决定宽度，输入框铺满它；名字太长时整块收窄，输入框自己滚动 */}
+          <span className="relative min-w-0">
+            <span
+              aria-hidden="true"
+              className="invisible block h-8 overflow-hidden whitespace-pre px-1.5 text-[14px] font-medium leading-8"
+            >
+              {macro.name || tx("宏名称")}
+            </span>
+            <input
+              ref={nameRef}
+              value={macro.name}
+              readOnly={!editable}
+              onChange={e => onChange({ name: e.target.value })}
+              maxLength={20}
+              size={1}
+              aria-label={tx("宏名称")}
+              placeholder={tx("宏名称")}
+              className="absolute inset-0 h-8 w-full min-w-0 rounded-md bg-transparent px-1.5 text-[14px] font-medium text-paper placeholder:text-paper-3 hover:bg-paper/[0.04] focus:bg-paper/[0.04] focus:outline-none focus:ring-1 focus:ring-paper/20 read-only:hover:bg-transparent"
+            />
           </span>
-        )}
+          {modified && (
+            <span
+              role="img"
+              aria-label={base ? tx("有未保存的修改") : tx("新加的，未保存")}
+              title={base ? tx("有未保存的修改") : tx("新加的，未保存")}
+              className="-ml-1 grid h-6 w-4 shrink-0 place-items-center"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+            </span>
+          )}
+        </span>
+        <span className="flex-1" />
         {moveTargets && (
           <MoveMacroButton
             name={macro.name}
