@@ -330,3 +330,16 @@
   - Playwright WebKit 2370（2026 年构建，Linux）已带修复：不处理 beforepaste 也会触发 paste，所以沙盒里复现不了。
   - Tauri 2.12.5 `app.rs`：`enable_macos_default_menu` 默认 true，没设菜单时用 `Menu::default`，里面有 `PredefinedMenuItem::paste`（⌘V）。
   - 做法：桌面版焦点不在输入框时拦下粘贴键（preventDefault），直接用剪贴板插件读系统剪贴板；不依赖 paste 事件。
+
+## 国内能否设置登录密码、用密码登录（2026-11-02 23:04 北京时间）
+工具同上（Globalping 中国大陆节点 30 个），脚本 `/tmp/cnnet/gp4.py`，原始结果 `/tmp/cnnet/http-account.json`、`http-pwlogin-preflight.json`、`http-account-preflight.json`。测试对象：已发布的 `45b0e93`。
+
+| 项目 | 结果 | 用时 |
+| --- | --- | --- |
+| `GET /api/team/account`（不带令牌，应返回 401） | 29/30 返回 401 `unauthorized`，说明新接口已上线、国内能连到 | 中位 1.85 秒 |
+| `OPTIONS /api/team/login/password`，桌面来源、`POST`（密码登录前的预检） | 29/30 放行 | 中位 1.6 秒 |
+| `OPTIONS /api/team/account`，桌面来源、`PATCH`（设置/修改密码前的预检） | 28/30 放行 | 中位 1.1 秒 |
+
+- 失败的节点：北京电信 3 项都是 DNS 解析超时；南京腾讯云 1 项测量超时。都是节点自身超时，不是被拦。
+- Globalping 的 HTTP 测量只支持 GET/HEAD/OPTIONS，测不了真正的 POST/PATCH。新接口和已实测的入团、同步接口在同一个域名、同一个服务上，预检放行即请求能到达；真正的 POST/PATCH 在国内节点上未验证。
+- 从境外机器对线上跑完整流程（建团、设置中文用户名和密码、输错统一提示、另一台电脑用密码登录到同一个成员、只改密码、旧密码失效、退出后令牌作废）11/11 通过，脚本 `/tmp/team2/live_account_test.py`，测试团已删除。境外单次请求 3–5 秒，建团也要 4 秒，慢在服务器和数据库往返，不是密码哈希。
