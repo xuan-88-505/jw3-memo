@@ -9,13 +9,14 @@ import { MACRO_LIMIT, cleanMacro } from "@/lib/macro";
 import { tx } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useProto } from "@/state/store";
+import { PanelForm } from "./PanelForm";
 
 /**
  * 面板里原地新建，不打开管理窗口。
  * 宏页签：填一个宏（图标、名称、说明、内容）。给了 target（宏列表最后的「新建宏」）时
  * 作为一段加到这个方案的最新版本后面，存成新版本；否则给心法新建一个 PVE 方案，存成 v1。
  * 奇穴页签：给还没有方案的心法选奇穴，新建一个 PVE 方案，存成 v1。
- * 保存后面板回到列表。Esc 或「取消」回到原来的样子。
+ * 保存后面板回到列表。Esc 或「取消」回到原来的样子。「取消 / 保存」固定在面板底部。
  */
 export function PanelNewScheme({
   kind,
@@ -88,17 +89,36 @@ export function PanelNewScheme({
   };
 
   return (
-    <div
-      role="form"
-      aria-labelledby="panel-new-title"
-      onKeyDown={e => {
-        if (e.key === "Escape") {
-          // 不让面板跟着收起；图标选择器开着时它自己先处理 Esc
-          e.stopPropagation();
-          onCancel();
-        }
-      }}
-      className="scroll-thin flex min-h-0 flex-1 animate-fade flex-col overflow-y-auto px-4 pb-4 pt-4"
+    <PanelForm
+      titleId="panel-new-title"
+      onCancel={onCancel}
+      notice={
+        blocked && (
+          <div
+            role="alert"
+            className="rounded-lg bg-amber/[0.08] px-3 py-2.5 text-[12.5px] leading-relaxed text-paper-2 ring-1 ring-inset ring-amber/25"
+          >
+            {tx("管理窗口里有{0}没保存的修改，先在那里保存或放弃", xinfa)}
+            <button
+              type="button"
+              onClick={() => onOpenManager(target?.id ?? "")}
+              className="ml-1 text-paper underline underline-offset-2 hover:text-cinnabar-text"
+            >
+              {tx("去处理")}
+            </button>
+          </div>
+        )
+      }
+      actions={
+        <>
+          <Btn variant="ghost" size="md" onClick={onCancel}>
+            {tx("取消")}
+          </Btn>
+          <Btn variant="primary" size="md" onClick={save} disabled={!canSave}>
+            {tx("保存")}
+          </Btn>
+        </>
+      }
     >
       <h2
         id="panel-new-title"
@@ -193,31 +213,6 @@ export function PanelNewScheme({
           />
         </div>
       )}
-
-      {blocked && (
-        <div
-          role="alert"
-          className="mt-4 rounded-lg bg-amber/[0.08] px-3 py-2.5 text-[12.5px] leading-relaxed text-paper-2 ring-1 ring-inset ring-amber/25"
-        >
-          {tx("管理窗口里有{0}没保存的修改，先在那里保存或放弃", xinfa)}
-          <button
-            type="button"
-            onClick={() => onOpenManager(target?.id ?? "")}
-            className="ml-1 text-paper underline underline-offset-2 hover:text-cinnabar-text"
-          >
-            {tx("去处理")}
-          </button>
-        </div>
-      )}
-
-      <div className="mt-6 flex justify-end gap-2">
-        <Btn variant="ghost" size="md" onClick={onCancel}>
-          {tx("取消")}
-        </Btn>
-        <Btn variant="primary" size="md" onClick={save} disabled={!canSave}>
-          {tx("保存")}
-        </Btn>
-      </div>
-    </div>
+    </PanelForm>
   );
 }
