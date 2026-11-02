@@ -1,6 +1,6 @@
 import {
+  Fragment,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -235,7 +235,8 @@ function schemeInfo(state: ProtoState, id: string | null | undefined) {
 }
 
 /**
- * 左栏一行一个方案：名字（PVP 的写上 PVP）、谁什么时候改的、几段宏、有没保存的修改。
+ * 左栏一行一个方案：名字（PVP 的写上 PVP）、几段宏、有没保存的修改。
+ * 不写谁、什么时候改的：创建人在右边标题下面，修改时间在修改记录里。
  * 悬停时段数的位置换成删除按钮。
  */
 function SchemeRow({
@@ -255,19 +256,19 @@ function SchemeRow({
   // 没起名字的方案名字里已经有「PVP」，不再加标签
   const pvpTag = mode === "PVP" && !!info.title;
   const count = txn("{0} 段", info.macros.length);
-  // 列表不显示版本号，只写谁、什么时候改的
-  const meta = last
-    ? isSolo(state)
-      ? relativeTime(last.at)
-      : `${memberName(state, last.authorId)} · ${relativeTime(last.at)}`
-    : tx("新建中，未保存");
+  // 圆点之外，读屏也要知道有没保存
+  const unsaved = !last
+    ? tx("新建中，未保存")
+    : draft
+      ? tx("有未保存的修改")
+      : "";
   return (
     <li className="group/row relative">
       <button
         type="button"
         onClick={() => actions.selectScheme(id)}
         aria-current={active ? "page" : undefined}
-        aria-label={`${name}${pvpTag ? " · PVP" : ""} · ${count} · ${meta}${draft && last ? tx(" · 有未保存的修改") : ""}`}
+        aria-label={`${name}${pvpTag ? " · PVP" : ""} · ${count}${unsaved ? ` · ${unsaved}` : ""}`}
         className={cn(
           "flex w-full items-start gap-2 rounded-md py-1.5 pl-[36px] pr-2 text-left transition-colors",
           active
@@ -292,14 +293,6 @@ function SchemeRow({
                 PVP
               </span>
             )}
-          </span>
-          <span
-            className={cn(
-              "block truncate text-[11.5px]",
-              active ? "text-paper-2" : "text-paper-3"
-            )}
-          >
-            {meta}
           </span>
         </span>
         <span className="mt-0.5 flex shrink-0 items-center gap-1.5">
@@ -622,105 +615,39 @@ function SchemeTitle({
 }
 
 /**
- * 方案标题行：图标 | 标题 | 作者信息 | 操作（加宏、加另一个模式、历史版本）。
- * 作者信息只在亲友团里显示创建人；自己用时没有这一栏。
- * 实测「标题排一行的宽度 + 作者信息 + 操作」：放得下就排成一行，作者信息靠右；
- * 放不下时作者信息换到第二行，并横跨到操作按钮下面。标题本身也能折行。
- * 这样任何语言、任何窗口宽度下标题都不会被截断。
+ * 方案标题行：图标 | 标题和下面一行弱的说明 | 操作（新增宏、魔盒）。
+ * 说明行写心法和模式（起了名字时）、创建人（亲友团里）；没有内容时不占位置。
+ * 标题和说明都能折行，操作按钮不缩，所以任何语言、任何窗口宽度下都不会被截断。
  */
 function SchemeHeader({
   mark,
   title,
-  titleText,
   meta,
   actions,
 }: {
   mark: ReactNode;
   title: ReactNode;
-  /** 标题文字，只用来量它排成一行有多宽 */
-  titleText: string;
-  meta: ReactNode;
+  /** 说明行的几项，用「·」隔开 */
+  meta: ReactNode[];
   actions: ReactNode;
 }) {
-  const rowRef = useRef<HTMLDivElement>(null);
-  const markRef = useRef<HTMLDivElement>(null);
-  const probeRef = useRef<HTMLSpanElement>(null);
-  const metaRef = useRef<HTMLParagraphElement>(null);
-  const actionsRef = useRef<HTMLDivElement>(null);
-  const [stack, setStack] = useState(false);
-  // 作者信息可能出现或消失（比如新方案保存后），这时要重新量
-  const hasMeta = meta != null;
-  useLayoutEffect(() => {
-    const row = rowRef.current;
-    if (!row) return;
-    const fit = () => {
-      const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
-      // 作者信息用 w-max，两种排法下宽度一样，所以判断结果不会来回跳
-      const need =
-        (markRef.current?.offsetWidth ?? 0) +
-        (probeRef.current?.offsetWidth ?? 0) +
-        (metaRef.current?.offsetWidth ?? 0) +
-        (actionsRef.current?.offsetWidth ?? 0) +
-        gap * (metaRef.current ? 3 : 2);
-      setStack(row.clientWidth + 0.5 < need);
-    };
-    fit();
-    const ro = new ResizeObserver(fit);
-    for (const el of [
-      row,
-      probeRef.current,
-      metaRef.current,
-      actionsRef.current,
-    ])
-      if (el) ro.observe(el);
-    return () => ro.disconnect();
-  }, [hasMeta]);
   return (
-    <div
-      ref={rowRef}
-      className="relative grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-3.5 gap-y-1"
-    >
-      {/* 量标题排成一行的宽度；左右内边距和可编辑标题一致 */}
-      <span
-        ref={probeRef}
-        aria-hidden="true"
-        className="pointer-events-none invisible absolute left-0 top-0 whitespace-pre px-1.5 text-[20px] font-semibold leading-tight"
-      >
-        {titleText}
-      </span>
-      <div
-        ref={markRef}
-        className={cn("col-start-1 row-start-1", stack && "row-span-2")}
-      >
-        {mark}
-      </div>
-      <div
-        className={cn(
-          "row-start-1 min-w-0",
-          stack ? "col-start-2 col-end-4" : "col-start-2"
-        )}
-      >
+    <div className="flex items-center gap-3.5">
+      <div className="shrink-0">{mark}</div>
+      <div className="min-w-0 flex-1">
         {title}
+        {meta.length > 0 && (
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12.5px] text-paper-3">
+            {meta.map((item, i) => (
+              <Fragment key={i}>
+                {i > 0 && <span aria-hidden="true">·</span>}
+                <span className="whitespace-nowrap">{item}</span>
+              </Fragment>
+            ))}
+          </p>
+        )}
       </div>
-      {hasMeta && (
-        <p
-          ref={metaRef}
-          className={cn(
-            "flex w-max max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12.5px] text-paper-3",
-            stack
-              ? "col-start-2 col-end-5 row-start-2 justify-self-start"
-              : "col-start-3 row-start-1 justify-self-end"
-          )}
-        >
-          {meta}
-        </p>
-      )}
-      <div
-        ref={actionsRef}
-        className="col-start-4 row-start-1 flex items-center gap-1.5"
-      >
-        {actions}
-      </div>
+      <div className="flex shrink-0 items-center gap-1.5">{actions}</div>
     </div>
   );
 }
@@ -881,33 +808,29 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
       <div className="flex-1 px-7 pb-6 pt-6">
         <SchemeHeader
           mark={<XinfaMark xinfa={xinfa} size={40} />}
-          titleText={(scheme?.title ?? draft?.title) || `${xinfa} · ${mode}`}
           title={
-            <>
-              <SchemeTitle
-                schemeId={schemeId}
-                title={scheme?.title ?? draft?.title}
-                fallback={`${xinfa} · ${mode}`}
-                editable={editable && online}
-              />
-              {/* 起了名字时，名字下面弱写心法和模式；没起名字时标题本身就是这两个 */}
-              {(scheme?.title ?? draft?.title) && (
-                <p className="mt-0.5 text-[12.5px] text-paper-3">
-                  {xinfa} · {mode}
-                </p>
-              )}
-            </>
+            <SchemeTitle
+              schemeId={schemeId}
+              title={scheme?.title ?? draft?.title}
+              fallback={`${xinfa} · ${mode}`}
+              editable={editable && online}
+            />
           }
-          meta={
-            !last ? (
-              tx("新方案，还没保存")
-            ) : !solo ? (
-              <CreatedBy
-                member={creator}
-                name={creator?.name ?? memberName(state, creatorId ?? "")}
-              />
-            ) : null
-          }
+          meta={[
+            // 起了名字时写心法和模式；没起名字时标题本身就是这两个
+            ...((scheme?.title ?? draft?.title) ? [`${xinfa} · ${mode}`] : []),
+            ...(!last
+              ? [tx("新方案，还没保存")]
+              : !solo
+                ? [
+                    <CreatedBy
+                      key="by"
+                      member={creator}
+                      name={creator?.name ?? memberName(state, creatorId ?? "")}
+                    />,
+                  ]
+                : []),
+          ]}
           actions={
             <>
               {/* 新方案从左栏心法行的「+」或「新建」建；修改记录从左栏底部进 */}
