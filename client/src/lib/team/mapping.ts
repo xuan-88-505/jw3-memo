@@ -5,6 +5,7 @@
  * - 每个方案、角色、打本记录、避雷、链接、配装、便签是一个条目，key = `${kind}:${id}`。
  * - 哈希按本地形式（带 "me"）计算，用来判断本机有没有改过。
  */
+import { normalizeSynced } from "@/lib/schemeSets";
 import type {
   EntityKind,
   MemberAvatar,
@@ -84,7 +85,14 @@ function entity(
   data: unknown,
   visibility: Visibility
 ): LocalEntity {
-  return { kind, id, key: entityKey(kind, id), data, visibility, hash: hashJson(data) };
+  return {
+    kind,
+    id,
+    key: entityKey(kind, id),
+    data,
+    visibility,
+    hash: hashJson(data),
+  };
 }
 
 export function collectionsOf(s: ProtoState): Collections {
@@ -108,7 +116,9 @@ export function collectEntities(c: Collections): Map<string, LocalEntity> {
   for (const x of c.raidLogs) put(entity("raidLog", x.id, x, "team"));
   for (const x of c.blacklist) put(entity("blacklist", x.id, x, "team"));
   for (const x of c.links)
-    put(entity("link", x.id, x, x.visibility === "private" ? "private" : "team"));
+    put(
+      entity("link", x.id, x, x.visibility === "private" ? "private" : "team")
+    );
   for (const [id, x] of Object.entries(c.loadouts))
     put(entity("loadout", id, x, "private"));
   for (const [id, x] of Object.entries(c.notes))
@@ -137,7 +147,12 @@ export function localOwner(kind: EntityKind, data: unknown): string | null {
 const swap = (v: unknown, from: string, to: string) => (v === from ? to : v);
 
 /** ME_ID ↔ memberId，只换已知字段，用户写的文字里的 "me" 不动 */
-function convertIds(kind: EntityKind, data: unknown, from: string, to: string): unknown {
+function convertIds(
+  kind: EntityKind,
+  data: unknown,
+  from: string,
+  to: string
+): unknown {
   if (!data || typeof data !== "object") return data;
   const d = data as Record<string, unknown>;
   switch (kind) {
@@ -186,7 +201,8 @@ export function fromServer(
   // 别人的角色服务器去掉了 synced；本地界面要求有这个字段
   if (kind === "character" && d && typeof d === "object") {
     const c = d as Partial<Character>;
-    return { ...c, synced: c.synced ?? {}, liupai: c.liupai ?? [] };
+    // 旧版本推上来的同步记录是「心法 → 模式」，统一成按方案 id
+    return { ...c, synced: normalizeSynced(c.synced), liupai: c.liupai ?? [] };
   }
   return d;
 }
@@ -197,7 +213,8 @@ export function imagesOf(kind: EntityKind, data: unknown): string[] {
   if (!d) return [];
   const out: string[] = [];
   if (kind === "raidLog" || kind === "blacklist") {
-    for (const im of (d.images as NoteImage[] | undefined) ?? []) out.push(im.src);
+    for (const im of (d.images as NoteImage[] | undefined) ?? [])
+      out.push(im.src);
   } else if (kind === "link") {
     const im = d.image as NoteImage | undefined;
     if (im) out.push(im.src);
@@ -220,7 +237,8 @@ export function replaceImages(
     map.has(im.src) ? { ...im, src: map.get(im.src)! } : im;
   if (kind === "raidLog" || kind === "blacklist")
     return { ...d, images: ((d.images as NoteImage[]) ?? []).map(re) };
-  if (kind === "link" && d.image) return { ...d, image: re(d.image as NoteImage) };
+  if (kind === "link" && d.image)
+    return { ...d, image: re(d.image as NoteImage) };
   if (kind === "character") {
     const av = d.avatar as { kind: string; src?: string } | undefined;
     if (av?.kind === "upload" && av.src && map.has(av.src))
@@ -251,7 +269,9 @@ export class Draft {
   }
   /** data = null 表示删掉 */
   set(kind: EntityKind, id: string, data: unknown | null) {
-    const arr = (k: "schemes" | "characters" | "raidLogs" | "blacklist" | "links") => {
+    const arr = (
+      k: "schemes" | "characters" | "raidLogs" | "blacklist" | "links"
+    ) => {
       const list = this.own(k) as { id: string }[];
       const i = list.findIndex(x => x.id === id);
       if (data === null) {
@@ -295,7 +315,9 @@ function avatarFromServer(a: MemberAvatar | null): Member["avatar"] {
 /** 图片的网站地址换回 /manus-storage/ 相对地址（服务器只认这种和 data URL） */
 export function storagePath(src: string): string {
   const base = apiBase();
-  return src.startsWith(base + "/manus-storage/") ? src.slice(base.length) : src;
+  return src.startsWith(base + "/manus-storage/")
+    ? src.slice(base.length)
+    : src;
 }
 
 export function avatarToServer(a: Member["avatar"]): MemberAvatar | null {

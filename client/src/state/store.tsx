@@ -54,6 +54,14 @@ import {
 import { MODES } from "@/data/types";
 import type { BuffSelection } from "@/lib/buffs";
 import { diffVersions, hasGameChange } from "@/lib/diff";
+import {
+  activeSetFromMode,
+  cleanActiveSet,
+  compareSchemes,
+  defaultSchemeTitle,
+  newSchemeId,
+  normalizeSynced,
+} from "@/lib/schemeSets";
 import { copyTalentFields } from "@/lib/talentSets";
 import { DEFAULT_HOTKEYS, type Hotkey } from "@/lib/hotkey";
 import type { NoteImage } from "@/lib/image";
@@ -157,7 +165,8 @@ export interface ProtoState {
   managerSection: ManagerSection;
   managerIntent: ManagerIntent | null;
   activeCharId: string;
-  activeMode: Record<string, Mode>;
+  /** 面板里每个角色、每个心法在看哪个方案（一个心法可以有好几套宏） */
+  activeSet: Record<string, Record<string, string>>;
   /** 多心法角色在面板里正在看的心法 */
   activeXinfa: Record<string, string>;
   selectedSchemeId: string;
@@ -396,7 +405,7 @@ const initialState: ProtoState = {
   managerSection: "schemes",
   managerIntent: null,
   activeCharId: "c1",
-  activeMode: {},
+  activeSet: {},
   activeXinfa: {},
   selectedSchemeId: "紫霞功-PVE",
   changelogFilter: "全部",
@@ -463,7 +472,7 @@ const PERSIST_KEYS = [
   "followedXinfa",
   "navOrder",
   "activeCharId",
-  "activeMode",
+  "activeSet",
   "activeXinfa",
   "selectedSchemeId",
 ] as const satisfies readonly (keyof ProtoState)[];
@@ -524,6 +533,31 @@ export function parseData(raw: string): Partial<ProtoState> | null {
     result.notes = adoptGlobalNote(data.note, active);
   }
   if ("navOrder" in out) result.navOrder = normalizeNav(out.navOrder);
+  // 旧数据：角色的同步记录按「心法 → 模式」存，面板按角色记 PVE / PVP。都转成按方案 id
+  if (Array.isArray(out.characters))
+    result.characters = (out.characters as Character[]).map(c =>
+      c && typeof c === "object"
+        ? { ...c, synced: normalizeSynced(c.synced) }
+        : c
+    );
+  if ("activeSet" in out) result.activeSet = cleanActiveSet(out.activeSet);
+  else if ("activeMode" in data && result.characters) {
+    const chars = result.characters;
+    const ids = new Set(
+      Array.isArray(out.schemes)
+        ? (out.schemes as Scheme[]).map(s => s?.id)
+        : []
+    );
+    result.activeSet = activeSetFromMode(
+      data.activeMode,
+      chars,
+      id => {
+        const c = chars.find(x => x.id === id);
+        return c ? xinfasOf(c) : [];
+      },
+      ids
+    );
+  }
   if ("team" in out) {
     const t = out.team as Partial<Team> | null;
     result.team =
@@ -550,13 +584,28 @@ export function latest(scheme: Scheme | undefined): SchemeVersion | undefined {
   return scheme?.versions[scheme.versions.length - 1];
 }
 
-/** 这个心法已经创建了哪些模式（有已保存的版本才算） */
-export function modesOf(state: ProtoState, xinfa: string): Mode[] {
-  return MODES.filter(m => latest(findScheme(state, xinfa, m)));
+export function schemeById(
+  state: ProtoState,
+  id: string | null | undefined
+): Scheme | undefined {
+  return id ? state.schemes.find(s => s.id === id) : undefined;
 }
 
-export function findScheme(state: ProtoState, xinfa: string, mode: Mode) {
-  return state.schemes.find(s => s.xinfa === xinfa && s.mode === mode);
+/** 这个心法下已经保存过的方案（一套一套的宏），先建的在前 */
+export function setsOf(state: ProtoState, xinfa: string): Scheme[] {
+  return state.schemes
+    .filter(s => s.xinfa === xinfa && s.versions.length > 0)
+    .sort(compareSchemes);
+}
+
+/** 方案库左栏一个心法下的方案：已保存的按顺序，正在新建、还没保存的排在后面 */
+export function listedSetIds(state: ProtoState, xinfa: string): string[] {
+  const saved = setsOf(state, xinfa).map(s => s.id);
+  const fresh = Object.values(state.drafts)
+    .filter(d => d.xinfa === xinfa && !saved.includes(d.schemeId))
+    .map(d => d.schemeId)
+    .sort();
+  return [...saved, ...fresh];
 }
 
 /**
@@ -564,27 +613,68 @@ export function findScheme(state: ProtoState, xinfa: string, mode: Mode) {
  * 否则用列表里的第一个，避免停在一个不存在的方案上。没有任何方案时返回 null。
  */
 export function activeSchemeId(s: ProtoState): string | null {
-  const exists = (id: string) => {
-    const [x, m] = id.split("-") as [string, Mode];
-    return !!latest(findScheme(s, x, m)) || !!s.drafts[id];
-  };
-  if (s.selectedSchemeId && exists(s.selectedSchemeId))
-    return s.selectedSchemeId;
-  for (const x of XINFA_LIST)
-    for (const m of MODES) if (exists(`${x}-${m}`)) return `${x}-${m}`;
+  const id = s.selectedSchemeId;
+  if (id && (!!latest(schemeById(s, id)) || !!s.drafts[id])) return id;
+  for (const x of XINFA_LIST) {
+    const first = listedSetIds(s, x)[0];
+    if (first) return first;
+  }
   return null;
+}
+
+/**
+ * 角色在这个心法下现在用的方案：面板里切过就用切过的；
+ * 否则用同步过的第一个方案，再否则用这个心法的第一个方案。没有方案时为空
+ */
+export function currentSetId(
+  state: ProtoState,
+  char: Character,
+  xinfa: string
+): string | undefined {
+  const sets = setsOf(state, xinfa);
+  const picked = state.activeSet[char.id]?.[xinfa];
+  if (picked && sets.some(s => s.id === picked)) return picked;
+  return (sets.find(s => s.id in char.synced) ?? sets[0])?.id;
+}
+
+/**
+ * 角色在这个心法下要跟进更新的方案：同步过的方案 + 现在用的方案。
+ * 一个心法有好几套宏时，没用过的那几套不算待同步，不会一下子冒出一堆通知
+ */
+export function trackedSets(
+  state: ProtoState,
+  char: Character,
+  xinfa: string
+): Scheme[] {
+  const current = currentSetId(state, char, xinfa);
+  return setsOf(state, xinfa).filter(
+    s => s.id in char.synced || s.id === current
+  );
+}
+
+/**
+ * 配装用哪套奇穴：角色现在用的方案是 PVE 就用它；
+ * 否则用这个心法第一个 PVE 方案，没有 PVE 方案时用第一个方案
+ */
+export function gearScheme(
+  state: ProtoState,
+  xinfa: string,
+  char?: Character
+): Scheme | undefined {
+  const sets = setsOf(state, xinfa);
+  const cur = char && schemeById(state, currentSetId(state, char, xinfa));
+  if (cur && cur.mode === "PVE") return cur;
+  return sets.find(s => s.mode === "PVE") ?? sets[0];
 }
 
 export function statusOf(
   state: ProtoState,
   char: Character,
-  mode: Mode,
-  xinfa: string
+  schemeId: string | undefined
 ): SyncStatus {
-  const scheme = findScheme(state, xinfa, mode);
-  const last = latest(scheme);
+  const last = latest(schemeById(state, schemeId));
   if (!last) return "none";
-  const synced = char.synced[xinfa]?.[mode];
+  const synced = char.synced[schemeId!];
   if (synced === undefined) return "never";
   return synced >= last.version ? "synced" : "pending";
 }
@@ -597,8 +687,12 @@ export function viewXinfa(state: ProtoState, char: Character): string {
   const picked = state.activeXinfa[char.id];
   if (picked && xs.includes(picked)) return picked;
   return (
-    xs.find(x => MODES.some(m => isPending(statusOf(state, char, m, x)))) ??
-    xs.find(x => modesOf(state, x).length > 0) ??
+    xs.find(x =>
+      trackedSets(state, char, x).some(s =>
+        isPending(statusOf(state, char, s.id))
+      )
+    ) ??
+    xs.find(x => setsOf(state, x).length > 0) ??
     xs[0]
   );
 }
@@ -628,7 +722,9 @@ export function myCharacters(state: ProtoState) {
 
 export function charPending(state: ProtoState, char: Character) {
   return xinfasOf(char).some(x =>
-    MODES.some(m => isPending(statusOf(state, char, m, x)))
+    trackedSets(state, char, x).some(s =>
+      isPending(statusOf(state, char, s.id))
+    )
   );
 }
 
@@ -641,6 +737,7 @@ export interface InboxItem {
   key: string;
   char: Character;
   xinfa: string;
+  /** 方案的模式标签（PVE / PVP） */
   mode: Mode;
   scheme: Scheme;
   last: SchemeVersion;
@@ -654,16 +751,15 @@ export function inboxItems(state: ProtoState): InboxItem[] {
   const items: InboxItem[] = [];
   for (const char of myCharacters(state)) {
     for (const xinfa of xinfasOf(char)) {
-      for (const mode of MODES) {
-        if (!isPending(statusOf(state, char, mode, xinfa))) continue;
-        const scheme = findScheme(state, xinfa, mode)!;
+      for (const scheme of trackedSets(state, char, xinfa)) {
+        if (!isPending(statusOf(state, char, scheme.id))) continue;
         const last = latest(scheme)!;
-        const synced = char.synced[xinfa]?.[mode];
+        const synced = char.synced[scheme.id];
         items.push({
-          key: `${char.id}-${xinfa}-${mode}`,
+          key: `${char.id}-${scheme.id}`,
           char,
           xinfa,
-          mode,
+          mode: scheme.mode,
           scheme,
           last,
           base:
@@ -836,6 +932,30 @@ function appendVersion(
   );
 }
 
+/** 从方案的最新版本生成草稿；方案不存在或没有版本时为空 */
+function draftOf(scheme: Scheme | undefined): Draft | undefined {
+  const last = latest(scheme);
+  if (!scheme || !last) return undefined;
+  return {
+    schemeId: scheme.id,
+    xinfa: scheme.xinfa,
+    mode: scheme.mode,
+    baseVersion: last.version,
+    macros: last.macros.map(m => ({ ...m })),
+    ...copyTalentFields(last),
+  };
+}
+
+/** 同心法已有的方案和还没保存的新方案：起默认名字时避开重名 */
+function siblingsOf(s: ProtoState, xinfa: string) {
+  return [
+    ...s.schemes.filter(x => x.xinfa === xinfa),
+    ...Object.values(s.drafts).filter(
+      d => d.xinfa === xinfa && !s.schemes.some(x => x.id === d.schemeId)
+    ),
+  ];
+}
+
 let toastSeq = 1;
 
 function useActions(
@@ -889,33 +1009,34 @@ function useActions(
       const noGameChange =
         !!last &&
         !hasGameChange(diffVersions(last, version, layersOf(draft.xinfa)));
-      // PVE 方案的奇穴变了：用这个心法、已导入配装的我的角色重算一次。
-      // 配装计算只用第一套，其余几套变了不用重算
+      // 配装用的那个 PVE 方案奇穴变了：用这个心法、已导入配装的我的角色重算一次。
+      // 配装计算只用第一套奇穴，其余几套变了不用重算
       const talentChanged =
         !last || last.talents.some((t, i) => t !== draft.talents[i]);
       update(st => {
         const drafts = { ...st.drafts };
         delete drafts[schemeId];
+        const schemes = appendVersion(st.schemes, schemeId, version, draft);
+        const after = { ...st, schemes };
+        const feedsGear =
+          draft.mode === "PVE" &&
+          talentChanged &&
+          (gearScheme(after, draft.xinfa)?.id === schemeId ||
+            myCharacters(after).some(
+              c => gearScheme(after, draft.xinfa, c)?.id === schemeId
+            ));
         return {
-          schemes: appendVersion(st.schemes, schemeId, version, draft),
+          schemes,
           drafts,
-          loadouts:
-            draft.mode === "PVE" && talentChanged
-              ? recalcAfterPatch(st, draft.xinfa, version.version, version.at)
-              : st.loadouts,
+          loadouts: feedsGear
+            ? recalcAfterPatch(st, draft.xinfa, version.version, version.at)
+            : st.loadouts,
           characters: noGameChange
             ? st.characters.map(c =>
-                xinfasOf(c).includes(draft.xinfa) &&
-                c.synced[draft.xinfa]?.[draft.mode] === last!.version
+                c.synced[schemeId] === last!.version
                   ? {
                       ...c,
-                      synced: {
-                        ...c.synced,
-                        [draft.xinfa]: {
-                          ...c.synced[draft.xinfa],
-                          [draft.mode]: version.version,
-                        },
-                      },
+                      synced: { ...c.synced, [schemeId]: version.version },
                     }
                   : c
               )
@@ -1024,25 +1145,25 @@ function useActions(
       resetPanelLayout: () =>
         patch({ panelOffset: { x: 0, y: 0 }, panelSize: null }),
       selectCharacter: (activeCharId: string) => patch({ activeCharId }),
-      setMode: (charId: string, mode: Mode) =>
-        update(s => ({ activeMode: { ...s.activeMode, [charId]: mode } })),
+      /** 面板里切换这个角色在这个心法下用哪套宏 */
+      setActiveSet: (charId: string, xinfa: string, schemeId: string) =>
+        update(s => ({
+          activeSet: {
+            ...s.activeSet,
+            [charId]: { ...s.activeSet[charId], [xinfa]: schemeId },
+          },
+        })),
       setXinfa: (charId: string, xinfa: string) =>
         update(s => ({ activeXinfa: { ...s.activeXinfa, [charId]: xinfa } })),
-      markSynced: (charId: string, mode: Mode, xinfa: string) => {
+      markSynced: (charId: string, schemeId: string) => {
         const s = stateRef.current;
         const char = s.characters.find(c => c.id === charId);
-        const last = char && latest(findScheme(s, xinfa, mode));
+        const last = char && latest(schemeById(s, schemeId));
         if (!char || !last) return;
         update(st => ({
           characters: st.characters.map(c =>
             c.id === charId
-              ? {
-                  ...c,
-                  synced: {
-                    ...c.synced,
-                    [xinfa]: { ...c.synced[xinfa], [mode]: last.version },
-                  },
-                }
+              ? { ...c, synced: { ...c.synced, [schemeId]: last.version } }
               : c
           ),
         }));
@@ -1056,11 +1177,7 @@ function useActions(
             const mine = items.filter(i => i.char.id === c.id);
             if (!mine.length) return c;
             const synced = { ...c.synced };
-            for (const i of mine)
-              synced[i.xinfa] = {
-                ...synced[i.xinfa],
-                [i.mode]: i.last.version,
-              };
+            for (const i of mine) synced[i.scheme.id] = i.last.version;
             return { ...c, synced };
           }),
         }));
@@ -1128,40 +1245,125 @@ function useActions(
       },
 
       // 方案编辑
-      startDraft: (xinfa: string, mode: Mode) =>
+      /**
+       * 新建一个方案（一套宏）：先是草稿，保存后才进方案库。返回新方案的 id。
+       * 奇穴从 talentsFrom 那个方案复制（同心法的几套宏奇穴通常一样），没有就空着；宏是空的。
+       * 没写名字、同心法同模式又已经有方案时，自动起一个带编号的名字
+       */
+      startNewScheme: (p: {
+        xinfa: string;
+        mode: Mode;
+        title?: string;
+        talentsFrom?: string;
+      }): string => {
+        const id = newSchemeId(p.xinfa);
         update(s => {
-          const id = `${xinfa}-${mode}`;
-          if (s.drafts[id]) return {};
-          const last = latest(findScheme(s, xinfa, mode));
+          const from =
+            (p.talentsFrom && s.drafts[p.talentsFrom]) ||
+            latest(schemeById(s, p.talentsFrom));
+          const title =
+            p.title?.trim() ||
+            defaultSchemeTitle(siblingsOf(s, p.xinfa), p.xinfa, p.mode);
           const draft: Draft = {
             schemeId: id,
-            xinfa,
-            mode,
-            baseVersion: last?.version ?? 0,
-            macros: last ? last.macros.map(m => ({ ...m })) : [],
-            ...(last ? copyTalentFields(last) : { talents: defaultTalents() }),
+            xinfa: p.xinfa,
+            mode: p.mode,
+            ...(title ? { title } : {}),
+            baseVersion: 0,
+            macros: [],
+            ...(from ? copyTalentFields(from) : { talents: defaultTalents() }),
           };
           return { drafts: { ...s.drafts, [id]: draft }, selectedSchemeId: id };
-        }),
-      /** 没有草稿时，先从最新版本创建草稿再修改 */
+        });
+        return id;
+      },
+      /** 没有草稿时，先从最新版本创建草稿再修改。方案不存在时不做任何事 */
       editDraft: (schemeId: string, fn: (d: Draft) => Draft) =>
         update(s => {
-          let draft = s.drafts[schemeId];
-          if (!draft) {
-            const [xinfa, mode] = schemeId.split("-") as [string, Mode];
-            const last = latest(findScheme(s, xinfa, mode));
-            draft = {
-              schemeId,
-              xinfa,
-              mode,
-              baseVersion: last?.version ?? 0,
-              macros: last ? last.macros.map(m => ({ ...m })) : [],
-              ...(last
-                ? copyTalentFields(last)
-                : { talents: defaultTalents() }),
-            };
-          }
+          const draft = s.drafts[schemeId] ?? draftOf(schemeById(s, schemeId));
+          if (!draft) return {};
           return { drafts: { ...s.drafts, [schemeId]: fn(draft) } };
+        }),
+      /**
+       * 把一段宏移到同心法的另一个方案，toId 为空时移到一个新方案。
+       * 两边都改成草稿，各自保存后才生效（和手动删掉、再加上一样）。返回目标方案的 id
+       */
+      moveMacro: (
+        fromId: string,
+        macroId: string,
+        toId: string | null
+      ): string | null => {
+        const s = stateRef.current;
+        const from = s.drafts[fromId] ?? draftOf(schemeById(s, fromId));
+        const macro = from?.macros.find(m => m.id === macroId);
+        if (!from || !macro) return null;
+        const targetId = toId ?? newSchemeId(from.xinfa);
+        update(st => {
+          const src = st.drafts[fromId] ?? draftOf(schemeById(st, fromId));
+          if (!src) return {};
+          const dst: Draft | undefined =
+            st.drafts[targetId] ??
+            draftOf(schemeById(st, targetId)) ??
+            (toId
+              ? undefined
+              : {
+                  schemeId: targetId,
+                  xinfa: src.xinfa,
+                  mode: src.mode,
+                  ...(() => {
+                    const t = defaultSchemeTitle(
+                      siblingsOf(st, src.xinfa),
+                      src.xinfa,
+                      src.mode
+                    );
+                    return t ? { title: t } : {};
+                  })(),
+                  baseVersion: 0,
+                  macros: [],
+                  ...copyTalentFields(src),
+                });
+          if (!dst) return {};
+          // 目标里已经有同 id 的宏（来回移过）：换一个 id，免得版本对比认错
+          const moved = dst.macros.some(m => m.id === macro.id)
+            ? { ...macro, id: `${macro.id}-${randSuffix()}` }
+            : macro;
+          return {
+            drafts: {
+              ...st.drafts,
+              [fromId]: {
+                ...src,
+                macros: src.macros.filter(m => m.id !== macroId),
+              },
+              [targetId]: { ...dst, macros: [...dst.macros, moved] },
+            },
+          };
+        });
+        return targetId;
+      },
+      /**
+       * 删除一个方案（一套宏）和它所有版本。亲友团里会同步删除。
+       * 面板里正在看它的角色，回到这个心法的第一个方案
+       */
+      deleteScheme: (schemeId: string) =>
+        update(s => {
+          const drafts = { ...s.drafts };
+          delete drafts[schemeId];
+          const activeSet: ProtoState["activeSet"] = {};
+          for (const [charId, byXinfa] of Object.entries(s.activeSet)) {
+            const kept = Object.fromEntries(
+              Object.entries(byXinfa).filter(([, id]) => id !== schemeId)
+            );
+            if (Object.keys(kept).length) activeSet[charId] = kept;
+          }
+          return {
+            schemes: s.schemes.filter(x => x.id !== schemeId),
+            drafts,
+            activeSet,
+            pendingConflict:
+              s.pendingConflict?.schemeId === schemeId
+                ? null
+                : s.pendingConflict,
+          };
         }),
       discardDraft: (schemeId: string) =>
         update(s => {
@@ -1222,90 +1424,77 @@ function useActions(
         return "saved";
       },
       /**
-       * 给某心法某模式的方案加一个宏：「我的角色」和面板里新建宏时用。
-       * 还没有这个方案：新建 v1，只有这个宏；已经有：在最新版本后面加上这个宏，存成新版本。
+       * 给一个方案加一段宏：「我的角色」和面板里新建宏时用。
+       * schemeId 是已保存的方案：在最新版本后面加上这段宏，存成新版本；
        * 方案正在编辑、有没保存的修改时返回 "draft"，不动草稿。
+       * schemeId 为空：在这个心法下新建一个方案，存成 v1，只有这段宏
        */
       addMacro: (
+        schemeId: string | null,
         xinfa: string,
         mode: Mode,
         macro: Macro
-      ): "created" | "added" | "draft" => {
+      ): { result: "created" | "added" | "draft"; schemeId: string } => {
         const s = stateRef.current;
-        const schemeId = `${xinfa}-${mode}`;
-        const last = latest(findScheme(s, xinfa, mode));
-        const old = s.drafts[schemeId];
-        const blank = defaultTalents();
-        if (!last) {
-          if (
-            old &&
-            (old.macros.length > 0 ||
-              !!old.moreTalents?.length ||
-              old.talents.some((t, i) => t !== blank[i]))
-          )
-            return "draft";
+        const scheme = schemeById(s, schemeId);
+        const last = latest(scheme);
+        if (scheme && last) {
+          if (s.drafts[scheme.id])
+            return { result: "draft", schemeId: scheme.id };
           commitDraft(
             {
-              schemeId,
-              xinfa,
-              mode,
-              baseVersion: 0,
-              macros: [macro],
-              talents: blank,
-              ...(old?.title ? { title: old.title } : {}),
+              schemeId: scheme.id,
+              xinfa: scheme.xinfa,
+              mode: scheme.mode,
+              baseVersion: last.version,
+              macros: [...last.macros, macro],
+              ...copyTalentFields(last),
             },
-            tx("新建")
+            tx("新增宏「{0}」", macro.name)
           );
-          return "created";
+          return { result: "added", schemeId: scheme.id };
         }
-        if (old) return "draft";
+        const id = newSchemeId(xinfa);
+        const title = defaultSchemeTitle(siblingsOf(s, xinfa), xinfa, mode);
         commitDraft(
           {
-            schemeId,
+            schemeId: id,
             xinfa,
             mode,
-            baseVersion: last.version,
-            macros: [...last.macros, macro],
-            ...copyTalentFields(last),
+            ...(title ? { title } : {}),
+            baseVersion: 0,
+            macros: [macro],
+            talents: defaultTalents(),
           },
-          tx("新增宏「{0}」", macro.name)
+          tx("新建")
         );
-        return "added";
+        return { result: "created", schemeId: id };
       },
       /**
        * 面板里直接新建：不经过管理窗口，填好的内容直接存成 v1，说明写「新建」。
-       * 已经有方案时返回 "exists"；管理窗口里这个方案有填了内容还没保存的草稿时
-       * 返回 "draft"，不覆盖。
+       * 总是新建一个方案，返回它的 id
        */
       createScheme: (
         xinfa: string,
         mode: Mode,
         init: { macros?: Macro[]; talents?: number[] }
-      ): "created" | "exists" | "draft" => {
+      ): string => {
         const s = stateRef.current;
-        if (latest(findScheme(s, xinfa, mode))) return "exists";
-        const schemeId = `${xinfa}-${mode}`;
-        const old = s.drafts[schemeId];
-        const blank = defaultTalents();
-        if (
-          old &&
-          (old.macros.length > 0 ||
-            !!old.moreTalents?.length ||
-            old.talents.some((t, i) => t !== blank[i]))
-        )
-          return "draft";
+        const id = newSchemeId(xinfa);
+        const title = defaultSchemeTitle(siblingsOf(s, xinfa), xinfa, mode);
         commitDraft(
           {
-            schemeId,
+            schemeId: id,
             xinfa,
             mode,
+            ...(title ? { title } : {}),
             baseVersion: 0,
             macros: init.macros ?? [],
-            talents: init.talents ?? blank,
+            talents: init.talents ?? defaultTalents(),
           },
           tx("新建")
         );
-        return "created";
+        return id;
       },
       resolveConflict: (choice: "mine" | "theirs") => {
         const s = stateRef.current;
@@ -1386,9 +1575,14 @@ function useActions(
         };
         const before = xinfasOf(char);
         const after = xinfasOf(next);
+        // 同步记录按方案存：新加的心法下有方案同步过，就算恢复了
+        const syncedXinfa = new Set(
+          Object.keys(char.synced).map(
+            sid => schemeById(stateRef.current, sid)?.xinfa
+          )
+        );
         const restored = after.some(
-          x =>
-            !before.includes(x) && Object.keys(char.synced[x] ?? {}).length > 0
+          x => !before.includes(x) && syncedXinfa.has(x)
         );
         const xinfaChanged = after.join() !== before.join();
         update(s => ({

@@ -80,9 +80,13 @@ export interface SchemeVersion {
 }
 
 export interface Scheme {
-  /** `${xinfa}-${mode}` */
+  /**
+   * 旧数据和示例数据是 `${xinfa}-${mode}`；新建的方案带时间和随机后缀。
+   * 一个心法可以有多个方案（二段宏、三段宏……），不要从 id 里解析心法和模式
+   */
   id: string;
   xinfa: string;
+  /** 方案的标签：PVE 是默认值，界面里只给 PVP 显示标签 */
   mode: Mode;
   /** 自定义标题；没有时显示「心法 · 模式」。改标题不产生新版本 */
   title?: string;
@@ -107,10 +111,11 @@ export interface Character {
   liupai: string[];
   ownerId: string;
   /**
-   * 每个心法、每个模式已同步到的版本号；没有表示从没同步过。
+   * 每个方案已同步到的版本号，按方案 id 存；没有表示从没同步过。
+   * 旧数据是「心法 → 模式 → 版本号」，读入时用 normalizeSynced 转换。
    * 改心法后旧心法的记录保留，改回去自动恢复
    */
-  synced: Record<string, Partial<Record<Mode, number>>>;
+  synced: Record<string, number>;
   avatar?: CharacterAvatar;
 }
 

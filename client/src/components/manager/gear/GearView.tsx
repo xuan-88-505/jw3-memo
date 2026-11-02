@@ -1,8 +1,9 @@
 import { Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Btn } from "@/components/common/ui";
+import { schemeName } from "@/lib/schemeSets";
 import {
-  findScheme,
+  gearScheme,
   latest,
   loadoutList,
   useProto,
@@ -237,11 +238,14 @@ export function GearView() {
 
   const showImport = !lo || reimport || computing;
   const xinfa = pending?.xinfa ?? lo!.xinfa;
-  const v = latest(findScheme(state, xinfa, "PVE"));
-  const talentSource = v ? `${xinfa} PVE v${v.version}` : null;
   const linked = lo
     ? state.characters.find(c => c.id === lo.charId)
     : undefined;
+  // 奇穴来源：关联角色现在用的 PVE 方案，否则这个心法第一个 PVE 方案
+  const source = gearScheme(state, xinfa, linked);
+  const v = latest(source);
+  const talentSource =
+    source && v ? `${schemeName(source)} v${v.version}` : null;
 
   return (
     <div className="flex h-full">

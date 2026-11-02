@@ -4,7 +4,7 @@ import { IconPickerButton } from "@/components/common/IconPicker";
 import { TalentPicker } from "@/components/manager/TalentPicker";
 import { inputCls } from "@/components/manager/shared";
 import { defaultTalents } from "@/data/seed";
-import type { Mode } from "@/data/types";
+import type { Scheme } from "@/data/types";
 import { MACRO_LIMIT, cleanMacro } from "@/lib/macro";
 import { tx } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -12,15 +12,15 @@ import { useProto } from "@/state/store";
 
 /**
  * 面板里原地新建，不打开管理窗口。
- * 宏页签：填一个宏（图标、名称、说明、内容）。心法还没有方案时存成 v1；
- * 已经有方案（宏列表最后的「新建宏」）时加到最新版本后面，存成新版本。
- * 奇穴页签：给还没有方案的心法选奇穴，存成 v1。
+ * 宏页签：填一个宏（图标、名称、说明、内容）。给了 target（宏列表最后的「新建宏」）时
+ * 作为一段加到这个方案的最新版本后面，存成新版本；否则给心法新建一个 PVE 方案，存成 v1。
+ * 奇穴页签：给还没有方案的心法选奇穴，新建一个 PVE 方案，存成 v1。
  * 保存后面板回到列表。Esc 或「取消」回到原来的样子。
  */
 export function PanelNewScheme({
   kind,
   xinfas,
-  mode,
+  target,
   context,
   onDone,
   onCancel,
@@ -29,11 +29,12 @@ export function PanelNewScheme({
   kind: "macro" | "talent";
   /** 要存到哪些心法；多于一个时可以切换 */
   xinfas: string[];
-  mode: Mode;
-  /** 标题旁边弱显示存到哪里，多心法角色给已有方案加宏时用 */
+  /** 加到哪个方案；没有时新建 */
+  target?: Scheme;
+  /** 标题旁边弱显示存到哪里：心法有好几个方案、或角色玩好几个心法时用 */
   context?: string;
-  /** 新建宏时带上新宏的 id，列表可以滚到它 */
-  onDone: (macroId?: string) => void;
+  /** 带上新宏的 id（列表可以滚到它）和存到的方案 */
+  onDone: (macroId?: string, schemeId?: string, xinfa?: string) => void;
   onCancel: () => void;
   /** 管理窗口里有这个方案没保存的草稿时，去那里处理 */
   onOpenManager: (schemeId: string) => void;
@@ -60,31 +61,30 @@ export function PanelNewScheme({
   const save = () => {
     if (!canSave) return;
     if (kind === "macro") {
-      const macroId = `${xinfa}-${mode}-n${Date.now()}`;
-      const result = actions.addMacro(xinfa, mode, {
-        id: macroId,
-        name: name.trim(),
-        icon,
-        content: content.trim(),
-        note: note.trim(),
-      });
-      if (result === "draft") {
+      const macroId = `${xinfa}-n${Date.now()}`;
+      const r = actions.addMacro(
+        target?.xinfa === xinfa ? target.id : null,
+        xinfa,
+        target?.mode ?? "PVE",
+        {
+          id: macroId,
+          name: name.trim(),
+          icon,
+          content: content.trim(),
+          note: note.trim(),
+        }
+      );
+      if (r.result === "draft") {
         setBlocked(true);
         return;
       }
       actions.toast("panel", "success", tx("已保存宏"));
-      onDone(macroId);
+      onDone(macroId, r.schemeId, xinfa);
       return;
     }
-    const result = actions.createScheme(xinfa, mode, { talents });
-    if (result === "draft") {
-      setBlocked(true);
-      return;
-    }
-    if (result === "created") {
-      actions.toast("panel", "success", tx("已保存奇穴"));
-    }
-    onDone();
+    const schemeId = actions.createScheme(xinfa, "PVE", { talents });
+    actions.toast("panel", "success", tx("已保存奇穴"));
+    onDone(undefined, schemeId, xinfa);
   };
 
   return (
@@ -202,7 +202,7 @@ export function PanelNewScheme({
           {tx("管理窗口里有{0}没保存的修改，先在那里保存或放弃", xinfa)}
           <button
             type="button"
-            onClick={() => onOpenManager(`${xinfa}-${mode}`)}
+            onClick={() => onOpenManager(target?.id ?? "")}
             className="ml-1 text-paper underline underline-offset-2 hover:text-cinnabar-text"
           >
             {tx("去处理")}

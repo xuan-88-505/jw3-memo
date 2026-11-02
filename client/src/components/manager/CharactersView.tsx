@@ -12,8 +12,8 @@ import {
   canEdit,
   currentLoadout,
   isOnline,
-  modesOf,
   myCharacters,
+  setsOf,
   useProto,
 } from "@/state/store";
 import { cn } from "@/lib/utils";
@@ -207,6 +207,7 @@ export function CharactersView() {
 
       <NewMacroDialog
         xinfas={macroFor ? xinfasOf(macroFor) : []}
+        charId={macroFor?.id}
         onClose={() => setMacroFor(null)}
       />
 
@@ -538,7 +539,7 @@ function SchoolCell({
       return;
     const before = xinfasOf(char);
     const added = xinfasOf(v).filter(x => !before.includes(x));
-    const noScheme = added.filter(x => modesOf(state, x).length === 0);
+    const noScheme = added.filter(x => setsOf(state, x).length === 0);
     const { restored } = actions.updateCharacter(char.id, v);
     const head = tx("「{0}」改为{1}", char.name, schoolLabel(v));
     actions.toast(

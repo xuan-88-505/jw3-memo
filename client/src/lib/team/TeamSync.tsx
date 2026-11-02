@@ -19,6 +19,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { schemeName } from "@/lib/schemeSets";
 import type {
   AuthResult,
   EntityRecord,
@@ -28,7 +29,12 @@ import type {
 } from "@shared/teamApi";
 import { ME_ID } from "@/data/seed";
 import type { CharacterAvatar, Scheme } from "@/data/types";
-import { DESKTOP_PLATFORM, copyDataBackup, onPanelShown, openManager } from "@/lib/desktop";
+import {
+  DESKTOP_PLATFORM,
+  copyDataBackup,
+  onPanelShown,
+  openManager,
+} from "@/lib/desktop";
 import { tx } from "@/lib/i18n";
 import { me, useProto, type ProtoState } from "@/state/store";
 import {
@@ -148,7 +154,7 @@ async function dataUrlBlob(src: string) {
 }
 
 function schemeLabel(s: Scheme) {
-  return s.title || `${s.xinfa} ${s.mode}`;
+  return schemeName(s);
 }
 
 function replaceScheme(list: Scheme[], id: string, next: Scheme | null) {
@@ -303,8 +309,10 @@ function createEngine(d: EngineDeps) {
 
   const setOffline = (offline: boolean) => {
     const s = d.state();
-    if (offline && s.dataState !== "offline") d.actions().setDataState("offline");
-    if (!offline && s.dataState === "offline") d.actions().setDataState("normal");
+    if (offline && s.dataState !== "offline")
+      d.actions().setDataState("offline");
+    if (!offline && s.dataState === "offline")
+      d.actions().setDataState("normal");
     if (offlineNow !== offline) emitStatus({ offline });
     offlineNow = offline;
     d.setStatus(offline ? "offline" : "idle");
@@ -346,7 +354,10 @@ function createEngine(d: EngineDeps) {
     let pending = cur.pending;
     if (cur.seq === 0 && pendingCountOf(pending)) {
       // 第一次拉到亲友团的数据：同心法同模式的方案亲友团里已经有了，不再并入
-      const preview = { ...collectionsOf(s), ...applyOps(collectionsOf(s), plan.ops) };
+      const preview = {
+        ...collectionsOf(s),
+        ...applyOps(collectionsOf(s), plan.ops),
+      };
       const r = filterPending(pending, preview);
       pending = r.pending;
       if (r.skipped.length)
@@ -471,7 +482,9 @@ function createEngine(d: EngineDeps) {
       const a = d.account();
       if (!a) return contacted;
       const s = d.state();
-      const skip = new Set(s.pendingConflict ? [s.pendingConflict.schemeId] : []);
+      const skip = new Set(
+        s.pendingConflict ? [s.pendingConflict.schemeId] : []
+      );
       const plan = planPush(collectionsOf(s), a, a.memberId, me(s)?.role, skip);
       if (plan.drop.length)
         patchAccount(x => {
@@ -491,12 +504,17 @@ function createEngine(d: EngineDeps) {
           for (const o of rejectedNow) rejected[o.key] = o.hash;
           return { ...x, rejected };
         });
-        reportError(tx("有 {0} 项内容或图片太大，没有同步", rejectedNow.length));
+        reportError(
+          tx("有 {0} 项内容或图片太大，没有同步", rejectedNow.length)
+        );
       }
       for (const batch of batches(ready)) {
         const cur = d.account();
         if (!cur || cur.token !== a.token) return contacted;
-        const res = await teamApi.push(cur.token, batch.map(o => o.change));
+        const res = await teamApi.push(
+          cur.token,
+          batch.map(o => o.change)
+        );
         const now = d.account();
         if (!now || now.token !== a.token) return contacted;
         const r = applyPushResults(now, batch, res.results);
@@ -511,11 +529,17 @@ function createEngine(d: EngineDeps) {
         for (const c of r.conflicts) next = handleConflict(next, c);
         d.saveAccount(next);
         if (r.errors.length) {
-          const forbidden = r.errors.filter(x => x.error === "forbidden").length;
+          const forbidden = r.errors.filter(
+            x => x.error === "forbidden"
+          ).length;
           reportError(
             forbidden
               ? tx("有 {0} 项改动没有权限，已恢复成亲友团里的内容", forbidden)
-              : tx("有 {0} 项改动没有同步：{1}", r.errors.length, tx(r.errors[0].message))
+              : tx(
+                  "有 {0} 项改动没有同步：{1}",
+                  r.errors.length,
+                  tx(r.errors[0].message)
+                )
           );
         }
         if (r.conflicts.length) return contacted;
@@ -546,7 +570,10 @@ function createEngine(d: EngineDeps) {
       if (isUnauthorized(err)) {
         await copyDataBackup().catch(() => null);
         leaveLocal(d.account());
-        toast("error", tx("登录已失效，已退出亲友团。你自己的角色、配装和便签都还在"));
+        toast(
+          "error",
+          tx("登录已失效，已退出亲友团。你自己的角色、配装和便签都还在")
+        );
         return;
       }
       if (isOffline(err)) {
@@ -566,7 +593,10 @@ function createEngine(d: EngineDeps) {
     }
   }
 
-  function run(mode: "full" | "push", opts: { force?: boolean } = {}): Promise<void> {
+  function run(
+    mode: "full" | "push",
+    opts: { force?: boolean } = {}
+  ): Promise<void> {
     if (disposed || !d.account()) return Promise.resolve();
     if (!opts.force && Date.now() < backoffUntil) return Promise.resolve();
     if (opts.force) backoffUntil = 0;
@@ -647,7 +677,11 @@ function createEngine(d: EngineDeps) {
     } else {
       const plan = prepareJoin(collectionsOf(s));
       acc = { ...acc, pending: plan.pending };
-      d.actions().applyTeam(() => ({ ...plan.collections, ...base, drafts: {} }));
+      d.actions().applyTeam(() => ({
+        ...plan.collections,
+        ...base,
+        drafts: {},
+      }));
     }
     d.saveAccount(acc);
     setOffline(false);

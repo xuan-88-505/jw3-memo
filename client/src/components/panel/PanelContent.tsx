@@ -140,18 +140,21 @@ export function MacroList({
       </div>
     );
   }
+  // 一个方案多于一段时按 1、2、3 编号，和方案库编辑器一致
+  const numbered = macros.length > 1;
   return (
     <ul className={cn("space-y-1 px-2", compact ? "pb-2" : "py-2")}>
-      {macros.map(m => (
+      {macros.map((m, i) => (
         <MacroCard
           key={m.id}
           macro={m}
+          index={numbered ? i + 1 : undefined}
           prev={base ? (baseMap.get(m.id) ?? null) : undefined}
           open={openId === m.id}
           onToggle={() => setOpenId(id => (id === m.id ? null : m.id))}
         />
       ))}
-      {onAdd && <AddMacroRow onClick={onAdd} />}
+      {onAdd && <AddMacroRow onClick={onAdd} numbered={numbered} />}
     </ul>
   );
 }
@@ -160,7 +163,14 @@ export function MacroList({
  * 宏列表最后一行：虚线方框占住宏图标的位置，文字和宏名对齐，看起来像空着的一格。
  * 平时弱，悬停时和宏一样变亮。
  */
-function AddMacroRow({ onClick }: { onClick: () => void }) {
+function AddMacroRow({
+  onClick,
+  numbered,
+}: {
+  onClick: () => void;
+  /** 上面的宏写了段号时，这里留出同样宽的位置，虚线框才和宏图标对齐 */
+  numbered: boolean;
+}) {
   return (
     <li>
       <button
@@ -168,6 +178,7 @@ function AddMacroRow({ onClick }: { onClick: () => void }) {
         onClick={onClick}
         className="group flex min-h-[44px] w-full items-center gap-2.5 rounded-lg py-1 pl-2 pr-2 text-left text-[13px] text-paper-3 transition-colors hover:bg-paper/[0.035] hover:text-paper focus-visible:bg-paper/[0.035] focus-visible:text-paper"
       >
+        {numbered && <span aria-hidden="true" className="w-3.5 shrink-0" />}
         <span
           aria-hidden="true"
           className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-dashed border-paper/15 transition-colors group-hover:border-paper/30"
@@ -182,11 +193,14 @@ function AddMacroRow({ onClick }: { onClick: () => void }) {
 
 export function MacroCard({
   macro,
+  index,
   prev,
   open,
   onToggle,
 }: {
   macro: Macro;
+  /** 第几段；只有一段时不传，不显示 */
+  index?: number;
   /** undefined：不比较；null：上次同步时没有这个宏 */
   prev: Macro | null | undefined;
   open: boolean;
@@ -242,6 +256,14 @@ export function MacroCard({
           onClick={onToggle}
           className="flex min-h-[44px] min-w-0 flex-1 items-center gap-2.5 rounded-md px-1 py-1 text-left"
         >
+          {index !== undefined && (
+            <span
+              aria-hidden="true"
+              className="w-3.5 shrink-0 text-center text-[11.5px] font-medium tabular-nums text-paper-3"
+            >
+              {index}
+            </span>
+          )}
           <span className="relative shrink-0">
             <Jx3Icon id={macro.icon} name={macro.name} size={32} />
           </span>

@@ -11,7 +11,8 @@ import {
 } from "@/data/gear";
 import { cn } from "@/lib/utils";
 import { XINFA_LIST, xinfasOf } from "@/data/seed";
-import { findScheme, latest, myCharacters, useProto } from "@/state/store";
+import { gearScheme, latest, myCharacters, useProto } from "@/state/store";
+import { schemeName } from "@/lib/schemeSets";
 import { Field, SelectBox, inputCls } from "../shared";
 import { XinfaPairSelect } from "../SchoolPicker";
 import { EnchantEditor } from "./EnchantEditor";
@@ -159,8 +160,11 @@ export function NewLoadoutDialog({
   }, [open]);
 
   const linked = mine.find(c => c.id === charId);
-  const v = latest(findScheme(state, xinfa, "PVE"));
-  const talentSource = v ? `${xinfa} PVE v${v.version}` : null;
+  // 奇穴来源：关联角色现在用的 PVE 方案，否则这个心法第一个 PVE 方案
+  const source = gearScheme(state, xinfa, linked);
+  const v = latest(source);
+  const talentSource =
+    source && v ? `${schemeName(source)} v${v.version}` : null;
   const placeholder = autoLoadoutName(all, xinfa);
   // 导入框是空的：手动配
   const manual = !input.text.trim();

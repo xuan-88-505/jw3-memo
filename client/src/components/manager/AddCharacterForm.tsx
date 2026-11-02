@@ -2,7 +2,7 @@ import { useState, type RefObject } from "react";
 import { SCHOOL_GROUPS, schoolLabel, xinfasOf } from "@/data/seed";
 import type { Character } from "@/data/types";
 import { isServerName } from "@/data/records";
-import { isOnline, modesOf, myCharacters, useProto } from "@/state/store";
+import { isOnline, myCharacters, setsOf, useProto } from "@/state/store";
 import { Field, inputCls } from "./shared";
 import { SchoolFields, type SchoolValue } from "./SchoolPicker";
 import { tx } from "@/lib/i18n";
@@ -70,7 +70,7 @@ export function useAddCharacterForm(surface: "manager" | "panel") {
     const err = nameError(myCharacters(state), n, server);
     setError(err);
     if (err || sErr) return false;
-    const hasScheme = xinfasOf(school).some(x => modesOf(state, x).length > 0);
+    const hasScheme = xinfasOf(school).some(x => setsOf(state, x).length > 0);
     actions.addCharacter({ name: n, server, ...school });
     actions.toast(
       surface,

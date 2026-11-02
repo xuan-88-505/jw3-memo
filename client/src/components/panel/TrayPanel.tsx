@@ -9,26 +9,24 @@ import { CharAvatar } from "@/components/brand/CharAvatar";
 import { Wordmark, XinfaMark } from "@/components/brand/Marks";
 import { PixelIcon } from "@/components/brand/PixelIcon";
 import { OfflineBar, ToastStack } from "@/components/common/overlay";
-import { Btn, IconBtn, Segmented } from "@/components/common/ui";
+import { Btn, IconBtn } from "@/components/common/ui";
 import { schoolLabel, xinfasOf } from "@/data/seed";
+import type { Character, ManagerSection, Scheme } from "@/data/types";
 import {
-  MODES,
-  type Character,
-  type ManagerSection,
-  type Mode,
-} from "@/data/types";
-import {
-  findScheme,
+  currentSetId,
   inboxItems,
   isPending,
   latest,
-  modesOf,
   me,
   myCharacters,
+  schemeById,
+  setsOf,
   statusOf,
+  trackedSets,
   useProto,
   type ManagerIntent,
 } from "@/state/store";
+import { schemeName } from "@/lib/schemeSets";
 import { cn } from "@/lib/utils";
 import { Inbox } from "./Inbox";
 import { NotePad } from "./NotePad";
@@ -162,24 +160,20 @@ function PanelMain({
   // 多心法角色（双心法、学了流派）：列表按心法分段，每段一个小标题
   const xinfas = xinfasOf(char);
   const multi = xinfas.length > 1;
-  // 这个角色所有心法里出现过的模式；只有一种时不显示 PVE/PVP 切换
-  const modes = MODES.filter(m =>
-    xinfas.some(x => modesOf(state, x).includes(m))
-  );
-  const picked: Mode = state.activeMode[char.id] ?? "PVE";
-  const mode: Mode =
-    modes.length > 0 && !modes.includes(picked) ? modes[0] : picked;
+  // 每个心法可以有好几个方案（一套一套的宏）；每个心法显示角色现在用的那个
   const sections = xinfas.map(x => {
-    const scheme = findScheme(state, x, mode);
+    const sets = setsOf(state, x);
+    const scheme = schemeById(state, currentSetId(state, char, x));
     const last = latest(scheme);
-    const status = statusOf(state, char, mode, x);
+    const status = statusOf(state, char, scheme?.id);
     // 有更新还没改时，展开宏能高亮改过的行；从没改过的不逐行标
     const base =
-      status === "pending"
-        ? scheme?.versions.find(v => v.version === char.synced[x]?.[mode])
+      scheme && status === "pending"
+        ? scheme.versions.find(v => v.version === char.synced[scheme.id])
         : undefined;
     return {
       xinfa: x,
+      sets,
       scheme,
       last,
       status,
@@ -217,9 +211,9 @@ function PanelMain({
     return (
       <Inbox
         onBack={() => setView("main")}
-        onOpenItem={(charId, m, x) => {
+        onOpenItem={(charId, schemeId, x) => {
           actions.selectCharacter(charId);
-          actions.setMode(charId, m);
+          actions.setActiveSet(charId, x, schemeId);
           setFocusXinfa(x);
           // 从通知点进来是看方案：在便签页签时切回宏
           if (tab === "note") setTab("macro");
@@ -326,18 +320,6 @@ function PanelMain({
                 </button>
               ))}
             </div>
-            <div className="ml-auto flex items-center gap-2">
-              {/* 便签和 PVE/PVP 无关，不显示切换 */}
-              {modes.length > 1 && tab !== "note" && (
-                <Segmented<Mode>
-                  label={tx("方案类型")}
-                  size="xs"
-                  value={mode}
-                  onChange={m => actions.setMode(char.id, m)}
-                  options={modes.map(m => ({ value: m, label: m }))}
-                />
-              )}
-            </div>
           </div>
 
           <OfflineBar compact />
@@ -350,14 +332,14 @@ function PanelMain({
               key={`${char.id}-add-${addingTo}`}
               kind="macro"
               xinfas={[addingTo]}
-              mode={mode}
-              // 多心法时写明加到哪个方案；只有一个心法时不用说
-              context={
-                multi
-                  ? sections.find(x => x.xinfa === addingTo)?.scheme?.title ||
-                    addingTo
-                  : undefined
-              }
+              target={sections.find(x => x.xinfa === addingTo)?.scheme}
+              // 心法有好几个方案、或角色玩好几个心法时，写明加到哪个方案
+              context={(() => {
+                const sec = sections.find(x => x.xinfa === addingTo);
+                return sec?.scheme && (multi || sec.sets.length > 1)
+                  ? schemeName(sec.scheme)
+                  : undefined;
+              })()}
               onDone={id => {
                 setAddingTo(null);
                 if (id) setJustAdded(id);
@@ -371,8 +353,11 @@ function PanelMain({
               key={char.id}
               kind={tab}
               xinfas={missing.map(x => x.xinfa)}
-              mode={mode}
-              onDone={() => setCreating(null)}
+              onDone={(_, schemeId, xinfa) => {
+                setCreating(null);
+                if (schemeId && xinfa)
+                  actions.setActiveSet(char.id, xinfa, schemeId);
+              }}
               onCancel={() => setCreating(null)}
               onOpenManager={id => openManager("schemes", id)}
             />
@@ -383,14 +368,16 @@ function PanelMain({
             />
           ) : (
             <div
-              key={`${char.id}-${mode}-${tab}`}
+              key={`${char.id}-${tab}`}
               className="scroll-thin min-h-0 flex-1 animate-fade overflow-y-auto"
             >
               {ready.map(sec => {
                 const id = `panel-sec-${char.id}-${sec.xinfa}`;
-                const list =
+                const body =
                   tab === "macro" ? (
                     <MacroList
+                      // 换了方案：展开的宏收起
+                      key={sec.scheme!.id}
                       macros={sec.last!.macros}
                       base={sec.base}
                       compact={multi}
@@ -398,11 +385,26 @@ function PanelMain({
                     />
                   ) : (
                     <TalentList
+                      key={sec.scheme!.id}
                       xinfa={sec.xinfa}
                       sets={talentSetsOf(sec.last!)}
                       compact={multi}
                     />
                   );
+                // 这个心法有好几个方案：上面一排切换，每个角色记住自己用哪个
+                const list = (
+                  <>
+                    {sec.sets.length > 1 && (
+                      <SetChips
+                        char={char}
+                        xinfa={sec.xinfa}
+                        sets={sec.sets}
+                        current={sec.scheme!.id}
+                      />
+                    )}
+                    {body}
+                  </>
+                );
                 // 只玩一个心法时不加小标题
                 if (!multi) return <div key={sec.xinfa}>{list}</div>;
                 const key = `${char.id}:${sec.xinfa}`;
@@ -441,6 +443,67 @@ function PanelMain({
         </>
       )}
     </>
+  );
+}
+
+/**
+ * 一个心法有好几个方案时，在列表上面一排切换。
+ * 一行放不下就换行，名字不截断；PVP 的方案写上 PVP；有更新没改的方案带一个小圆点
+ */
+function SetChips({
+  char,
+  xinfa,
+  sets,
+  current,
+}: {
+  char: Character;
+  xinfa: string;
+  sets: Scheme[];
+  current: string;
+}) {
+  const { state, actions } = useProto();
+  const tracked = new Set(trackedSets(state, char, xinfa).map(s => s.id));
+  return (
+    <div
+      role="radiogroup"
+      aria-label={tx("{0} 的方案", xinfa)}
+      className="flex flex-wrap gap-1.5 px-3 pb-1 pt-2.5"
+    >
+      {sets.map(s => {
+        const on = s.id === current;
+        const dot = tracked.has(s.id) && isPending(statusOf(state, char, s.id));
+        return (
+          <button
+            key={s.id}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            onClick={() => actions.setActiveSet(char.id, xinfa, s.id)}
+            className={cn(
+              "inline-flex min-h-7 max-w-full items-center gap-1.5 rounded-md px-2.5 py-1 text-left text-[12.5px] leading-[18px] transition-colors",
+              on
+                ? "bg-paper/[0.08] text-paper ring-1 ring-inset ring-paper/[0.14]"
+                : "text-paper-3 hover:bg-paper/[0.05] hover:text-paper-2"
+            )}
+          >
+            <span className="min-w-0 [overflow-wrap:anywhere]">
+              {s.title || xinfa}
+            </span>
+            {s.mode === "PVP" && (
+              <span className="shrink-0 text-[10.5px] font-medium tracking-wide text-paper-3">
+                PVP
+              </span>
+            )}
+            {dot && (
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold"
+                aria-label={tx("有更新")}
+              />
+            )}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

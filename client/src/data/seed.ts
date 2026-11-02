@@ -148,7 +148,7 @@ export const SEED_CHARACTERS: Character[] = [
     only: null,
     liupai: ["幽罗引"],
     ownerId: ME_ID,
-    synced: { 紫霞功: { PVE: 3 } },
+    synced: { "紫霞功-PVE": 3 },
     avatar: { kind: "preset", mood: "大笑" },
   },
   {
@@ -159,7 +159,7 @@ export const SEED_CHARACTERS: Character[] = [
     only: "冰心诀",
     liupai: [],
     ownerId: ME_ID,
-    synced: { 冰心诀: { PVE: 2 } },
+    synced: { "冰心诀-PVE": 2 },
     avatar: { kind: "preset", mood: "害羞" },
   },
   {
@@ -170,7 +170,7 @@ export const SEED_CHARACTERS: Character[] = [
     only: null,
     liupai: [],
     ownerId: ME_ID,
-    synced: { 山海心诀: { PVE: 1 } },
+    synced: { "山海心诀-PVE": 1 },
     avatar: { kind: "preset", mood: "发怒" },
   },
   {
@@ -181,7 +181,7 @@ export const SEED_CHARACTERS: Character[] = [
     only: "花间游",
     liupai: [],
     ownerId: ME_ID,
-    synced: { 花间游: { PVE: 2 } },
+    synced: { "花间游-PVE": 2 },
     avatar: { kind: "preset", mood: "色" },
   },
   {
@@ -192,7 +192,7 @@ export const SEED_CHARACTERS: Character[] = [
     only: "冰心诀",
     liupai: [],
     ownerId: "xiaotao",
-    synced: { 冰心诀: { PVE: 2 } },
+    synced: { "冰心诀-PVE": 2 },
     avatar: { kind: "preset", mood: "嘤嘤" },
   },
   {
@@ -203,7 +203,7 @@ export const SEED_CHARACTERS: Character[] = [
     only: "紫霞功",
     liupai: [],
     ownerId: "ajiu",
-    synced: { 紫霞功: { PVE: 4 } },
+    synced: { "紫霞功-PVE": 4 },
     avatar: { kind: "preset", mood: "晕" },
   },
   {
@@ -214,7 +214,7 @@ export const SEED_CHARACTERS: Character[] = [
     only: null,
     liupai: [],
     ownerId: "xiangcai",
-    synced: { 山海心诀: { PVE: 3 } },
+    synced: { "山海心诀-PVE": 3 },
     avatar: { kind: "preset", mood: "流汗" },
   },
 ];

@@ -7,6 +7,7 @@ import { Avatar, Btn } from "@/components/common/ui";
 import { XINFA_GROUPS, layersOf } from "@/data/seed";
 import type { Scheme, SchemeVersion } from "@/data/types";
 import { diffVersions } from "@/lib/diff";
+import { schemeName } from "@/lib/schemeSets";
 import { absoluteTime, relativeTime } from "@/lib/format";
 import { followedXinfa, useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
@@ -200,7 +201,7 @@ export function ChangelogView() {
                               {e.prev ? tx("把") : tx("创建了")}
                               <XinfaMark xinfa={e.scheme.xinfa} size={18} />
                               <span className="font-medium text-paper">
-                                {e.scheme.xinfa} · {e.scheme.mode}
+                                {schemeName(e.scheme)}
                               </span>
                               {e.prev
                                 ? tx("更新到 v{0}", e.version.version)

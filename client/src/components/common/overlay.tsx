@@ -40,9 +40,10 @@ export function InlineModal({
   useEffect(() => {
     if (!open) return;
     const el = ref.current;
-    const first = el?.querySelector<HTMLElement>(
-      "[data-autofocus], input, textarea, select, button"
-    );
+    // 标了 data-autofocus 的优先，不管它在不在前面；没有时用第一个能输入的
+    const first =
+      el?.querySelector<HTMLElement>("[data-autofocus]") ??
+      el?.querySelector<HTMLElement>("input, textarea, select, button");
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && dismissible) {

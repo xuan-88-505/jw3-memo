@@ -32,7 +32,7 @@ export function Inbox({
   dragging,
 }: {
   onBack: () => void;
-  onOpenItem: (charId: string, mode: Mode, xinfa: string) => void;
+  onOpenItem: (charId: string, schemeId: string, xinfa: string) => void;
   onHeaderPointerDown?: (e: ReactPointerEvent) => void;
   dragging?: boolean;
 }) {
@@ -95,7 +95,7 @@ export function Inbox({
                 key={it.key}
                 item={it}
                 online={online}
-                onOpen={() => onOpenItem(it.char.id, it.mode, it.xinfa)}
+                onOpen={() => onOpenItem(it.char.id, it.scheme.id, it.xinfa)}
               />
             ))}
           </ul>
@@ -116,7 +116,9 @@ function InboxRow({
 }) {
   const { state, actions } = useProto();
   const [open, setOpen] = useState(false);
-  const { char, xinfa, mode, last, base, versions } = item;
+  const { char, xinfa, mode, scheme, last, base, versions } = item;
+  // 方案名：一个心法有好几套宏时靠它区分；没起名时是「心法 模式」
+  const label = scheme.title || `${xinfa} ${mode}`;
   const diff = useMemo(
     () => diffVersions(base, last, layersOf(xinfa)),
     [base, last, xinfa]
@@ -124,13 +126,9 @@ function InboxRow({
   const notes = [...versions].reverse().filter(v => v.note.trim());
 
   const onMark = () => {
-    const r = actions.markSynced(char.id, mode, xinfa);
+    const r = actions.markSynced(char.id, scheme.id);
     if (r)
-      actions.toast(
-        "panel",
-        "success",
-        tx("{0} {1} {2} 已是最新", r.name, xinfa, mode)
-      );
+      actions.toast("panel", "success", tx("{0} {1} 已是最新", r.name, label));
   };
 
   return (
@@ -142,13 +140,14 @@ function InboxRow({
             type="button"
             onClick={onOpen}
             className="group flex max-w-full items-center gap-1 text-left"
-            aria-label={tx("切到 {0} {1} {2}", char.name, xinfa, mode)}
+            aria-label={tx("切到 {0} {1}", char.name, label)}
+            title={scheme.title ? `${xinfa} · ${mode}` : undefined}
           >
             <span className="truncate text-[13.5px] font-medium text-paper group-hover:underline group-hover:underline-offset-2">
               {char.name}
             </span>
-            <span className="shrink-0 text-[12px] text-paper-3">
-              {xinfa} {mode}
+            <span className="min-w-0 truncate text-[12px] text-paper-3">
+              {label}
             </span>
             <ChevronRight
               className="h-3.5 w-3.5 shrink-0 text-paper-3/70"

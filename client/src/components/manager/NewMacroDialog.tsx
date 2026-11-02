@@ -6,20 +6,35 @@ import { MODES, type Mode } from "@/data/types";
 import { MACRO_LIMIT, cleanMacro } from "@/lib/macro";
 import { tx } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { findScheme, isOnline, latest, modesOf, useProto } from "@/state/store";
+import { SelectBox } from "@/components/common/Select";
+import { schemeName } from "@/lib/schemeSets";
+import {
+  currentSetId,
+  isOnline,
+  latest,
+  schemeById,
+  setsOf,
+  useProto,
+} from "@/state/store";
 import { inputCls } from "./shared";
+
+/** 下拉里「新方案」这一项的值 */
+const NEW = "";
 
 /**
  * 从「我的角色」某一行原地新建宏，不离开当前页。
- * 宏按心法和模式存在方案里：已有这个方案就加到最新版本后面、存成新版本；
- * 没有就新建这个方案。角色玩多个心法时可以切换。
+ * 宏是方案（一套宏）里的一段：选一个已有方案就加到它最新版本后面、存成新版本；
+ * 选「新方案」就新建一个方案，只有这段宏。角色玩多个心法时可以切换。
  */
 export function NewMacroDialog({
   xinfas,
+  charId,
   onClose,
 }: {
   /** 这个角色玩的心法；空数组表示弹窗关着 */
   xinfas: string[];
+  /** 这个角色：默认加到它现在用的方案 */
+  charId?: string;
   onClose: () => void;
 }) {
   const { state, actions } = useProto();
@@ -27,6 +42,7 @@ export function NewMacroDialog({
   const online = isOnline(state);
   const nameId = useId();
   const [xinfa, setXinfa] = useState("");
+  const [target, setTarget] = useState(NEW);
   const [mode, setMode] = useState<Mode>("PVE");
   const [icon, setIcon] = useState(13);
   const [name, setName] = useState("");
@@ -35,12 +51,21 @@ export function NewMacroDialog({
   const [blocked, setBlocked] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
 
-  // 每次打开时重置；模式默认选这个心法已有的方案，都没有就 PVE
+  // 默认加到角色在这个心法下现在用的方案；这个心法还没有方案时新建
+  const defaultTarget = (x: string) => {
+    const char = state.characters.find(c => c.id === charId);
+    return (
+      (char && currentSetId(state, char, x)) ?? setsOf(state, x)[0]?.id ?? NEW
+    );
+  };
+
+  // 每次打开时重置
   useEffect(() => {
     if (!open) return;
     const x = xinfas[0];
     setXinfa(x);
-    setMode(modesOf(state, x)[0] ?? "PVE");
+    setTarget(defaultTarget(x));
+    setMode("PVE");
     setIcon(13);
     setName("");
     setNote("");
@@ -52,16 +77,17 @@ export function NewMacroDialog({
 
   if (!open || !xinfa) return null;
 
-  const last = latest(findScheme(state, xinfa, mode));
+  const sets = setsOf(state, xinfa);
+  const scheme = schemeById(state, target);
+  const last = latest(scheme);
   const cleaned = cleanMacro(content);
   const over = cleaned.length > MACRO_LIMIT;
   const canSave = online && !!name.trim() && cleaned.length > 0 && !over;
-  const schemeId = `${xinfa}-${mode}`;
 
   const save = () => {
     if (!canSave) return;
-    const result = actions.addMacro(xinfa, mode, {
-      id: `${schemeId}-n${Date.now()}`,
+    const { result } = actions.addMacro(scheme?.id ?? null, xinfa, mode, {
+      id: `${xinfa}-n${Date.now()}`,
       name: name.trim(),
       icon,
       content: content.trim(),
@@ -108,27 +134,51 @@ export function NewMacroDialog({
                 value={xinfa}
                 onChange={x => {
                   setXinfa(x);
+                  setTarget(defaultTarget(x));
                   setBlocked(false);
                 }}
                 options={xinfas.map(x => ({ value: x, label: x }))}
               />
             )}
-            <Segmented<Mode>
-              label={tx("模式")}
-              size="sm"
-              value={mode}
-              onChange={m => {
-                setMode(m);
-                setBlocked(false);
-              }}
-              options={MODES.map(m => ({ value: m, label: m }))}
-            />
+            {/* 加到哪个方案：这个心法已有的方案，或新建一个 */}
+            {sets.length > 0 && (
+              <SelectBox
+                aria-label={tx("加到")}
+                value={target}
+                onChange={e => {
+                  setTarget(e.target.value);
+                  setBlocked(false);
+                }}
+                wrapClassName="min-w-0 max-w-[260px]"
+              >
+                {sets.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {schemeName(s)}
+                  </option>
+                ))}
+                <option value={NEW}>{tx("新方案")}</option>
+              </SelectBox>
+            )}
+            {!scheme && (
+              <Segmented<Mode>
+                label={tx("模式")}
+                size="sm"
+                value={mode}
+                onChange={setMode}
+                options={MODES.map(m => ({ value: m, label: m }))}
+              />
+            )}
           </div>
           {/* 说清楚宏会存到哪里：已有的方案里，还是新建一个方案 */}
           <p className="mt-2 text-[12px] leading-relaxed text-paper-3">
-            {last
-              ? tx("加到「{0} {1}」，存为 v{2}", xinfa, mode, last.version + 1)
-              : tx("还没有「{0} {1}」方案，保存时一起新建", xinfa, mode)}
+            {scheme && last
+              ? tx(
+                  "作为第 {0} 段加到「{1}」，存为 v{2}",
+                  last.macros.length + 1,
+                  schemeName(scheme),
+                  last.version + 1
+                )
+              : tx("保存时新建一个方案，只有这一段宏")}
           </p>
         </div>
 
@@ -194,12 +244,15 @@ export function NewMacroDialog({
             role="alert"
             className="rounded-lg bg-amber/[0.08] px-3 py-2.5 text-[12.5px] leading-relaxed text-paper-2 ring-1 ring-inset ring-amber/25"
           >
-            {tx("「{0} {1}」有没保存的修改，先在方案库里保存或放弃", xinfa, mode)}
+            {tx(
+              "「{0}」有没保存的修改，先在方案库里保存或放弃",
+              scheme ? schemeName(scheme) : xinfa
+            )}
             <button
               type="button"
               onClick={() => {
                 actions.goTo("schemes");
-                actions.selectScheme(schemeId);
+                if (scheme) actions.selectScheme(scheme.id);
                 onClose();
               }}
               className="ml-1 text-paper underline underline-offset-2 hover:text-cinnabar-text"

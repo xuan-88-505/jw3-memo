@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   AlertTriangle,
+  ArrowRightLeft,
   ChevronDown,
   ChevronRight,
   ArrowUpRight,
@@ -17,6 +18,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import { Anchored } from "@/components/common/Anchored";
 import { XinfaMark } from "@/components/brand/Marks";
 import { IconPickerButton } from "@/components/common/IconPicker";
 import { InlineModal } from "@/components/common/overlay";
@@ -43,16 +45,20 @@ import { MACRO_LIMIT, cleanMacro, lintMacro } from "@/lib/macro";
 import {
   activeSchemeId,
   canEdit,
-  findScheme,
   followedXinfa,
   isOnline,
   latest,
+  listedSetIds,
   memberName,
   myCharacters,
+  schemeById,
+  trackedSets,
   useProto,
   type Draft,
+  type ProtoState,
   isSolo,
 } from "@/state/store";
+import { defaultSchemeTitle, schemeName } from "@/lib/schemeSets";
 import { cn } from "@/lib/utils";
 import { DiffDetails, Field, diffSummary, inputCls } from "./shared";
 import { XinfaPairSelect } from "./SchoolPicker";
@@ -72,7 +78,7 @@ import {
   TalentScanNotice,
   useTalentScan,
 } from "./TalentScan";
-import { tx, paren } from "@/lib/i18n";
+import { tx, txn, paren } from "@/lib/i18n";
 
 export function SchemesView() {
   const { state } = useProto();
@@ -90,8 +96,10 @@ export function SchemesView() {
 function SchemeList() {
   const { state, actions } = useProto();
   const editable = canEdit(state);
+  const online = isOnline(state);
   const [creating, setCreating] = useState(false);
-  const [prefill, setPrefill] = useState<{ xinfa: string; mode: Mode }>();
+  const [prefill, setPrefill] = useState<{ xinfa: string; mode?: Mode }>();
+  const [deleting, setDeleting] = useState<string | null>(null);
   const activeId = activeSchemeId(state);
   // 从托盘「新建方案」进来：直接打开新建弹窗，心法和模式先填好
   useEffect(() => {
@@ -102,12 +110,10 @@ function SchemeList() {
       actions.clearIntent();
     }
   }, [state.managerIntent, actions]);
-  // 只列出有方案或正在新建的心法，按门派顺序
-  const listed = XINFA_LIST.filter(x =>
-    MODES.some(
-      m => latest(findScheme(state, x, m)) || state.drafts[`${x}-${m}`]
-    )
-  );
+  // 只列出有方案或正在新建方案的心法，按门派顺序；每个心法下一行一个方案
+  const listed = XINFA_LIST.map(
+    x => [x, listedSetIds(state, x)] as const
+  ).filter(([, ids]) => ids.length > 0);
   // 和修改记录「全部」看到的一致：只数关注的心法
   const followed = followedXinfa(state);
   const versionCount = state.schemes
@@ -136,100 +142,40 @@ function SchemeList() {
           </p>
         )}
         <ul className="space-y-3">
-          {listed.map(x => {
-            // 只列出已保存或正在新建的模式；没玩的模式不显示
-            const modes = MODES.filter(
-              m => latest(findScheme(state, x, m)) || state.drafts[`${x}-${m}`]
-            );
-            const missing = MODES.filter(m => !modes.includes(m));
-            return (
-              <li key={x} className="group/x">
-                <div className="flex h-7 items-center gap-2 px-2">
-                  <XinfaMark xinfa={x} size={20} />
-                  <span className="text-[13.5px] font-semibold text-paper">
-                    {x}
-                  </span>
-                  {editable && missing.length === 1 && (
-                    <IconBtn
-                      label={tx("给{0}添加 {1} 方案", x, missing[0])}
-                      onClick={() => actions.startDraft(x, missing[0])}
-                      className="ml-auto h-6 w-6 text-paper-3 opacity-0 focus-visible:opacity-100 group-hover/x:opacity-100"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </IconBtn>
-                  )}
-                </div>
-                <ul>
-                  {modes.map(m => {
-                    const id = `${x}-${m}`;
-                    const scheme = findScheme(state, x, m);
-                    const last = latest(scheme);
-                    const draft = state.drafts[id];
-                    const active = activeId === id;
-                    // 自定义了标题就在行里显示，和右边标题一致；没改过就只靠上面的心法名
-                    const title = scheme?.title ?? draft?.title;
-                    // 列表不显示版本号，只写谁、什么时候改的
-                    const meta = last
-                      ? isSolo(state)
-                        ? relativeTime(last.at)
-                        : `${memberName(state, last.authorId)} · ${relativeTime(last.at)}`
-                      : tx("新建中，未保存");
-                    return (
-                      <li key={m}>
-                        <button
-                          type="button"
-                          onClick={() => actions.selectScheme(id)}
-                          aria-current={active ? "page" : undefined}
-                          aria-label={`${title ? `${title} · ` : ""}${x} ${m} · ${meta}${draft ? tx(" · 有未保存的修改") : ""}`}
-                          className={cn(
-                            "flex w-full items-center gap-2 rounded-md py-1.5 pl-[36px] pr-2 text-left text-[12.5px] transition-colors",
-                            active
-                              ? "bg-paper/[0.08] text-paper"
-                              : "text-paper-2 hover:bg-paper/[0.04] hover:text-paper"
-                          )}
-                        >
-                          <span className="min-w-0 flex-1">
-                            {title && (
-                              <span className="block text-[13px] font-medium leading-5 [overflow-wrap:anywhere]">
-                                {title}
-                              </span>
-                            )}
-                            <span
-                              className={cn(
-                                "block truncate text-[11.5px]",
-                                active ? "text-paper-2" : "text-paper-3"
-                              )}
-                            >
-                              {meta}
-                            </span>
-                          </span>
-                          <span
-                            className={cn(
-                              "shrink-0 rounded px-1.5 py-px text-[10.5px] font-medium tracking-wide",
-                              active
-                                ? "bg-paper/[0.1] text-paper"
-                                : "bg-paper/[0.05] text-paper-2"
-                            )}
-                          >
-                            {m}
-                          </span>
-                          {/* 圆点固定占位，各行的模式标签才能对齐 */}
-                          <span
-                            className={cn(
-                              "h-1.5 w-1.5 shrink-0 rounded-full",
-                              draft && "bg-gold"
-                            )}
-                            aria-hidden="true"
-                            title={draft ? tx("有未保存的修改") : undefined}
-                          />
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </li>
-            );
-          })}
+          {listed.map(([x, ids]) => (
+            <li key={x} className="group/x">
+              <div className="flex h-7 items-center gap-2 px-2">
+                <XinfaMark xinfa={x} size={20} />
+                <span className="text-[13.5px] font-semibold text-paper">
+                  {x}
+                </span>
+                {editable && (
+                  <IconBtn
+                    label={tx("给{0}新建方案", x)}
+                    onClick={() => {
+                      setPrefill({ xinfa: x });
+                      setCreating(true);
+                    }}
+                    className="ml-auto h-6 w-6 text-paper-3 opacity-0 focus-visible:opacity-100 group-hover/x:opacity-100"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </IconBtn>
+                )}
+              </div>
+              <ul>
+                {ids.map(id => (
+                  <SchemeRow
+                    key={id}
+                    id={id}
+                    active={activeId === id}
+                    onDelete={
+                      editable && online ? () => setDeleting(id) : undefined
+                    }
+                  />
+                ))}
+              </ul>
+            </li>
+          ))}
         </ul>
         <NewSchemeDialog
           open={creating}
@@ -239,6 +185,7 @@ function SchemeList() {
             setPrefill(undefined);
           }}
         />
+        <DeleteSchemeDialog id={deleting} onClose={() => setDeleting(null)} />
       </nav>
       {/* 二级页入口：所有方案的修改时间线 */}
       <div className="p-2">
@@ -264,9 +211,185 @@ function SchemeList() {
   );
 }
 
+/** 已保存的方案或还没保存的新方案：名字、心法、模式、宏 */
+function schemeInfo(state: ProtoState, id: string | null | undefined) {
+  if (!id) return null;
+  const scheme = schemeById(state, id);
+  const draft = state.drafts[id];
+  const last = latest(scheme);
+  const src = draft ?? last;
+  if (!src) return null;
+  const xinfa = scheme?.xinfa ?? draft!.xinfa;
+  const mode = scheme?.mode ?? draft!.mode;
+  const title = scheme?.title ?? draft?.title;
+  return {
+    scheme,
+    draft,
+    last,
+    xinfa,
+    mode,
+    title,
+    name: schemeName({ title, xinfa, mode }),
+    macros: src.macros,
+  };
+}
+
 /**
- * 新建方案：选心法和模式。PVE、PVP 都有了的心法不能选；
- * 默认选你角色在用、还缺方案的心法。
+ * 左栏一行一个方案：名字（PVP 的写上 PVP）、谁什么时候改的、几段宏、有没保存的修改。
+ * 悬停时段数的位置换成删除按钮。
+ */
+function SchemeRow({
+  id,
+  active,
+  onDelete,
+}: {
+  id: string;
+  active: boolean;
+  /** 能删时才传：只读成员、离线时不传 */
+  onDelete?: () => void;
+}) {
+  const { state, actions } = useProto();
+  const info = schemeInfo(state, id);
+  if (!info) return null;
+  const { last, draft, mode, name } = info;
+  // 没起名字的方案名字里已经有「PVP」，不再加标签
+  const pvpTag = mode === "PVP" && !!info.title;
+  const count = txn("{0} 段", info.macros.length);
+  // 列表不显示版本号，只写谁、什么时候改的
+  const meta = last
+    ? isSolo(state)
+      ? relativeTime(last.at)
+      : `${memberName(state, last.authorId)} · ${relativeTime(last.at)}`
+    : tx("新建中，未保存");
+  return (
+    <li className="group/row relative">
+      <button
+        type="button"
+        onClick={() => actions.selectScheme(id)}
+        aria-current={active ? "page" : undefined}
+        aria-label={`${name}${pvpTag ? " · PVP" : ""} · ${count} · ${meta}${draft && last ? tx(" · 有未保存的修改") : ""}`}
+        className={cn(
+          "flex w-full items-start gap-2 rounded-md py-1.5 pl-[36px] pr-2 text-left transition-colors",
+          active
+            ? "bg-paper/[0.08] text-paper"
+            : "text-paper-2 hover:bg-paper/[0.04] hover:text-paper"
+        )}
+      >
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            <span className="min-w-0 text-[13px] font-medium leading-5 [overflow-wrap:anywhere]">
+              {name}
+            </span>
+            {pvpTag && (
+              <span
+                className={cn(
+                  "shrink-0 rounded px-1.5 py-px text-[10px] font-medium tracking-wide",
+                  active
+                    ? "bg-paper/[0.1] text-paper"
+                    : "bg-paper/[0.05] text-paper-2"
+                )}
+              >
+                PVP
+              </span>
+            )}
+          </span>
+          <span
+            className={cn(
+              "block truncate text-[11.5px]",
+              active ? "text-paper-2" : "text-paper-3"
+            )}
+          >
+            {meta}
+          </span>
+        </span>
+        <span className="mt-0.5 flex shrink-0 items-center gap-1.5">
+          <span
+            className={cn(
+              "text-[11.5px] tabular-nums text-paper-3 transition-opacity",
+              onDelete &&
+                "group-focus-within/row:opacity-0 group-hover/row:opacity-0"
+            )}
+          >
+            {count}
+          </span>
+          {/* 圆点固定占位，各行的段数才能对齐 */}
+          <span
+            className={cn("h-1.5 w-1.5 rounded-full", draft && "bg-gold")}
+            aria-hidden="true"
+            title={draft ? tx("有未保存的修改") : undefined}
+          />
+        </span>
+      </button>
+      {onDelete && (
+        <IconBtn
+          label={tx("删除方案 {0}", name)}
+          onClick={onDelete}
+          className="absolute right-[18px] top-1 h-6 w-6 text-paper-3 opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </IconBtn>
+      )}
+    </li>
+  );
+}
+
+/** 删除方案前确认：版本和修改记录一起删，不能恢复 */
+function DeleteSchemeDialog({
+  id,
+  onClose,
+}: {
+  id: string | null;
+  onClose: () => void;
+}) {
+  const { state, actions } = useProto();
+  const info = schemeInfo(state, id);
+  if (!id || !info) return null;
+  const versions = info.scheme?.versions.length ?? 0;
+  const remove = () => {
+    if (info.scheme) actions.deleteScheme(id);
+    else actions.discardDraft(id);
+    actions.toast("manager", "success", tx("已删除「{0}」", info.name));
+    onClose();
+  };
+  return (
+    <InlineModal
+      open
+      onClose={onClose}
+      title={tx("删除「{0}」？", info.name)}
+      width={400}
+      footer={
+        <>
+          <Btn variant="ghost" size="md" onClick={onClose}>
+            {tx("取消")}
+          </Btn>
+          <Btn variant="danger" size="md" onClick={remove}>
+            {tx("删除")}
+          </Btn>
+        </>
+      }
+    >
+      <p className="pb-1 text-[13px] leading-relaxed text-paper-2">
+        {!versions
+          ? tx("这个方案还没保存，删除后填的内容不会保留。")
+          : isSolo(state)
+            ? tx(
+                "{0} 段宏和 {1} 个版本的修改记录会一起删除，不能恢复。",
+                info.macros.length,
+                versions
+              )
+            : tx(
+                "{0} 段宏和 {1} 个版本的修改记录会一起删除，亲友团里的人也看不到了，不能恢复。",
+                info.macros.length,
+                versions
+              )}
+      </p>
+    </InlineModal>
+  );
+}
+
+/**
+ * 新建方案（一套宏）：选心法、写名字、选模式。同一个心法可以有好几个方案。
+ * 奇穴先照搬这个心法正在看的方案（没有就第一个），宏是空的。
  */
 function NewSchemeDialog({
   open,
@@ -274,46 +397,53 @@ function NewSchemeDialog({
   onClose,
 }: {
   open: boolean;
-  /** 预先填好的心法和模式（从托盘「新建方案」进来时） */
-  initial?: { xinfa: string; mode: Mode };
+  /** 预先填好的心法和模式（从心法行的「+」、托盘「新建方案」进来时） */
+  initial?: { xinfa: string; mode?: Mode };
   onClose: () => void;
 }) {
   const { state, actions } = useProto();
   const online = isOnline(state);
-  const has = (x: string, m: Mode) =>
-    !!latest(findScheme(state, x, m)) || !!state.drafts[`${x}-${m}`];
-  const firstMissing = (x: string) => MODES.find(m => !has(x, m)) ?? "PVE";
-  const pickDefault = () => {
-    const mine = Array.from(new Set(myCharacters(state).flatMap(xinfasOf)));
-    return (
-      mine.find(x => MODES.some(m => !has(x, m))) ??
-      XINFA_LIST.find(x => MODES.some(m => !has(x, m))) ??
-      XINFA_LIST[0]
-    );
-  };
   const [xinfa, setXinfa] = useState(XINFA_LIST[0]);
   const [mode, setMode] = useState<Mode>("PVE");
+  const [title, setTitle] = useState("");
+  const selected = schemeInfo(state, activeSchemeId(state));
+  // 默认：正在看的方案的心法；没有就你角色玩的第一个心法
+  const pickDefault = () =>
+    selected?.xinfa ??
+    myCharacters(state).flatMap(xinfasOf)[0] ??
+    XINFA_LIST[0];
 
   // 每次打开时重新选默认值
   useEffect(() => {
     if (!open) return;
-    if (initial && !has(initial.xinfa, initial.mode)) {
-      setXinfa(initial.xinfa);
-      setMode(initial.mode);
-      return;
-    }
-    const x = pickDefault();
-    setXinfa(x);
-    setMode(firstMissing(x));
+    setXinfa(initial?.xinfa ?? pickDefault());
+    setMode(initial?.mode ?? "PVE");
+    setTitle("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   if (!open) return null;
 
-  const full = MODES.every(m => has(xinfa, m));
+  const siblings = listedSetIds(state, xinfa)
+    .map(id => schemeInfo(state, id))
+    .filter(x => !!x);
+  const source =
+    selected && selected.xinfa === xinfa
+      ? selected
+      : siblings[0]
+        ? siblings[0]
+        : null;
+  const sourceId = source && (source.scheme?.id ?? source.draft?.schemeId);
+  const placeholder =
+    defaultSchemeTitle(siblings, xinfa, mode) ?? `${xinfa} · ${mode}`;
   const create = () => {
-    if (full || has(xinfa, mode)) return;
-    actions.startDraft(xinfa, mode);
+    if (!online) return;
+    actions.startNewScheme({
+      xinfa,
+      mode,
+      title,
+      talentsFrom: sourceId || undefined,
+    });
     onClose();
   };
 
@@ -333,12 +463,7 @@ function NewSchemeDialog({
           <Btn variant="ghost" size="md" onClick={onClose}>
             {tx("取消")}
           </Btn>
-          <Btn
-            variant="primary"
-            size="md"
-            onClick={create}
-            disabled={full || has(xinfa, mode) || !online}
-          >
+          <Btn variant="primary" size="md" onClick={create} disabled={!online}>
             {tx("创建")}
           </Btn>
         </>
@@ -348,16 +473,23 @@ function NewSchemeDialog({
         <Field label={tx("心法")} htmlFor="new-scheme-xinfa">
           <XinfaPairSelect
             id="new-scheme-xinfa"
-            autoFocus
+            autoFocus={!initial}
             value={xinfa}
-            onChange={x => {
-              setXinfa(x);
-              // 换心法后回到第一个可用的模式（通常是 PVE）
-              setMode(firstMissing(x));
+            onChange={setXinfa}
+          />
+        </Field>
+        <Field label={tx("名称")} htmlFor="new-scheme-title">
+          <input
+            id="new-scheme-title"
+            data-autofocus={initial ? true : undefined}
+            value={title}
+            maxLength={24}
+            onChange={e => setTitle(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Enter") create();
             }}
-            disabledReason={x =>
-              MODES.every(m => has(x, m)) ? tx("PVE、PVP 都有了") : false
-            }
+            placeholder={placeholder}
+            className={cn(inputCls(false), "w-full")}
           />
         </Field>
         <div>
@@ -366,25 +498,14 @@ function NewSchemeDialog({
             label={tx("模式")}
             value={mode}
             onChange={setMode}
-            options={MODES.map(m => ({
-              value: m,
-              label: m,
-              disabled: has(xinfa, m),
-              title: has(xinfa, m)
-                ? tx("{0}已经有 {1} 方案", xinfa, m)
-                : undefined,
-            }))}
+            options={MODES.map(m => ({ value: m, label: m }))}
           />
-          {MODES.some(m => has(xinfa, m)) && (
-            <p className="mt-1.5 text-[12px] text-paper-3">
-              {tx(
-                "{0}已有 {1} 方案",
-                xinfa,
-                MODES.filter(m => has(xinfa, m)).join("、")
-              )}
-            </p>
-          )}
         </div>
+        <p className="text-[12px] leading-relaxed text-paper-3">
+          {source
+            ? tx("奇穴先照搬「{0}」，宏是空的", source.name)
+            : tx("宏是空的，建好后点「新增」加一段")}
+        </p>
       </div>
     </InlineModal>
   );
@@ -623,22 +744,21 @@ function CreatedBy({
 }
 function SchemeEditor({ schemeId }: { schemeId: string }) {
   const { state, actions } = useProto();
-  const [xinfa, mode] = schemeId.split("-") as [string, Mode];
-  const scheme = findScheme(state, xinfa, mode);
+  const scheme = schemeById(state, schemeId);
   const last = latest(scheme);
   const draft = state.drafts[schemeId];
+  const xinfa = scheme?.xinfa ?? draft?.xinfa ?? "";
+  const mode: Mode = scheme?.mode ?? draft?.mode ?? "PVE";
   const editable = canEdit(state);
   const online = isOnline(state);
   const [saving, setSaving] = useState(false);
+  // 新宏加在最后，宏多时在屏幕外：加完滚过去、选中名字，看得到加在哪
+  const [revealId, setRevealId] = useState<string | null>(null);
 
   /** 只有自己一个人时，不显示创建人 */
   const solo = isSolo(state);
   const creatorId = scheme?.versions[0]?.authorId;
   const creator = state.members.find(m => m.id === creatorId);
-  const other: Mode = mode === "PVE" ? "PVP" : "PVE";
-  const otherExists =
-    !!latest(findScheme(state, xinfa, other)) ||
-    !!state.drafts[`${xinfa}-${other}`];
   const hasContent = !!last || !!draft;
   // 多套奇穴：当前在看哪一套；刚加的一套直接改名
   const [activeSet, setActiveSet] = useState<string>("main");
@@ -663,40 +783,8 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
     onApply: talents => editSet(curSetId, () => talents),
   });
 
-  if (!hasContent) {
-    // 这个心法一个方案都没有时，两个模式都可以新建；否则只建当前这个
-    const choices: Mode[] = otherExists ? [mode] : MODES;
-    return (
-      <div className="flex h-full flex-col items-center justify-center px-10 text-center">
-        <XinfaMark xinfa={xinfa} size={48} className="opacity-60" />
-        <p className="mt-4 text-[17px] font-semibold">
-          {otherExists
-            ? tx("{0}还没有 {1} 方案", xinfa, mode)
-            : tx("{0}还没有方案", xinfa)}
-        </p>
-        {!editable && (
-          <p className="mt-1.5 text-[13px] text-paper-3">
-            {tx("只读成员不能新建")}
-          </p>
-        )}
-        {editable && (
-          <div className="mt-5 flex gap-2">
-            {choices.map((m, i) => (
-              <Btn
-                key={m}
-                variant={i === 0 ? "primary" : "secondary"}
-                size="md"
-                icon={<Plus className="h-4 w-4" />}
-                onClick={() => actions.startDraft(xinfa, m)}
-              >
-                {choices.length > 1 ? tx("新建 {0}", m) : tx("新建")}
-              </Btn>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
+  // 左栏只列出有内容的方案，删掉后这里也不会再显示它
+  if (!hasContent) return null;
 
   const view = draft ?? last!;
   const baseSets = last ? talentSetsOf(last) : undefined;
@@ -750,10 +838,8 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
       ...d,
       macros: d.macros.map(m => (m.id === id ? { ...m, ...patch } : m)),
     }));
-  // 新宏加在最后，宏多时在屏幕外：加完滚过去、选中名字，看得到加在哪
-  const [revealId, setRevealId] = useState<string | null>(null);
   const addMacro = () => {
-    const id = `${schemeId}-n${Date.now()}`;
+    const id = `${xinfa}-n${Date.now()}`;
     edit(d => ({
       ...d,
       macros: [
@@ -771,6 +857,22 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
   };
   const removeMacro = (id: string) =>
     edit(d => ({ ...d, macros: d.macros.filter(m => m.id !== id) }));
+  // 一段宏可以移到同心法的另一个方案，或移出去单独成一个新方案
+  const moveTargets = listedSetIds(state, xinfa)
+    .filter(id => id !== schemeId)
+    .map(id => ({ id, name: schemeInfo(state, id)?.name ?? id }));
+  const moveMacro = (macroId: string, toId: string | null) => {
+    const target = actions.moveMacro(schemeId, macroId, toId);
+    if (!target) return;
+    const name = toId
+      ? (moveTargets.find(t => t.id === toId)?.name ?? "")
+      : tx("新方案");
+    actions.toast(
+      "manager",
+      "info",
+      tx("已移到「{0}」，两个方案都保存后才生效", name)
+    );
+  };
 
   const baseMacros = new Map((last?.macros ?? []).map(m => [m.id, m]));
 
@@ -781,12 +883,20 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
           mark={<XinfaMark xinfa={xinfa} size={40} />}
           titleText={(scheme?.title ?? draft?.title) || `${xinfa} · ${mode}`}
           title={
-            <SchemeTitle
-              schemeId={schemeId}
-              title={scheme?.title ?? draft?.title}
-              fallback={`${xinfa} · ${mode}`}
-              editable={editable && online}
-            />
+            <>
+              <SchemeTitle
+                schemeId={schemeId}
+                title={scheme?.title ?? draft?.title}
+                fallback={`${xinfa} · ${mode}`}
+                editable={editable && online}
+              />
+              {/* 起了名字时，名字下面弱写心法和模式；没起名字时标题本身就是这两个 */}
+              {(scheme?.title ?? draft?.title) && (
+                <p className="mt-0.5 text-[12.5px] text-paper-3">
+                  {xinfa} · {mode}
+                </p>
+              )}
+            </>
           }
           meta={
             !last ? (
@@ -800,7 +910,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
           }
           actions={
             <>
-              {/* 另一个模式从左栏心法行的「+」或「新建」建；修改记录从左栏底部进 */}
+              {/* 新方案从左栏心法行的「+」或「新建」建；修改记录从左栏底部进 */}
               {editable && (
                 <Btn
                   variant="secondary"
@@ -839,17 +949,20 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
         )}
 
         <div className="mt-7">
-          <SectionLabel>{tx("宏 · {0}", view.macros.length)}</SectionLabel>
+          <SectionLabel>{txn("宏 · {0} 段", view.macros.length)}</SectionLabel>
           <div className="mt-1 divide-y divide-paper/[0.07]">
             {view.macros.length === 0 && (
               <p className="py-6 text-center text-[12.5px] text-paper-3">
                 {tx("还没有宏")}
               </p>
             )}
-            {view.macros.map(m => (
+            {view.macros.map((m, i) => (
               <MacroEditor
                 key={m.id}
                 xinfa={xinfa}
+                index={view.macros.length > 1 ? i + 1 : undefined}
+                moveTargets={editable && online ? moveTargets : undefined}
+                onMove={to => moveMacro(m.id, to)}
                 macro={m}
                 base={baseMacros.get(m.id)}
                 hasBase={!!last}
@@ -956,10 +1069,8 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
             variant="ghost"
             size="md"
             onClick={() => {
+              // 放弃的是新建方案：左栏会自动选中别的方案
               actions.discardDraft(schemeId);
-              // 放弃的是新建方案：回到这个心法已有的另一个模式
-              if (!last && latest(findScheme(state, xinfa, other)))
-                actions.selectScheme(`${xinfa}-${other}`);
             }}
           >
             {last ? tx("放弃修改") : tx("放弃新建")}
@@ -989,8 +1100,77 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
   );
 }
 
+/** 宏行上的「移到」：同心法的其他方案，最后一项是「新方案」 */
+function MoveMacroButton({
+  name,
+  targets,
+  onMove,
+}: {
+  name: string;
+  targets: { id: string; name: string }[];
+  onMove: (toId: string | null) => void;
+}) {
+  const btn = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const label = tx("把 {0} 移到别的方案", name);
+  const item = (key: string, text: string, to: string | null) => (
+    <button
+      key={key}
+      type="button"
+      role="menuitem"
+      onClick={() => {
+        setOpen(false);
+        onMove(to);
+      }}
+      className="flex min-h-8 w-full items-center rounded-md px-2.5 py-1.5 text-left text-[13px] text-paper-2 [overflow-wrap:anywhere] hover:bg-paper/[0.06] hover:text-paper focus-visible:bg-paper/[0.06] focus-visible:outline-none"
+    >
+      {text}
+    </button>
+  );
+  return (
+    <>
+      <button
+        ref={btn}
+        type="button"
+        aria-label={label}
+        title={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen(v => !v)}
+        className={cn(
+          "inline-grid h-7 w-7 shrink-0 place-items-center rounded-md text-paper-2 transition-colors hover:bg-paper/[0.08] hover:text-paper",
+          open && "bg-paper/[0.08] text-paper"
+        )}
+      >
+        <ArrowRightLeft className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+      <Anchored
+        anchor={btn}
+        open={open}
+        onClose={() => setOpen(false)}
+        width={220}
+        label={tx("移到")}
+      >
+        <div role="menu" aria-label={tx("移到")} className="p-1">
+          <p className="px-2.5 pb-1 pt-1.5 text-[11.5px] text-paper-3">
+            {tx("移到")}
+          </p>
+          {targets.map(t => item(t.id, t.name, t.id))}
+          {targets.length > 0 && (
+            <div className="my-1 h-px bg-paper/[0.07]" role="separator" />
+          )}
+          {item("new", tx("新方案"), null)}
+        </div>
+      </Anchored>
+    </>
+  );
+}
+
 function MacroEditor({
   xinfa,
+  index,
+  moveTargets,
+  onMove,
   macro,
   base,
   hasBase,
@@ -1001,6 +1181,12 @@ function MacroEditor({
   onRevealed,
 }: {
   xinfa: string;
+  /** 第几段；方案里只有一段时不传，不显示编号 */
+  index?: number;
+  /** 能移到的方案（同心法）；不能改时不传 */
+  moveTargets?: { id: string; name: string }[];
+  /** 移到另一个方案；null 表示移出去单独成一个新方案 */
+  onMove: (toId: string | null) => void;
   macro: Macro;
   base?: Macro;
   hasBase: boolean;
@@ -1066,6 +1252,14 @@ function MacroEditor({
         />
       )}
       <div className="flex items-center gap-2.5">
+        {index !== undefined && (
+          <span
+            className="-ml-1 w-4 shrink-0 text-center text-[12px] font-medium tabular-nums text-paper-3"
+            aria-label={tx("第 {0} 段", index)}
+          >
+            {index}
+          </span>
+        )}
         <IconPickerButton
           xinfa={xinfa}
           value={macro.icon}
@@ -1089,13 +1283,22 @@ function MacroEditor({
             {base ? tx("已修改") : tx("新增")}
           </span>
         )}
+        {moveTargets && (
+          <MoveMacroButton
+            name={macro.name}
+            targets={moveTargets}
+            onMove={onMove}
+          />
+        )}
         {editable && (
           <IconBtn label={tx("删除宏 {0}", macro.name)} onClick={onRemove}>
             <Trash2 className="h-3.5 w-3.5" />
           </IconBtn>
         )}
       </div>
-      <div className="pl-[40px] pt-1">
+      <div
+        className={cn("pt-1", index !== undefined ? "pl-[56px]" : "pl-[40px]")}
+      >
         <input
           value={macro.note ?? ""}
           readOnly={!editable}
@@ -1196,7 +1399,11 @@ function SaveDialog({
   const affected =
     last && !hasGameChange(diff)
       ? []
-      : state.characters.filter(c => xinfasOf(c).includes(draft.xinfa));
+      : state.characters.filter(
+          c =>
+            xinfasOf(c).includes(draft.xinfa) &&
+            trackedSets(state, c, draft.xinfa).some(x => x.id === schemeId)
+        );
   const nextV = (last?.version ?? 0) + 1;
 
   const submit = () => {
@@ -1330,9 +1537,9 @@ function ConflictDialog({ schemeId }: { schemeId: string }) {
   const [show, setShow] = useState<"theirs" | "mine" | null>("theirs");
   const open = !!pc && pc.schemeId === schemeId;
   const draft = state.drafts[schemeId];
-  const [xinfa, mode] = schemeId.split("-") as [string, Mode];
+  const xinfa = schemeById(state, schemeId)?.xinfa ?? draft?.xinfa ?? "";
   // 联网冲突时本地已经是服务器的最新版，要和我改之前的那一版比
-  const last = pc?.base ?? latest(findScheme(state, xinfa, mode));
+  const last = pc?.base ?? latest(schemeById(state, schemeId));
   const layers = layersOf(xinfa);
 
   const theirs = useMemo(
