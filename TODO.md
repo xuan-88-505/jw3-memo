@@ -829,3 +829,9 @@
 - [x] 「+ 宏」改为「+ 新增」，悬停提示和读屏名「新增宏」；新文案翻译成英日韩西，西语「新增」改为 Nuevo。
 - 验证：`pnpm check` 通过；`pnpm test` 7 个文件 67 项通过；`pnpm build`、`pnpm build:static` 通过；缺词扫描 0 条（本次没改 Rust）。`/tmp/schemehdr/test2.py` 改为检查新标题行，54 项通过：五种语言和西语窄窗口下只有「新增」和魔盒两个按钮、文字和读屏名正确、没有 PVP 按钮和历史版本按钮、同高同行间距 6px、不溢出、左栏还有修改记录入口。回归全部通过：jx3box 75（标题行顺序改为魔盒在最后）、sets_test 41（修改记录改从左栏进）、panel_add 42、char_test 45、desktop_mock 50、lang_team 50、lang_test 12、authorrow 26、feedback 36、talentocr 53、manual_loadout 27、native smoke 11。
 
+## 方案编辑器「新增」后定位到新宏（2026-11-02）
+用户反馈：「点了新建没有反应」（截图箭头指标题行「+ 新增」，已是「宏 · 9」）。
+- [x] 点「新增」后滚到新加的宏，放在可见区域中间，不被底部保存栏挡住。
+- [x] 新宏名字获得焦点并全选，直接打字改名；新宏这一行淡金色高亮约 1.6 秒后淡出。
+- [x] 系统要求减少动效时不平滑滚动、不闪，仍定位并选中名字。
+- 验证：`pnpm check` 通过；`pnpm test` 7 个文件 67 项通过；`pnpm build`、`pnpm build:static` 通过；缺词扫描 0 条（没有新文案，没改 Rust）。新测试 `/tmp/team2/addmacro_test.py` 13 项通过：宏列表超出屏幕时点「新增」，宏数和「宏 · N」加一，页面滚到新宏，名字在可见区域且不被保存栏挡住，名字获得焦点并全选，高亮出现后约 1.6 秒消失，直接打字替换名字，回到顶部再点又定位到更新的那个；减少动效时立刻定位、不闪；无页面报错。回归全部通过：schemehdr 54、jx3box 75、sets_test 41、panel_add 42、char_test 45、desktop_mock 50、lang_team 50、lang_test 12、authorrow 26、feedback 36、talentocr 53、manual_loadout 27、native smoke 11。

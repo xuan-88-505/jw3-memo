@@ -750,13 +750,16 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
       ...d,
       macros: d.macros.map(m => (m.id === id ? { ...m, ...patch } : m)),
     }));
-  const addMacro = () =>
+  // 新宏加在最后，宏多时在屏幕外：加完滚过去、选中名字，看得到加在哪
+  const [revealId, setRevealId] = useState<string | null>(null);
+  const addMacro = () => {
+    const id = `${schemeId}-n${Date.now()}`;
     edit(d => ({
       ...d,
       macros: [
         ...d.macros,
         {
-          id: `${schemeId}-n${Date.now()}`,
+          id,
           name: tx("新宏 {0}", d.macros.length + 1),
           icon: 13,
           content: "/cast ",
@@ -764,6 +767,8 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
         },
       ],
     }));
+    setRevealId(id);
+  };
   const removeMacro = (id: string) =>
     edit(d => ({ ...d, macros: d.macros.filter(m => m.id !== id) }));
 
@@ -851,6 +856,8 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
                 editable={editable}
                 onChange={p => setMacro(m.id, p)}
                 onRemove={() => removeMacro(m.id)}
+                reveal={m.id === revealId}
+                onRevealed={() => setRevealId(null)}
               />
             ))}
           </div>
@@ -990,6 +997,8 @@ function MacroEditor({
   editable,
   onChange,
   onRemove,
+  reveal = false,
+  onRevealed,
 }: {
   xinfa: string;
   macro: Macro;
@@ -998,7 +1007,40 @@ function MacroEditor({
   editable: boolean;
   onChange: (p: Partial<Macro>) => void;
   onRemove: () => void;
+  /** 刚点「新增」加的宏：滚到它、选中名字、底色闪一下 */
+  reveal?: boolean;
+  onRevealed?: () => void;
 }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const flashRef = useRef<HTMLSpanElement>(null);
+  const [flash, setFlash] = useState(false);
+  useEffect(() => {
+    if (!reveal) return;
+    onRevealed?.();
+    const reduce = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    // 放在中间：底部有「未保存的修改」栏，贴底会被挡住
+    rootRef.current?.scrollIntoView({
+      block: "center",
+      behavior: reduce ? "auto" : "smooth",
+    });
+    nameRef.current?.focus({ preventScroll: true });
+    nameRef.current?.select();
+    if (!reduce) setFlash(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reveal]);
+  useEffect(() => {
+    const el = flashRef.current;
+    if (!flash || !el) return;
+    const a = el.animate(
+      [{ opacity: 1 }, { opacity: 1, offset: 0.35 }, { opacity: 0 }],
+      { duration: 1600, easing: "ease-out", fill: "forwards" }
+    );
+    a.onfinish = () => setFlash(false);
+    return () => a.cancel();
+  }, [flash]);
   const cleaned = cleanMacro(macro.content);
   const lints = lintMacro(macro.content);
   const rows = Math.max(
@@ -1015,7 +1057,14 @@ function MacroEditor({
   const over = cleaned.length > MACRO_LIMIT;
 
   return (
-    <div className="py-3.5">
+    <div ref={rootRef} data-macro-id={macro.id} className="relative py-3.5">
+      {flash && (
+        <span
+          ref={flashRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute -inset-x-3 inset-y-1.5 rounded-lg bg-gold/[0.07] ring-1 ring-inset ring-gold/25"
+        />
+      )}
       <div className="flex items-center gap-2.5">
         <IconPickerButton
           xinfa={xinfa}
@@ -1026,6 +1075,7 @@ function MacroEditor({
           disabled={!editable}
         />
         <input
+          ref={nameRef}
           value={macro.name}
           readOnly={!editable}
           onChange={e => onChange({ name: e.target.value })}
