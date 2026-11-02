@@ -1,6 +1,6 @@
 import { ChevronRight, Loader2, Pencil, RefreshCw } from "lucide-react";
 import { useState } from "react";
-import { Btn } from "@/components/common/ui";
+import { Btn, IconBtn } from "@/components/common/ui";
 import { XinfaMark } from "@/components/brand/Marks";
 import {
   SOURCE_LABEL,
@@ -169,14 +169,25 @@ export function GearOverview({
 
   return (
     <div className="@container">
-      {/* 标题行：放不下时按钮整组换到下一行，标题不截断 */}
-      <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+      {/* 标题行：放不下时按钮整组换到下一行，标题不截断。
+          编辑铅笔跟在配装名最后一个字后面，悬停标题行或键盘聚焦时才显示。
+          铅笔高 28px，行高 25px：顶对齐、上下各收 1.5px，正好居中且不撑高这一行 */}
+      <header className="group/hdr flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="flex min-w-[240px] flex-1 items-center gap-3">
           <XinfaMark xinfa={lo.xinfa} size={36} />
           <div className="min-w-0">
-            <h2 className="text-[20px] font-semibold leading-tight text-paper [overflow-wrap:anywhere]">
-              {lo.name}
-            </h2>
+            <div className="text-[20px] leading-tight">
+              <h2 className="inline font-semibold text-paper [overflow-wrap:anywhere]">
+                {lo.name}
+              </h2>
+              <IconBtn
+                label={tx("编辑配装")}
+                onClick={onEdit}
+                className="-my-[1.5px] ml-1 align-top text-paper-3 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/hdr:opacity-100 [@media(hover:none)]:opacity-100"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </IconBtn>
+            </div>
             <p className="mt-1 text-[12px] text-paper-3">
               {charName ? `${charName} · ${lo.xinfa}` : lo.xinfa}
               <span className="mx-1.5" aria-hidden="true">
@@ -198,15 +209,6 @@ export function GearOverview({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <Btn
-            variant="ghost"
-            size="md"
-            aria-label={tx("编辑配装")}
-            title={tx("编辑配装")}
-            className="w-8 px-0"
-            icon={<Pencil className="h-3.5 w-3.5" />}
-            onClick={onEdit}
-          />
           {lo.source !== "manual" && (
             <Btn
               variant="ghost"
