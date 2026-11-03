@@ -1019,3 +1019,16 @@
 **未验证**
 - Windows WebView2 和 macOS WKWebView 真机上的效果。WebKit 用 Playwright 的 WebKit 测过，不等于系统 Safari 内核的每个版本。
 - 本次改动没有重新打包，现有 v2.0.0 下载包里没有。
+
+## 2.1.0 打包（2026-11-03）
+用户：「发个新包」「如果已经下载的用户需要重新安装嘛？还是只用点更新就行了」
+- [x] 版本号改为 2.1.0：`package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、设置页 `APP_VERSION`。
+- [x] README「从 1.x 升级到 2.0」改为「升级到新版本」：软件里不能一键更新，「检查更新」打开下载页；下载新版直接覆盖安装，不用卸载，数据都还在；安装前先退出旧版；新版第一次打开系统可能还会拦一次。
+- [x] 发布说明去掉「其他文件是给自动更新用的」（软件没有自动更新），正文前加「本版更新」。
+**已验证**
+- 发版前：`tsc` 退出 0、`pnpm build`、`cargo check` 通过；桌面模拟回归 `desktop_mock.py` 全部通过（含「版本显示 2.1.0」）。上一提交 `36ea5f0` 的第 21 轮全量 1592 项 0 失败，本次只改版本号和文字。
+- 提交 `d8c9b6d`，标签 `v2.1.0`；Actions run 41589253625 的 Windows 和 Mac 两个任务都成功（约 16 分钟）。
+- Release https://github.com/xuan-88-505/jw3-memo/releases/tag/v2.1.0 标为 Latest，文件：`JW3-Memo_2.1.0_windows_x64-setup.exe`（9,412,273 字节）、`JW3-Memo_2.1.0_darwin_universal.dmg`（19,993,008 字节）、`JW3-Memo_2.1.0_darwin_universal.app.tar.gz`。两个安装包的下载地址返回 200，跳转到 `release-assets.githubusercontent.com`（之前国内 20 个节点 18 个可达）。
+**未验证**
+- 没有在 Windows / Mac 真机上安装 2.1.0，也没有实测从 2.0.0 覆盖安装。
+- 本次没有重新测国内下载速度，引用的是之前对同一下载域名的测试。
