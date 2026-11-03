@@ -672,6 +672,9 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--hidden"]),
         ))
+        // 一键更新：地址和公钥在 tauri.conf.json 的 plugins.updater；Mac 装完后用 process 插件重启
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(AppState(Mutex::new(Panel::default())))
         .manage(TrayMotion::default())
         .invoke_handler(tauri::generate_handler![

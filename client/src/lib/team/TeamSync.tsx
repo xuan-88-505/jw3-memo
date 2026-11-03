@@ -57,6 +57,7 @@ import {
   teamApi,
 } from "./api";
 import { emitStatus, onSyncRequest } from "./bus";
+import { registerSyncHooks } from "@/lib/update/hold";
 import {
   avatarToServer,
   collectEntities,
@@ -267,7 +268,12 @@ export function TeamSyncProvider({ children }: { children: ReactNode }) {
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisible);
     const timer = window.setInterval(() => void e.run("full"), PULL_EVERY);
+    const offHold = registerSyncHooks({
+      pause: e.pauseForUpdate,
+      resume: e.resumeAfterUpdate,
+    });
     return () => {
+      offHold();
       void offSync.then(f => f());
       void offShown.then(f => f());
       window.removeEventListener("focus", onFocus);
@@ -339,6 +345,8 @@ function createEngine(d: EngineDeps) {
   let pushTimer = 0;
   let retryTimer = 0;
   let disposed = false;
+  /** 一键更新安装前暂停（见 pauseForUpdate） */
+  let paused = false;
   /** 上次广播给面板的离线状态；没变就不再发 */
   let offlineNow: boolean | null = null;
   /** 同一句错误 1 分钟内只提示一次 */
@@ -649,7 +657,7 @@ function createEngine(d: EngineDeps) {
     mode: "full" | "push",
     opts: { force?: boolean } = {}
   ): Promise<void> {
-    if (disposed || !d.account()) return Promise.resolve();
+    if (disposed || paused || !d.account()) return Promise.resolve();
     if (!opts.force && Date.now() < backoffUntil) return Promise.resolve();
     if (opts.force) backoffUntil = 0;
     if (running) {
@@ -661,7 +669,7 @@ function createEngine(d: EngineDeps) {
       while (m && !disposed) {
         queued = null;
         await cycle(m);
-        m = queued;
+        m = paused ? null : queued;
       }
     })().finally(() => {
       running = null;
@@ -688,6 +696,20 @@ function createEngine(d: EngineDeps) {
     window.clearTimeout(pushTimer);
     pushTimer = 0;
     void run("push");
+  }
+  /**
+   * 一键更新安装前：把等着的改动推上去，之后不再开始新的同步，
+   * 返回正在跑的那次同步（跑完它的结果照常存下）。见 lib/update/hold.ts
+   */
+  function pauseForUpdate(): Promise<void> {
+    flushPush();
+    paused = true;
+    return running ?? Promise.resolve();
+  }
+  function resumeAfterUpdate() {
+    if (!paused) return;
+    paused = false;
+    pullSoon();
   }
 
   function pullSoon() {
@@ -999,6 +1021,8 @@ function createEngine(d: EngineDeps) {
     start,
     pushSoon,
     flushPush,
+    pauseForUpdate,
+    resumeAfterUpdate,
     pullSoon,
     leaveLocal,
     dispose,

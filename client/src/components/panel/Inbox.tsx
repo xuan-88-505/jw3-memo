@@ -3,7 +3,13 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { ArrowLeft, Check, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowUp,
+  Check,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import { CharAvatar } from "@/components/brand/CharAvatar";
 import { PixelIcon } from "@/components/brand/PixelIcon";
 import { OfflineBar } from "@/components/common/overlay";
@@ -12,6 +18,8 @@ import { layersOf } from "@/data/seed";
 import type { Mode } from "@/data/types";
 import { diffVersions } from "@/lib/diff";
 import { absoluteTime, relativeTime } from "@/lib/format";
+import { useUpdateNotice } from "@/lib/update/notice";
+import { DESKTOP_VERSION } from "@/lib/version";
 import {
   inboxItems,
   isOnline,
@@ -24,21 +32,25 @@ import { cn } from "@/lib/utils";
 import { ChangeList } from "./PanelContent";
 import { tx, txn } from "@/lib/i18n";
 
-/** 面板的二级页：列出所有"有更新"的方案 */
+/** 面板的二级页：软件有新版本时第一行是它，下面列出所有"有更新"的方案 */
 export function Inbox({
   onBack,
   onOpenItem,
+  onOpenUpdate,
   onHeaderPointerDown,
   dragging,
 }: {
   onBack: () => void;
   onOpenItem: (charId: string, schemeId: string, xinfa: string) => void;
+  /** 点了新版本那一行的「更新」：打开管理窗口的设置页和更新弹窗 */
+  onOpenUpdate: () => void;
   onHeaderPointerDown?: (e: ReactPointerEvent) => void;
   dragging?: boolean;
 }) {
   const { state, actions } = useProto();
   const items = inboxItems(state);
   const online = isOnline(state);
+  const newVersion = useUpdateNotice();
 
   const markAll = () => {
     const n = actions.markAllSynced();
@@ -83,13 +95,16 @@ export function Inbox({
       </header>
       <OfflineBar compact />
       <div className="scroll-thin min-h-0 flex-1 animate-fade overflow-y-auto">
-        {items.length === 0 ? (
+        {items.length === 0 && !newVersion ? (
           <div className="empty-state flex h-full flex-col items-center justify-center gap-3 pb-6 text-paper-3">
             <PixelIcon name="bell" className="pixel-hop" />
             <p className="text-[13px]">{tx("没有新通知")}</p>
           </div>
         ) : (
           <ul className="divide-y divide-paper/[0.07]">
+            {newVersion && (
+              <UpdateRow version={newVersion} onOpen={onOpenUpdate} />
+            )}
             {items.map(it => (
               <InboxRow
                 key={it.key}
@@ -102,6 +117,39 @@ export function Inbox({
         )}
       </div>
     </>
+  );
+}
+
+/** 软件的新版本：和方案通知同样的行，左边金色箭头代替角色头像 */
+function UpdateRow({
+  version,
+  onOpen,
+}: {
+  version: string;
+  onOpen: () => void;
+}) {
+  return (
+    <li className="px-3.5 py-3">
+      <div className="flex items-center gap-2.5">
+        <span
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-gold/[0.12] text-gold"
+          aria-hidden="true"
+        >
+          <ArrowUp className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13.5px] font-medium text-paper">
+            {tx("新版本 {0}", version)}
+          </p>
+          <p className="mt-0.5 truncate text-[11.5px] text-paper-3">
+            {tx("现在是 {0}", DESKTOP_VERSION)}
+          </p>
+        </div>
+        <Btn variant="secondary" size="xs" onClick={onOpen}>
+          {tx("更新")}
+        </Btn>
+      </div>
+    </li>
   );
 }
 

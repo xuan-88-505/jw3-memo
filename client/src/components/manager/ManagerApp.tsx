@@ -7,6 +7,7 @@ import { IS_DESKTOP } from "@/lib/desktop";
 import { useSeasonSync } from "@/lib/calcEngine";
 import { ROLE_LABEL, relativeTime } from "@/lib/format";
 import { useTeam } from "@/lib/team/TeamSync";
+import { useAppUpdate } from "@/lib/update/appUpdate";
 import { me, navOrder, useProto, type NavSection } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { ChangelogView } from "./ChangelogView";
@@ -47,6 +48,8 @@ export function ManagerApp() {
   const self = me(state);
   const [profileOpen, setProfileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(readSidebarCollapsed);
+  // 桌面版查到新版本时，侧栏「设置」后面出现金色小点（网页原型里一直没有）
+  const updateReady = !!useAppUpdate().available;
   // 配装页、配装列表、我的角色显示的装分和配装器里一致：没按当季算过的配装先换成当季
   useSeasonSync(state.loadouts, actions.syncLoadoutSeason);
 
@@ -116,7 +119,13 @@ export function ManagerApp() {
               aria-current={
                 state.managerSection === "settings" ? "page" : undefined
               }
-              title={collapsed ? tx("设置") : undefined}
+              title={
+                collapsed
+                  ? updateReady
+                    ? tx("设置 · 有新版本")
+                    : tx("设置")
+                  : undefined
+              }
               className={cn(
                 "relative flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-[13.5px] transition-colors",
                 state.managerSection === "settings"
@@ -143,6 +152,20 @@ export function ManagerApp() {
               >
                 {tx("设置")}
               </span>
+              {updateReady && (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "shrink-0 rounded-full bg-gold",
+                      collapsed
+                        ? "absolute left-[22px] top-[8px] h-2 w-2 ring-2 ring-ink"
+                        : "h-1.5 w-1.5"
+                    )}
+                  />
+                  <span className="sr-only">{tx("有新版本")}</span>
+                </>
+              )}
             </button>
           </div>
           <div className="border-t border-paper/[0.07] p-2">

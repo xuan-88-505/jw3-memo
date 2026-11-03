@@ -27,6 +27,7 @@ import {
   type ManagerIntent,
 } from "@/state/store";
 import { schemeName } from "@/lib/schemeSets";
+import { useUpdateNotice } from "@/lib/update/notice";
 import { cn } from "@/lib/utils";
 import { Inbox } from "./Inbox";
 import { NotePad } from "./NotePad";
@@ -186,6 +187,8 @@ function PanelMain({
   const focusScheme = (ready.find(x => isPending(x.status)) ?? ready[0])
     ?.scheme;
   const inboxCount = inboxItems(state).length;
+  // 软件有新版本（管理窗口查到的）：没有方案更新时，铃铛上显示金色小点
+  const newVersion = useUpdateNotice();
   // 面板任何时候都能拖，不需要先置顶
   const draggable = !!onHeaderPointerDown;
 
@@ -219,6 +222,7 @@ function PanelMain({
           if (tab === "note") setTab("macro");
           setView("main");
         }}
+        onOpenUpdate={() => openManager("settings", undefined, "app-update")}
         onHeaderPointerDown={onHeaderPointerDown}
         dragging={draggable}
       />
@@ -245,17 +249,26 @@ function PanelMain({
         >
           <IconBtn
             label={
-              inboxCount ? tx("通知，{0} 条有更新", inboxCount) : tx("通知")
+              inboxCount
+                ? tx("通知，{0} 条有更新", inboxCount)
+                : newVersion
+                  ? tx("通知，有新版本")
+                  : tx("通知")
             }
             onClick={() => setView("inbox")}
           >
             <span className="relative">
               <Bell className="h-4 w-4" />
-              {inboxCount > 0 && (
+              {inboxCount > 0 ? (
                 <span className="absolute -right-[7px] -top-[6px] grid h-[14px] min-w-[14px] place-items-center rounded-full bg-cinnabar-fill px-[3px] text-[9.5px] font-semibold leading-none text-[#FFF7F0] ring-2 ring-ink-2">
                   {inboxCount}
                 </span>
-              )}
+              ) : newVersion ? (
+                <span
+                  className="absolute -right-[3px] -top-[2px] h-2 w-2 rounded-full bg-gold ring-2 ring-ink-2"
+                  aria-hidden="true"
+                />
+              ) : null}
             </span>
           </IconBtn>
           {showPin && (

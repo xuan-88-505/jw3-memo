@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { ManagerApp } from "@/components/manager/ManagerApp";
 import type { ManagerSection } from "@/data/types";
-import { onOpenManager, syncAutostart } from "@/lib/desktop";
+import { onOpenManager, openManager, syncAutostart } from "@/lib/desktop";
 import { TeamSyncProvider } from "@/lib/team/TeamSync";
+import { startUpdateWatcher } from "@/lib/update/appUpdate";
+import { DESKTOP_VERSION } from "@/lib/version";
 import { useProto, type ManagerIntent } from "@/state/store";
 import { tx, useLang } from "@/lib/i18n";
 
@@ -32,6 +34,26 @@ export default function DesktopManager() {
       actions.toast("manager", "error", tx("开机自启没有设置成功"));
     });
   }, [state.launchAtLogin, actions]);
+
+  // 一键更新：启动 8 秒后检查一次，之后每 6 小时一次；上次点了更新就告诉用户结果
+  useEffect(
+    () =>
+      startUpdateWatcher(r => {
+        if (r.result === "done") {
+          // 开机自启时窗口是隐藏的：打开管理窗口，停在设置页
+          actions.openManager("settings");
+          void openManager({ section: "settings" });
+          actions.toast("manager", "success", tx("已更新到 {0}", r.to));
+        } else {
+          actions.toast(
+            "manager",
+            "error",
+            tx("没有更新到 {0}，现在还是 {1}", r.to, DESKTOP_VERSION)
+          );
+        }
+      }),
+    [actions]
+  );
 
   const lang = useLang();
   return (

@@ -348,3 +348,17 @@
   - WebKit 缺陷 240961「position: relative doesn't work as expected on table row」，2022-05-26 报告，2026-04-11 以 310995@main 修复（RESOLVED FIXED）。评论称这个问题存在约 23 年。来源：https://bugs.webkit.org/show_bug.cgi?id=240961
   - 文章（2024-06-11）实测 Safari 16.6 上 `tr { position: relative }` 无效，tr 里绝对定位的伪元素会铺满整个视口；变通做法 `transform: translate(0)` + `clip-path: inset(0)` 有副作用。来源：https://mtsknn.fi/blog/relative-tr-in-safari/
   - 结论：macOS 版用系统 WKWebView，老系统的 Safari 内核没有这个修复。整行悬停底色不能用 tr 定位的伪元素，改为画在单元格上、首末格用 box-shadow 往外伸。Playwright 自带的 WebKit 27.2 已含修复，测不出老内核的问题。
+
+- Tauri v2 更新插件（2026-11-03 14:53 UTC+8 查证，来源 https://v2.tauri.app/plugin/updater/ ，页面更新于 2025-11-28）：
+  - 插件要求 Rust 至少 1.90。npm 包 `@tauri-apps/plugin-updater`，crate `tauri-plugin-updater`；重启用 `@tauri-apps/plugin-process` 的 `relaunch()`。
+  - 签名不能关。`tauri signer generate -w <路径>` 生成密钥对；公钥写进 `tauri.conf.json` 的 `plugins.updater.pubkey`（不能写文件路径）；私钥放环境变量 `TAURI_SIGNING_PRIVATE_KEY`（路径或内容），密码放 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。`.env` 文件不行。私钥丢了，已安装的用户就再也收不到更新。
+  - `bundle.createUpdaterArtifacts: true` 时：macOS 生成 `.app.tar.gz` 和 `.app.tar.gz.sig`；Windows 直接复用 NSIS `-setup.exe`，另生成 `-setup.exe.sig`。
+  - `plugins.updater.endpoints` 是数组，可用 `{{current_version}}`、`{{target}}`（linux / windows / darwin）、`{{arch}}`（x86_64 / i686 / aarch64 / armv7）。原文：「Tauri will only continue to the next url if a non-2XX status code is returned!」所以第一个地址返回 204（没有更新）时不会再问第二个地址。
+  - 动态服务器：没有更新返回 204；有更新返回 200 和 JSON `{version, pub_date, url, signature, notes}`，必填 `url`、`version`、`signature`（`.sig` 文件的内容，不能是路径或 URL）。客户端默认还会检查 `version > 当前版本`。
+  - 静态 JSON（tauri-action 生成的 `latest.json`）：`platforms` 的键是 `OS-ARCH`，整份文件会先全部校验再比版本。
+  - Windows `plugins.updater.windows.installMode`：`passive`（默认，推荐）显示一个带进度条的小窗口，不需要用户操作；`basicUi` 需要用户点；`quiet` 没有反馈，只适合用户级安装。Windows 安装那一步会自动退出应用（Windows 安装程序的限制）；Rust 端可以用 `on_before_exit` 在退出前做事。
+  - JS：`check()` 返回 `Update | null`；`update.downloadAndInstall(onEvent)` 的事件是 `Started`（`contentLength`）、`Progress`（`chunkLength`）、`Finished`。`check({ timeout, proxy, headers, target })` 可传参数。
+  - 权限：`updater:default` 包含 `allow-check`、`allow-download`、`allow-install`、`allow-download-and-install`。
+  - 源码核对（tauri-plugin-updater 2.14.1，`src/updater.rs`、`src/config.rs`）：`check()` 依次请求各个地址，返回 204 就直接当作没有更新；网络错误或非 2xx 就试下一个地址。Mac 安装时去掉压缩包路径的第一层（期望 `[AppName].app/` 在最外层），解到同一磁盘的临时目录，再和当前 `.app` 交换；没有权限时改走需要管理员授权的安装。Windows 用 ShellExecute 运行 NSIS 安装程序，参数是 `/P /UPDATE`；`restart_after_install` 默认 true，会再加 `/R /ARGS`，然后 `std::process::exit(0)`。
+  - Tauri CLI 2.12.4 内置的 NSIS 模板：`.onInstSuccess` 在 passive/silent 模式下见到 `/R` 就用 `RunAsUser` 重新打开软件；`/UPDATE` 模式不卸载旧版直接覆盖。
+  - 2.1.0 Release 里 tauri-action 生成的 `JW3-Memo_2.1.0_darwin_universal.app.tar.gz`（19,839,978 字节）最外层是 `JW3 Memo.app/`，结构和插件期望的一致。

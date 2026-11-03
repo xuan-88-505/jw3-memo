@@ -1,5 +1,12 @@
 import { clampSize, type PanelSize } from "@/lib/panelSize";
 import {
+  installPanelHoldListener,
+  isDataHold,
+  notifyHoldBlocked,
+  onHoldBlocked,
+  registerStrictFlush,
+} from "@/lib/update/hold";
+import {
   createContext,
   useCallback,
   useContext,
@@ -238,6 +245,8 @@ export interface NewLoadoutInput {
  */
 export type ManagerIntent =
   | "add-character"
+  /** 面板通知里点了「更新」：设置页打开一键更新弹窗 */
+  | "app-update"
   | { newScheme: { xinfa: string; mode: Mode } }
   | { newLoadout: NewLoadoutInput };
 
@@ -2145,8 +2154,36 @@ export function ProtoProvider({
   });
   const stateRef = useRef(state);
   stateRef.current = state;
-  const actions = useActions(dispatch, stateRef);
+  /**
+   * 一键更新安装前锁定数据（见 lib/update/hold.ts）：这时会改到 data.json 的操作不生效，
+   * 免得改了却没写进文件、更新后丢了。只改界面的操作（切页面、提示）照常。
+   * 读文件得到的内容走 useDesktopData 里原来的 dispatch，不受影响
+   */
+  const gated = useCallback<React.Dispatch<Action>>(a => {
+    if (isDataHold()) {
+      const cur = stateRef.current;
+      const next = reducer(cur, a);
+      if (PERSIST_KEYS.some(k => next[k] !== cur[k])) {
+        notifyHoldBlocked();
+        return;
+      }
+    }
+    dispatch(a);
+  }, []);
+  const actions = useActions(gated, stateRef);
   const ready = useDesktopData(state, stateRef, dispatch, actions);
+  useEffect(() => {
+    let last = 0;
+    return onHoldBlocked(() => {
+      if (Date.now() - last < 3000) return;
+      last = Date.now();
+      actions.toast(
+        WINDOW_LABEL === "panel" ? "panel" : "manager",
+        "info",
+        tx("正在安装更新，这次的改动没有保存")
+      );
+    });
+  }, [actions]);
   // 便签存到本地，刷新后还在
   useEffect(() => {
     try {
@@ -2245,7 +2282,9 @@ function useDesktopData(
     ) as Partial<ProtoState>;
     lastJson.current = raw;
     dispatch({ type: "patch", patch: merged });
-    return serializeData({ ...stateRef.current, ...merged });
+    // React 下一次渲染才更新 stateRef。先写进去，紧接着的写盘和检查才用得上合并结果
+    stateRef.current = { ...stateRef.current, ...merged };
+    return serializeData(stateRef.current);
   };
 
   useEffect(() => {
@@ -2268,6 +2307,9 @@ function useDesktopData(
           else {
             lastJson.current = raw;
             dispatch({ type: "patch", patch: data });
+            // 和 mergeFrom 一样先写进 stateRef：React 下一次渲染前就有写盘（比如一键更新前的写盘）时，
+            // 不能拿旧数据配上新的 lastJson，把另一个窗口刚写进文件的内容盖掉
+            stateRef.current = { ...stateRef.current, ...data };
           }
         } else if (first) {
           // 没有文件（第一次打开）或文件读不出来：从空数据开始，没改动就不写
@@ -2304,12 +2346,14 @@ function useDesktopData(
       if (document.visibilityState === "visible") refresh();
     };
     void pull();
+    const offHold = installPanelHoldListener();
     const off = onDataChanged(() => void pull());
     const offShown = WINDOW_LABEL === "panel" ? onPanelShown(refresh) : null;
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
+      offHold();
       void off.then(f => f());
       void offShown?.then(f => f());
       window.removeEventListener("focus", refresh);
@@ -2319,42 +2363,76 @@ function useDesktopData(
   }, [dispatch]);
 
   const persisted = PERSIST_KEYS.map(k => state[k]);
-  useEffect(() => {
-    if (!IS_DESKTOP || !ready) return;
-    const t = window.setTimeout(async () => {
-      // 写之前读一次文件：另一个窗口刚写过、通知还没到时先合并，不用旧数据盖掉。
-      // 写入时带上读到的内容，两个窗口同时写时后到的那个会收到冲突，重新读、合并再写
-      for (let attempt = 0; attempt < 4; attempt++) {
+  /** 同一时间只跑一次写盘：防抖写盘和更新前的写盘不会互相冲突 */
+  const lock = useRef<Promise<unknown>>(Promise.resolve());
+  const withLock = <T,>(fn: () => Promise<T>): Promise<T> => {
+    const p = lock.current.then(fn, fn);
+    lock.current = p.catch(() => undefined);
+    return p;
+  };
+  /**
+   * 把还没写进文件的改动写进 data.json。写好了或本来就没有改动返回 true，写失败返回 false。
+   * 写之前读一次文件：另一个窗口刚写过、通知还没到时先合并，不用旧数据盖掉。
+   * 写入时带上读到的内容，两个窗口同时写时后到的那个会收到冲突，重新读、合并再写。
+   *
+   * strict（一键更新前用）：写完再看一眼，写的时候又有新改动就接着写，直到没有为止；
+   * 读不到文件时不写（不带比较的写入可能盖掉另一个窗口刚写的内容），返回 false；失败不弹提示，
+   * 由更新弹窗说明
+   */
+  const persistNow = (strict = false): Promise<boolean> =>
+    withLock(async () => {
+      const tries = strict ? 8 : 4;
+      for (let attempt = 0; attempt < tries; attempt++) {
         let json = serializeData(stateRef.current);
-        if (json === lastJson.current) return;
+        if (json === lastJson.current) return true;
         let raw: string | null | undefined;
         try {
           raw = await loadData();
         } catch {
+          if (strict) return false;
           raw = undefined; // 读不了就不比较，照常写
         }
         const theirs = raw && raw !== lastJson.current ? parseData(raw) : null;
         if (raw && theirs) {
           json = mergeFrom(raw, theirs);
-          if (json === raw) return;
+          if (json === raw) {
+            if (strict) continue;
+            return true;
+          }
         }
-        if (json === lastJson.current) return;
+        if (json === lastJson.current) {
+          if (strict) continue;
+          return true;
+        }
         try {
           await saveData(json, raw === undefined ? undefined : (raw ?? ""));
           lastJson.current = json;
-          return;
+          if (strict) continue;
+          return true;
         } catch (err) {
-          if (isSaveConflict(err) && attempt < 3) continue;
+          if (isSaveConflict(err) && attempt < tries - 1) continue;
           console.error("保存数据失败", err);
-          actions.toast(
-            WINDOW_LABEL === "panel" ? "panel" : "manager",
-            "error",
-            tx("保存失败，这次的改动没有写进文件")
-          );
-          return;
+          if (!strict)
+            actions.toast(
+              WINDOW_LABEL === "panel" ? "panel" : "manager",
+              "error",
+              tx("保存失败，这次的改动没有写进文件")
+            );
+          return false;
         }
       }
-    }, 300);
+      return false;
+    });
+  // 一键更新前的写盘。数据还没读进来时这个窗口不会有改动，也不能写（会用空数据盖掉文件）
+  const strictRef = useRef<() => Promise<boolean>>(() => Promise.resolve(true));
+  strictRef.current = () => (ready ? persistNow(true) : Promise.resolve(true));
+  useEffect(() => {
+    if (!IS_DESKTOP) return;
+    return registerStrictFlush(() => strictRef.current());
+  }, []);
+  useEffect(() => {
+    if (!IS_DESKTOP || !ready) return;
+    const t = window.setTimeout(() => void persistNow(), 300);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, ...persisted]);

@@ -2,13 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, Loader2, Pencil, RotateCcw } from "lucide-react";
 import { Crown } from "@/components/brand/Crown";
 import { Btn, Segmented } from "@/components/common/ui";
-import {
-  IS_DESKTOP,
-  RELEASES_URL,
-  exportFile,
-  openExternal,
-  resetPanelPosition,
-} from "@/lib/desktop";
+import { IS_DESKTOP, exportFile, resetPanelPosition } from "@/lib/desktop";
 import {
   DEFAULT_HOTKEYS,
   checkHotkey,
@@ -37,10 +31,11 @@ import { LoginPasswordDialog, NicknameDialog } from "./AccountDialogs";
 import { openTeamLogin } from "./TeamSetup";
 import { SectionHeader, SelectBox, inputCls } from "./shared";
 import { FeedbackDialog } from "./FeedbackDialog";
+import { useUpdateRow } from "./UpdateDialog";
+import { APP_VERSION } from "@/lib/version";
 import { ME_ID } from "@/data/seed";
 import { LANGS, setLang, tx, useLang, type Lang } from "@/lib/i18n";
 
-const APP_VERSION = IS_DESKTOP ? "2.1.0" : "v0.1.0";
 
 const MOTION_DESC: Record<TrayMotion, string> = {
   hover: "鼠标移上去时动；有新的更新时动 3 秒",
@@ -57,12 +52,10 @@ export function SettingsView() {
   const offline = state.dataState === "offline";
   const [checking, setChecking] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  // 桌面版：一键更新（检查、下载、安装、重启），见 UpdateDialog.tsx
+  const update = useUpdateRow();
+  // 网页原型：模拟检查，不联网
   const checkUpdate = () => {
-    // 桌面版：打开发布页，看有没有新的安装包
-    if (IS_DESKTOP) {
-      void openExternal(RELEASES_URL);
-      return;
-    }
     setChecking(true);
     window.setTimeout(() => {
       setChecking(false);
@@ -166,34 +159,30 @@ export function SettingsView() {
               {tx("恢复默认")}
             </Btn>
           </SettingRow>
-          <SettingRow
-            title={tx("版本")}
-            desc={
-              <span>
-                {IS_DESKTOP ? APP_VERSION : tx("{0} · 交互原型", APP_VERSION)}
-              </span>
-            }
-          >
-            <Btn
-              size="sm"
-              onClick={checkUpdate}
-              disabled={checking || (!IS_DESKTOP && offline)}
-              title={
-                IS_DESKTOP
-                  ? tx("打开发布页")
-                  : offline
-                    ? tx("离线时不能检查更新")
-                    : undefined
-              }
-              icon={
-                checking ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : undefined
-              }
+          {IS_DESKTOP ? (
+            <SettingRow title={tx("版本")} desc={update.desc}>
+              {update.action}
+            </SettingRow>
+          ) : (
+            <SettingRow
+              title={tx("版本")}
+              desc={<span>{tx("{0} · 交互原型", APP_VERSION)}</span>}
             >
-              {checking ? tx("正在检查") : tx("检查更新")}
-            </Btn>
-          </SettingRow>
+              <Btn
+                size="sm"
+                onClick={checkUpdate}
+                disabled={checking || offline}
+                title={offline ? tx("离线时不能检查更新") : undefined}
+                icon={
+                  checking ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : undefined
+                }
+              >
+                {checking ? tx("正在检查") : tx("检查更新")}
+              </Btn>
+            </SettingRow>
+          )}
           <SettingRow
             title={tx("意见反馈")}
             desc={tx("问题和建议直接发给作者")}
@@ -211,6 +200,7 @@ export function SettingsView() {
         )}
         <AuthorRow />
       </div>
+      {IS_DESKTOP && update.dialog}
       <FeedbackDialog
         open={feedbackOpen}
         onClose={() => setFeedbackOpen(false)}
