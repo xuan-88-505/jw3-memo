@@ -40,7 +40,7 @@ import { FeedbackDialog } from "./FeedbackDialog";
 import { ME_ID } from "@/data/seed";
 import { LANGS, setLang, tx, useLang, type Lang } from "@/lib/i18n";
 
-const APP_VERSION = IS_DESKTOP ? "2.0.0" : "v0.1.0";
+const APP_VERSION = IS_DESKTOP ? "2.1.0" : "v0.1.0";
 
 const MOTION_DESC: Record<TrayMotion, string> = {
   hover: "鼠标移上去时动；有新的更新时动 3 秒",

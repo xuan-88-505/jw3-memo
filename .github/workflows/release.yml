@@ -62,7 +62,7 @@ jobs:
             | Windows 10 / 11 | `JW3-Memo_*_windows_x64-setup.exe` |
             | Mac（M 芯片和 Intel 芯片都可以） | `JW3-Memo_*_darwin_universal.dmg` |
 
-            其他文件是给自动更新用的，不用下载。
+            其他文件不用下载。
 
             ## 第一次打开
 
