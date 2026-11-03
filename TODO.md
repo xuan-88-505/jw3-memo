@@ -1054,3 +1054,21 @@
 - 没有在 Windows 和 Mac 真机上跑过一键更新（下载、安装、重启、数据保留）。要等下一个带签名的版本发布后，用 2.2.0 → 更高版本实测。
 - 现有 2.1.0 及更早版本没有一键更新，用户要再手动装一次带一键更新的版本。
 - 下次打包前要先发布网站，让 `/api/update` 上线；签名脚本会检查，没上线就不上传。国内通过我们服务器下载更新包的速度没测。
+
+## 2.2.0 打包和上线一键更新（2026-11-03）
+用户：「发吧，打个 2.2.0」
+- [x] 发布服务端检查点 `e0a1112`，`/api/update/...` 上线。
+- [x] 版本号改为 2.2.0：`package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`。README 写明从 2.2.0 开始带一键更新，2.1.0 和更早的版本要手动装一次。
+- [x] 打包流程的发布说明加「从旧版升级」；Release 正文前加「本版更新」。
+- [x] 用 `tools/release/publish-update.mjs` 给两个安装包签名，上传 `latest.json` 和两个 `.sig`。
+**已验证**
+- 发版前：`pnpm check`、`pnpm test` 117/117、`pnpm build`、`cargo check` 都退出 0；`update_test.py` 53/53（版本预期改为当前 2.2.0、新版本 2.3.0）；`desktop_mock.py` 50/50。
+- 提交 `e1fc6ee`，标签 `v2.2.0`；Actions run 41639238308 的 Windows 和 Mac 两个任务都成功（约 20 分钟）。
+- Release https://github.com/xuan-88-505/jw3-memo/releases/tag/v2.2.0 不是草稿：`JW3-Memo_2.2.0_windows_x64-setup.exe`（10,101,535 字节）、`JW3-Memo_2.2.0_darwin_universal.dmg`（21,594,934 字节）、`JW3-Memo_2.2.0_darwin_universal.app.tar.gz`（21,427,621 字节）、两个 `.sig`、`latest.json`。
+- 签名脚本：两个包签名后用公钥验证通过；上传前确认服务端接口返回 JSON（503）。
+- 线上（2026-11-03 21:13 UTC+8）：`/api/update/windows/x86_64/2.1.0`、`darwin/aarch64/2.1.0`、`darwin/x86_64/2.1.0` 返回 200 和 2.2.0；`windows/x86_64/2.2.0` 返回 204；下载地址分段请求返回 206，文件头 `MZ`；线上签名和本地 `.sig` 一致。
+- 中国大陆 30 个节点（Globalping，`/tmp/cnnet/gp5.py`）：检查更新 29/30 返回 200 和 2.2.0；安装包地址 HEAD 29/30 返回 200，大小 10,101,535 字节。失败的是同一个节点：福州电信骨干网，两次都是 `read ECONNRESET`。中位用时 1.3 秒左右。
+**未验证**
+- 没有在 Windows / Mac 真机上安装 2.2.0，也没有实测从 2.1.0 手动覆盖安装。
+- 真正的一键更新要等下一个版本（2.3.0 或以后）才能在真机上走一遍；现在只在浏览器模拟和签名验证里测过。
+- Globalping 只读前一段内容，没有测出国内完整下载速度。

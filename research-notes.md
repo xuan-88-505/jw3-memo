@@ -362,3 +362,5 @@
   - 源码核对（tauri-plugin-updater 2.14.1，`src/updater.rs`、`src/config.rs`）：`check()` 依次请求各个地址，返回 204 就直接当作没有更新；网络错误或非 2xx 就试下一个地址。Mac 安装时去掉压缩包路径的第一层（期望 `[AppName].app/` 在最外层），解到同一磁盘的临时目录，再和当前 `.app` 交换；没有权限时改走需要管理员授权的安装。Windows 用 ShellExecute 运行 NSIS 安装程序，参数是 `/P /UPDATE`；`restart_after_install` 默认 true，会再加 `/R /ARGS`，然后 `std::process::exit(0)`。
   - Tauri CLI 2.12.4 内置的 NSIS 模板：`.onInstSuccess` 在 passive/silent 模式下见到 `/R` 就用 `RunAsUser` 重新打开软件；`/UPDATE` 模式不卸载旧版直接覆盖。
   - 2.1.0 Release 里 tauri-action 生成的 `JW3-Memo_2.1.0_darwin_universal.app.tar.gz`（19,839,978 字节）最外层是 `JW3 Memo.app/`，结构和插件期望的一致。
+
+- 2.2.0 一键更新国内实测（2026-11-03 21:14 UTC+8，Globalping 中国大陆 30 个节点，脚本 `/tmp/cnnet/gp5.py`）：`GET /api/update/windows/x86_64/2.1.0` 29/30 返回 200 和 2.2.0；`HEAD /api/update/file/v2.2.0/JW3-Memo_2.2.0_windows_x64-setup.exe` 29/30 返回 200，大小 10,101,535 字节。失败的都是福州电信骨干网节点（`read ECONNRESET`）。只读前一段内容，没有测完整下载速度。
