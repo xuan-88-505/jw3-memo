@@ -1130,3 +1130,14 @@
 - 第 25 轮全量检查：`pnpm check`、`pnpm test`、`pnpm build`、`cargo test` 都通过。29 个浏览器回归里 26 个一次通过；`hier_test`、`char_test` 写死了旧名字「心法 · PVE」，`panel_add_test` 写死了宏行层级，改成新规则后单独重跑 34/34、45/45、42/42。合计 1700 项通过。
 **未验证**
 - 没有在 Windows / Mac 真机上试。这次改动没有打包，现有 2.2.0 安装包里没有。
+
+## Mac 管理窗口标题栏不写「备忘录」（2026-11-04）
+用户：「mac时候可以去掉这个吗」（框出 Mac 标题栏中间的「备忘录」）
+- [x] Mac 桌面版管理窗口标题栏只留红绿灯，不显示「备忘录」；窗口名仍在，「窗口」菜单、调度中心、读屏可用。
+- [x] 网页原型的 Mac 窗口同样去掉标题文字。
+- [x] Windows 标题栏不变。
+**已验证**
+- `npx tsc --noEmit -p .` 退出 0；`cargo fmt --check`、`cargo check` 通过（Mac 专用的 `hidden_title` 在 Linux 上不编译，已对照 tauri 2.12.5 源码确认接口）。
+- 新浏览器测试 `mac_title_test.py` 4/4：Mac 标题栏没有文字、只有红绿灯，窗口名仍是「备忘录」；Windows 仍写「备忘录」。`desktop_mock.py`、`lang_test.py`、`lang_team.py`、`native/smoke.py` 全部通过。
+**未验证**
+- 没有在 Mac 真机上看。这次改动没有打包，现有 2.2.0 安装包里没有。

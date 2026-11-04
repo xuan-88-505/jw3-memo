@@ -522,14 +522,17 @@ fn set_ui_texts(app: AppHandle, title: String, open: String, quit: String) -> Re
 // ---------- 启动 ----------
 
 fn create_windows(app: &tauri::App) -> tauri::Result<()> {
-    WebviewWindowBuilder::new(app, MANAGER, WebviewUrl::App("index.html".into()))
+    let manager = WebviewWindowBuilder::new(app, MANAGER, WebviewUrl::App("index.html".into()))
         .title("备忘录")
         .inner_size(1180.0, 760.0)
         .min_inner_size(960.0, 640.0)
         .center()
         .visible(false)
-        .theme(Some(Theme::Dark))
-        .build()?;
+        .theme(Some(Theme::Dark));
+    // Mac 标题栏只留红绿灯，不写「备忘录」。窗口名还在：「窗口」菜单、调度中心、读屏都用它
+    #[cfg(target_os = "macos")]
+    let manager = manager.hidden_title(true);
+    manager.build()?;
 
     // 用户调过大小时按记下的大小打开
     let (pw, ph) = panel_state(app.handle()).size.unwrap_or((PANEL_W, PANEL_H));

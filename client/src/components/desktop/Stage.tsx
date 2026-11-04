@@ -54,7 +54,7 @@ export function Stage({ children }: { children: ReactNode }) {
   );
 }
 
-/** 管理窗口的外框：Windows 标题栏按钮 / Mac 红绿灯 */
+/** 管理窗口的外框：Windows 标题栏按钮 / Mac 红绿灯。Mac 标题栏不写标题，和桌面版 hidden_title 一致 */
 export function WindowFrame({
   platform,
   title,
@@ -83,7 +83,7 @@ export function WindowFrame({
       style={style}
     >
       {mac ? (
-        <div className="relative flex h-[30px] shrink-0 items-center border-b border-black/40 bg-ink px-3">
+        <div className="flex h-[30px] shrink-0 items-center border-b border-black/40 bg-ink px-3">
           <div className="group flex items-center gap-2">
             <button
               type="button"
@@ -107,9 +107,6 @@ export function WindowFrame({
               aria-hidden="true"
             />
           </div>
-          <span className="pointer-events-none absolute inset-x-0 text-center text-[12.5px] font-medium text-paper-2">
-            {title}
-          </span>
         </div>
       ) : (
         <div className="flex h-8 shrink-0 items-center border-b border-black/40 bg-ink pl-3">
