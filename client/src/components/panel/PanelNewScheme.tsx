@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Btn } from "@/components/common/ui";
 import { IconPickerButton } from "@/components/common/IconPicker";
-import { XinfaPairSelect } from "@/components/manager/SchoolPicker";
+import { XinfaMenu } from "@/components/manager/SchoolPicker";
 import { TalentPicker } from "@/components/manager/TalentPicker";
 import {
   TalentScanButton,
@@ -23,8 +23,8 @@ import { PanelForm } from "./PanelForm";
  * 宏页签：填一个宏（图标、名称、说明、内容）。给了 target（宏列表最后的「新建宏」）时
  * 作为一段加到这个方案的最新版本后面，存成新版本；否则给心法新建一个 PVE 方案，存成 v1。
  * 奇穴页签：选奇穴，新建一个 PVE 方案，存成 v1。
- * 新建方案（choose）时顶部先选门派、再选心法，任何门派和流派都能选；
- * 同一个心法已经有方案也能再建一个。
+ * 新建方案（choose）时顶部只有一个心法按钮，默认是面板正在看的心法，不改就直接填。
+ * 点开先选门派、再选心法，任何门派和流派都能选；同一个心法已经有方案也能再建一个。
  * 奇穴可以粘贴截图（Ctrl+V / ⌘V）自动选上；标题右边的「识别截图」读剪贴板里的图片。
  * 面板不打开选文件：选文件窗口会抢走焦点，面板一失焦就收起。
  * 保存后面板回到列表。Esc 或「取消」回到原来的样子。「取消 / 保存」固定在面板底部。
@@ -43,7 +43,7 @@ export function PanelNewScheme({
   kind: "macro" | "talent";
   /** 存到哪个心法；choose 时是默认选中的心法 */
   xinfa: string;
-  /** 新建方案：顶部显示门派、心法两个下拉，可以改心法 */
+  /** 新建方案：顶部显示一个心法按钮，可以改成任何门派的心法 */
   choose?: boolean;
   /** 面板里这个角色显示的心法；存到别的心法时提示去方案库看 */
   shown?: string[];
@@ -184,9 +184,7 @@ export function PanelNewScheme({
 
       {choose && (
         <div className="mb-4">
-          <XinfaPairSelect
-            id="panel-new-xinfa"
-            xinfaLabel={tx("心法")}
+          <XinfaMenu
             value={xinfa}
             onChange={x => {
               setXinfa(x);

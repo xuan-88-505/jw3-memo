@@ -1,5 +1,7 @@
 import { Check, ChevronDown, ChevronRight } from "lucide-react";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { XinfaMark } from "@/components/brand/Marks";
+import { Anchored } from "@/components/common/Anchored";
 import {
   LIUPAI_XINFA,
   SCHOOL_GROUPS,
@@ -426,7 +428,6 @@ export function XinfaPairSelect({
   id,
   disabledReason,
   autoFocus,
-  xinfaLabel,
 }: {
   value: string;
   onChange: (xinfa: string) => void;
@@ -435,8 +436,6 @@ export function XinfaPairSelect({
   /** 心法下拉的 id，给外面的 Field 用 */
   id: string;
   disabledReason?: (xinfa: string) => string | false;
-  /** 外面没有可见标签时（面板），心法下拉的读屏名 */
-  xinfaLabel?: string;
 }) {
   const school = schoolOf(value);
   const xs = schoolXinfa(school);
@@ -467,7 +466,6 @@ export function XinfaPairSelect({
       </SelectBox>
       <SelectBox
         id={id}
-        aria-label={xinfaLabel}
         value={value}
         disabled={xs.length < 2}
         onChange={e => onChange(e.target.value)}
@@ -483,6 +481,251 @@ export function XinfaPairSelect({
           );
         })}
       </SelectBox>
+    </div>
+  );
+}
+
+/**
+ * 一个按钮选到具体心法（面板新建用）。按钮显示心法图标和「门派 · 心法」。
+ * 点开是级联菜单：左边门派（流派在最后），右边这个门派的心法。
+ * 只有一个心法的门派，点门派就选好；两个心法的，点右边的心法。
+ * 菜单挂到 [data-layer-root]，不会被表单的滚动区裁掉；Esc 只关菜单。
+ */
+export function XinfaMenu({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (xinfa: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [width, setWidth] = useState(280);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
+  const school = schoolOf(value);
+  const toggle = () => {
+    if (open) return setOpen(false);
+    // 菜单和按钮一样宽；面板很窄时也至少 248px，两栏放得下
+    setWidth(Math.max(248, triggerRef.current?.offsetWidth ?? 280));
+    setOpen(true);
+  };
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={toggle}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        aria-label={`${tx("心法")}${colon()}${school} · ${value}`}
+        className={cn(
+          inputCls(),
+          "flex items-center gap-2 pl-1.5 pr-2 text-left",
+          open && "ring-paper/[0.18]"
+        )}
+      >
+        <XinfaMark xinfa={value} size={20} />
+        <span className="min-w-0 flex-1 truncate">
+          <span className="text-paper-3">{school} · </span>
+          {value}
+        </span>
+        <ChevronDown
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 text-paper-3 transition-transform",
+            open && "rotate-180"
+          )}
+          aria-hidden="true"
+        />
+      </button>
+      <Anchored
+        anchor={triggerRef}
+        open={open}
+        onClose={() => setOpen(false)}
+        width={width}
+        maxHeight={320}
+        label={tx("修改门派和心法")}
+      >
+        <XinfaMenuBody
+          id={menuId}
+          value={value}
+          onPick={x => {
+            setOpen(false);
+            onChange(x);
+            triggerRef.current?.focus();
+          }}
+        />
+      </Anchored>
+    </>
+  );
+}
+
+const ITEM_CLS =
+  "flex h-8 w-full shrink-0 items-center gap-2 rounded-md px-2 text-left text-[12.5px] outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-cinnabar-text/50";
+
+function XinfaMenuBody({
+  id,
+  value,
+  onPick,
+}: {
+  id: string;
+  value: string;
+  onPick: (xinfa: string) => void;
+}) {
+  const school = schoolOf(value);
+  const [active, setActive] = useState(school);
+  const leftRef = useRef<HTMLDivElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
+  const hoverTimer = useRef<number>(undefined);
+  const liupai = Array.from(new Set(LIUPAI_XINFA.map(schoolOf)));
+  // 菜单出现时把当前门派滚进来并聚焦，键盘可以直接上下选
+  useEffect(() => {
+    const cur = leftRef.current?.querySelector<HTMLElement>(
+      '[aria-checked="true"]'
+    );
+    cur?.scrollIntoView({ block: "nearest" });
+    cur?.focus({ preventScroll: true });
+    return () => window.clearTimeout(hoverTimer.current);
+  }, []);
+  // 鼠标在门派上停一下才换右边：斜着移到右边时划过别的门派，右边不会跟着变
+  const hoverSchool = (s: string | null) => {
+    window.clearTimeout(hoverTimer.current);
+    if (s) hoverTimer.current = window.setTimeout(() => setActive(s), 150);
+  };
+  const focusRight = () =>
+    requestAnimationFrame(() => {
+      const r = rightRef.current;
+      (
+        r?.querySelector<HTMLElement>('[aria-checked="true"]') ??
+        r?.querySelector<HTMLElement>('[role="radio"]')
+      )?.focus();
+    });
+  const pickSchool = (s: string) => {
+    const xs = schoolXinfa(s);
+    if (xs.length === 1) return onPick(xs[0]);
+    hoverSchool(null);
+    setActive(s);
+    focusRight();
+  };
+  const onLeftKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(
+      leftRef.current?.querySelectorAll<HTMLElement>('[role="radio"]') ?? []
+    );
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    const go = (n: number) => {
+      e.preventDefault();
+      items[(n + items.length) % items.length]?.focus();
+    };
+    if (e.key === "ArrowDown") go(i + 1);
+    else if (e.key === "ArrowUp") go(i - 1);
+    else if (e.key === "Home") go(0);
+    else if (e.key === "End") go(items.length - 1);
+    else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      focusRight();
+    }
+  };
+  const onRightKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(
+      rightRef.current?.querySelectorAll<HTMLElement>('[role="radio"]') ?? []
+    );
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const n = e.key === "ArrowDown" ? i + 1 : i - 1;
+      items[(n + items.length) % items.length]?.focus();
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      leftRef.current
+        ?.querySelector<HTMLElement>(`[data-school="${active}"]`)
+        ?.focus();
+    }
+  };
+  const schoolItem = (s: string) => {
+    const cur = s === school;
+    return (
+      <button
+        key={s}
+        type="button"
+        role="radio"
+        aria-checked={cur}
+        data-school={s}
+        tabIndex={cur ? 0 : -1}
+        onMouseEnter={() => hoverSchool(s)}
+        onMouseLeave={() => hoverSchool(null)}
+        onFocus={() => setActive(s)}
+        onClick={() => pickSchool(s)}
+        className={cn(
+          ITEM_CLS,
+          s === active
+            ? "bg-paper/[0.07] text-paper"
+            : "text-paper-2 hover:bg-paper/[0.04]"
+        )}
+      >
+        <Dot school={s} />
+        <span className={cn("min-w-0 flex-1 truncate", cur && "font-medium")}>
+          {s}
+        </span>
+        {schoolXinfa(s).length > 1 && (
+          <ChevronRight
+            className="h-3 w-3 shrink-0 text-paper-3"
+            aria-hidden="true"
+          />
+        )}
+      </button>
+    );
+  };
+
+  return (
+    <div id={id} className="flex min-h-0 flex-1">
+      <div
+        ref={leftRef}
+        role="radiogroup"
+        aria-label={tx("门派")}
+        onKeyDown={onLeftKey}
+        className="scroll-thin flex min-h-0 w-[46%] shrink-0 flex-col overflow-y-auto border-r border-paper/[0.07] p-1"
+      >
+        {SCHOOL_GROUPS.map(g => schoolItem(g.school))}
+        <div className="mx-2 mb-1 mt-2 truncate text-[11px] text-paper-3">
+          {tx("流派")}
+        </div>
+        {liupai.map(schoolItem)}
+      </div>
+      <div
+        ref={rightRef}
+        role="radiogroup"
+        aria-label={tx("{0}的心法", active)}
+        onKeyDown={onRightKey}
+        className="flex min-w-0 flex-1 flex-col p-1"
+      >
+        {schoolXinfa(active).map(x => {
+          const checked = x === value;
+          return (
+            <button
+              key={x}
+              type="button"
+              role="radio"
+              aria-checked={checked}
+              tabIndex={-1}
+              onClick={() => onPick(x)}
+              className={cn(
+                ITEM_CLS,
+                "pl-1.5 hover:bg-paper/[0.06]",
+                checked ? "font-medium text-paper" : "text-paper-2"
+              )}
+            >
+              <XinfaMark xinfa={x} size={18} />
+              <span className="min-w-0 flex-1 truncate">{x}</span>
+              {checked && (
+                <Check
+                  className="h-3.5 w-3.5 shrink-0 text-cinnabar-text"
+                  aria-hidden="true"
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

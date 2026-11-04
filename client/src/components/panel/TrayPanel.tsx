@@ -24,6 +24,7 @@ import {
   statusOf,
   trackedSets,
   useProto,
+  viewXinfa,
   type ManagerIntent,
 } from "@/state/store";
 import { schemeName } from "@/lib/schemeSets";
@@ -362,11 +363,11 @@ function PanelMain({
             />
           ) : creating === "scheme" ? (
             // 在宏、奇穴之间切页签时表单不重置，已经填的内容还在。
-            // 门派、心法自己选，默认这个角色还没方案的第一个心法
+            // 默认面板正在看的心法；点心法按钮可以改成任何门派的心法
             <PanelNewScheme
               key={char.id}
               kind={tab}
-              xinfa={missing[0]?.xinfa ?? xinfas[0]}
+              xinfa={viewXinfa(state, char)}
               choose
               shown={xinfas}
               onDone={(_, schemeId, xinfa) => {
