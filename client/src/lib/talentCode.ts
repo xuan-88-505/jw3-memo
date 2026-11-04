@@ -192,7 +192,7 @@ export function needsFetch(imp: TalentImport) {
 }
 
 /**
- * xinfa 是当前心法；xinfas 是可以直接切过去的心法（面板里这个角色的心法），不给就不切。
+ * xinfa 是当前心法；xinfas 是可以直接切过去的心法（面板新建方案时是全部心法），不给就不切。
  * allXinfa 用来认出奇穴文字其实属于哪个心法。
  */
 export async function resolveTalentImport(

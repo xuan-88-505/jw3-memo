@@ -344,7 +344,7 @@ function PanelMain({
             <PanelNewScheme
               key={`${char.id}-add-${addingTo}`}
               kind="macro"
-              xinfas={[addingTo]}
+              xinfa={addingTo}
               target={sections.find(x => x.xinfa === addingTo)?.scheme}
               // 心法有好几个方案、或角色玩好几个心法时，写明加到哪个方案
               context={(() => {
@@ -360,15 +360,19 @@ function PanelMain({
               onCancel={() => setAddingTo(null)}
               onOpenManager={id => openManager("schemes", id)}
             />
-          ) : creating === "scheme" && missing.length > 0 ? (
-            // 在宏、奇穴之间切页签时表单不重置，已经填的内容还在
+          ) : creating === "scheme" ? (
+            // 在宏、奇穴之间切页签时表单不重置，已经填的内容还在。
+            // 门派、心法自己选，默认这个角色还没方案的第一个心法
             <PanelNewScheme
               key={char.id}
               kind={tab}
-              xinfas={missing.map(x => x.xinfa)}
+              xinfa={missing[0]?.xinfa ?? xinfas[0]}
+              choose
+              shown={xinfas}
               onDone={(_, schemeId, xinfa) => {
                 setCreating(null);
-                if (schemeId && xinfa)
+                // 存到这个角色的心法：面板切到新方案；别的心法面板不变
+                if (schemeId && xinfa && xinfas.includes(xinfa))
                   actions.setActiveSet(char.id, xinfa, schemeId);
               }}
               onCancel={() => setCreating(null)}

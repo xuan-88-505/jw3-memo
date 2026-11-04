@@ -1200,5 +1200,6 @@ const dict: Record<string, string> = {
   "正在安装更新，这次的改动没有保存": "Instalando la actualización. Este cambio no se guardó",
   "亲友团还在同步，等一会儿再试": "Tu grupo aún se está sincronizando. Inténtalo de nuevo en un momento",
   "方案库里有 {0} 个方案没保存，更新后这些修改会丢掉": "Hay {0} presets sin guardar. Esos cambios se perderán al actualizar",
+  "{0}的方案已保存到方案库": "Preset de {0} guardado en Presets",
 };
 export default dict;

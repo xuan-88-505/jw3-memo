@@ -426,6 +426,7 @@ export function XinfaPairSelect({
   id,
   disabledReason,
   autoFocus,
+  xinfaLabel,
 }: {
   value: string;
   onChange: (xinfa: string) => void;
@@ -434,6 +435,8 @@ export function XinfaPairSelect({
   /** 心法下拉的 id，给外面的 Field 用 */
   id: string;
   disabledReason?: (xinfa: string) => string | false;
+  /** 外面没有可见标签时（面板），心法下拉的读屏名 */
+  xinfaLabel?: string;
 }) {
   const school = schoolOf(value);
   const xs = schoolXinfa(school);
@@ -464,6 +467,7 @@ export function XinfaPairSelect({
       </SelectBox>
       <SelectBox
         id={id}
+        aria-label={xinfaLabel}
         value={value}
         disabled={xs.length < 2}
         onChange={e => onChange(e.target.value)}

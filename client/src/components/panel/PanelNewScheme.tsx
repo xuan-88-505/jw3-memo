@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Btn, Segmented } from "@/components/common/ui";
+import { Btn } from "@/components/common/ui";
 import { IconPickerButton } from "@/components/common/IconPicker";
+import { XinfaPairSelect } from "@/components/manager/SchoolPicker";
 import { TalentPicker } from "@/components/manager/TalentPicker";
 import {
   TalentScanButton,
@@ -8,7 +9,7 @@ import {
   useTalentScan,
 } from "@/components/manager/TalentScan";
 import { inputCls } from "@/components/manager/shared";
-import { defaultTalents } from "@/data/seed";
+import { XINFA_LIST, defaultTalents } from "@/data/seed";
 import type { Scheme } from "@/data/types";
 import { pasteHint } from "@/lib/format";
 import { MACRO_LIMIT, cleanMacro } from "@/lib/macro";
@@ -21,14 +22,18 @@ import { PanelForm } from "./PanelForm";
  * 面板里原地新建，不打开管理窗口。
  * 宏页签：填一个宏（图标、名称、说明、内容）。给了 target（宏列表最后的「新建宏」）时
  * 作为一段加到这个方案的最新版本后面，存成新版本；否则给心法新建一个 PVE 方案，存成 v1。
- * 奇穴页签：给还没有方案的心法选奇穴，新建一个 PVE 方案，存成 v1。
+ * 奇穴页签：选奇穴，新建一个 PVE 方案，存成 v1。
+ * 新建方案（choose）时顶部先选门派、再选心法，任何门派和流派都能选；
+ * 同一个心法已经有方案也能再建一个。
  * 奇穴可以粘贴截图（Ctrl+V / ⌘V）自动选上；标题右边的「识别截图」读剪贴板里的图片。
  * 面板不打开选文件：选文件窗口会抢走焦点，面板一失焦就收起。
  * 保存后面板回到列表。Esc 或「取消」回到原来的样子。「取消 / 保存」固定在面板底部。
  */
 export function PanelNewScheme({
   kind,
-  xinfas,
+  xinfa: initialXinfa,
+  choose,
+  shown,
   target,
   context,
   onDone,
@@ -36,8 +41,12 @@ export function PanelNewScheme({
   onOpenManager,
 }: {
   kind: "macro" | "talent";
-  /** 要存到哪些心法；多于一个时可以切换 */
-  xinfas: string[];
+  /** 存到哪个心法；choose 时是默认选中的心法 */
+  xinfa: string;
+  /** 新建方案：顶部显示门派、心法两个下拉，可以改心法 */
+  choose?: boolean;
+  /** 面板里这个角色显示的心法；存到别的心法时提示去方案库看 */
+  shown?: string[];
   /** 加到哪个方案；没有时新建 */
   target?: Scheme;
   /** 标题旁边弱显示存到哪里：心法有好几个方案、或角色玩好几个心法时用 */
@@ -49,7 +58,7 @@ export function PanelNewScheme({
   onOpenManager: (schemeId: string) => void;
 }) {
   const { state, actions } = useProto();
-  const [xinfa, setXinfa] = useState(xinfas[0]);
+  const [xinfa, setXinfa] = useState(initialXinfa);
   const [icon, setIcon] = useState(13);
   const [name, setName] = useState("");
   const [note, setNote] = useState("");
@@ -71,8 +80,8 @@ export function PanelNewScheme({
     onApply: setTalents,
     filePicker: false,
     pasteKey: pasteHint(state.platform),
-    // 魔盒奇穴是这个角色的另一个心法：直接切过去
-    xinfas,
+    // 魔盒奇穴是别的心法：新建方案时直接切过去
+    xinfas: choose ? XINFA_LIST : undefined,
     onSwitchXinfa: x => {
       setXinfa(x);
       setBlocked(false);
@@ -83,6 +92,11 @@ export function PanelNewScheme({
   const over = cleaned.length > MACRO_LIMIT;
   const empty = cleaned.length === 0;
   const canSave = kind === "talent" || (!!name.trim() && !empty && !over);
+  // 存到的心法不在这个角色的面板里：保存后面板看不到，告诉用户在方案库
+  const savedText = (text: string) =>
+    shown && !shown.includes(xinfa)
+      ? tx("{0}的方案已保存到方案库", xinfa)
+      : text;
   const save = () => {
     if (!canSave) return;
     if (kind === "macro") {
@@ -103,12 +117,12 @@ export function PanelNewScheme({
         setBlocked(true);
         return;
       }
-      actions.toast("panel", "success", tx("已保存宏"));
+      actions.toast("panel", "success", savedText(tx("已保存宏")));
       onDone(macroId, r.schemeId, xinfa);
       return;
     }
     const schemeId = actions.createScheme(xinfa, "PVE", { talents });
-    actions.toast("panel", "success", tx("已保存奇穴"));
+    actions.toast("panel", "success", savedText(tx("已保存奇穴")));
     onDone(undefined, schemeId, xinfa);
   };
 
@@ -168,17 +182,16 @@ export function PanelNewScheme({
         )}
       </div>
 
-      {xinfas.length > 1 && (
+      {choose && (
         <div className="mb-4">
-          <Segmented<string>
-            label={tx("心法")}
-            size="xs"
+          <XinfaPairSelect
+            id="panel-new-xinfa"
+            xinfaLabel={tx("心法")}
             value={xinfa}
             onChange={x => {
               setXinfa(x);
               setBlocked(false);
             }}
-            options={xinfas.map(x => ({ value: x, label: x }))}
           />
         </div>
       )}
