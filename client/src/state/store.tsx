@@ -1473,14 +1473,13 @@ function useActions(
           );
           return { result: "added", schemeId: scheme.id };
         }
+        // 宏有名字：方案名字就用它，不再自动起「心法 · 模式 2」
         const id = newSchemeId(xinfa);
-        const title = defaultSchemeTitle(siblingsOf(s, xinfa), xinfa, mode);
         commitDraft(
           {
             schemeId: id,
             xinfa,
             mode,
-            ...(title ? { title } : {}),
             baseVersion: 0,
             macros: [macro],
             talents: defaultTalents(),
@@ -1490,8 +1489,37 @@ function useActions(
         return { result: "created", schemeId: id };
       },
       /**
+       * 面板里改一段宏（图标、名称、说明、内容）：换掉最新版本里同 id 的宏，存成新版本。
+       * 方案正在管理窗口里编辑、有没保存的修改时返回 "draft"，不动草稿；
+       * 宏已经不在了（被删或亲友同步下来）返回 "missing"
+       */
+      updateMacro: (
+        schemeId: string,
+        macro: Macro
+      ): "saved" | "draft" | "missing" => {
+        const s = stateRef.current;
+        const scheme = schemeById(s, schemeId);
+        const last = latest(scheme);
+        if (!scheme || !last || !last.macros.some(m => m.id === macro.id))
+          return "missing";
+        if (s.drafts[scheme.id]) return "draft";
+        commitDraft(
+          {
+            schemeId: scheme.id,
+            xinfa: scheme.xinfa,
+            mode: scheme.mode,
+            baseVersion: last.version,
+            macros: last.macros.map(m => (m.id === macro.id ? macro : m)),
+            ...copyTalentFields(last),
+          },
+          tx("修改宏「{0}」", macro.name)
+        );
+        return "saved";
+      },
+      /**
        * 面板里直接新建：不经过管理窗口，填好的内容直接存成 v1，说明写「新建」。
-       * 总是新建一个方案，返回它的 id
+       * 总是新建一个方案，返回它的 id。有宏名时方案名字用宏名；
+       * 只有奇穴时自动起「心法 · 模式 2」，方案库里几个方案才分得开
        */
       createScheme: (
         xinfa: string,
@@ -1500,7 +1528,9 @@ function useActions(
       ): string => {
         const s = stateRef.current;
         const id = newSchemeId(xinfa);
-        const title = defaultSchemeTitle(siblingsOf(s, xinfa), xinfa, mode);
+        const title = init.macros?.some(m => m.name.trim())
+          ? undefined
+          : defaultSchemeTitle(siblingsOf(s, xinfa), xinfa, mode);
         commitDraft(
           {
             schemeId: id,

@@ -77,13 +77,62 @@ export function compareSchemes(a: Scheme, b: Scheme): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-/** 方案显示的名字：自定义标题，没有时是「心法 · 模式」 */
-export function schemeName(s: {
+/** 方案里用户自己填了名字的内容：宏、几套奇穴。版本和草稿都符合 */
+export interface SchemeContent {
+  macros: readonly { name: string }[];
+  talentsName?: string;
+  moreTalents?: readonly { name: string }[];
+}
+
+interface SchemeLike {
   title?: string;
   xinfa: string;
   mode: Mode;
-}): string {
-  return s.title || `${s.xinfa} · ${s.mode}`;
+  versions?: readonly SchemeContent[];
+}
+
+/**
+ * 用户自己起的标题。以前新建方案会自动存「心法 · 模式」「心法 · 模式 2」这样的标题，
+ * 它们不算用户起的名字，显示时换成用户填的宏名
+ */
+export function customTitle(s: {
+  title?: string;
+  xinfa: string;
+  mode: Mode;
+}): string | undefined {
+  const t = s.title?.trim();
+  if (!t) return undefined;
+  const auto = `${s.xinfa} · ${s.mode}`;
+  if (t === auto) return undefined;
+  if (t.startsWith(`${auto} `) && /^\d+$/.test(t.slice(auto.length + 1)))
+    return undefined;
+  return t;
+}
+
+/**
+ * 用户自己填的名字：起的标题 → 第一段宏的名字 → 奇穴套的名字；都没有时是 undefined。
+ * 不传 content 时用方案最新的版本
+ */
+export function userSchemeName(
+  s: SchemeLike,
+  content?: SchemeContent
+): string | undefined {
+  const c = content ?? s.versions?.[s.versions.length - 1];
+  const names = [
+    ...(c?.macros.map(m => m.name) ?? []),
+    c?.talentsName,
+    ...(c?.moreTalents?.map(t => t.name) ?? []),
+  ];
+  return (
+    customTitle(s) || names.map(n => n?.trim()).find((n): n is string => !!n)
+  );
+}
+
+/** 方案显示的名字：用户填的名字；都没有时是自动标题或「心法 · 模式」 */
+export function schemeName(s: SchemeLike, content?: SchemeContent): string {
+  return (
+    userSchemeName(s, content) || s.title?.trim() || `${s.xinfa} · ${s.mode}`
+  );
 }
 
 /**
@@ -96,7 +145,7 @@ export function defaultSchemeTitle(
   mode: Mode
 ): string | undefined {
   const base = `${xinfa} · ${mode}`;
-  const names = new Set(existing.map(schemeName));
+  const names = new Set(existing.map(s => s.title || `${s.xinfa} · ${s.mode}`));
   if (!names.has(base)) return undefined;
   for (let n = 2; ; n++) if (!names.has(`${base} ${n}`)) return `${base} ${n}`;
 }

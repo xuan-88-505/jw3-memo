@@ -58,7 +58,12 @@ import {
   type ProtoState,
   isSolo,
 } from "@/state/store";
-import { defaultSchemeTitle, schemeName } from "@/lib/schemeSets";
+import {
+  customTitle,
+  defaultSchemeTitle,
+  schemeName,
+  userSchemeName,
+} from "@/lib/schemeSets";
 import { cn } from "@/lib/utils";
 import { DiffDetails, Field, diffSummary, inputCls } from "./shared";
 import { XinfaPairSelect } from "./SchoolPicker";
@@ -229,7 +234,9 @@ function schemeInfo(state: ProtoState, id: string | null | undefined) {
     xinfa,
     mode,
     title,
-    name: schemeName({ title, xinfa, mode }),
+    // 没起标题时用第一段宏的名字（草稿里正在改的也算）
+    name: schemeName({ title, xinfa, mode }, src),
+    named: !!userSchemeName({ title, xinfa, mode }, src),
     macros: src.macros,
   };
 }
@@ -253,8 +260,8 @@ function SchemeRow({
   const info = schemeInfo(state, id);
   if (!info) return null;
   const { last, draft, mode, name } = info;
-  // 没起名字的方案名字里已经有「PVP」，不再加标签
-  const pvpTag = mode === "PVP" && !!info.title;
+  // 没有用户填的名字时，名字里已经有「PVP」，不再加标签
+  const pvpTag = mode === "PVP" && info.named;
   const count = txn("{0} 段", info.macros.length);
   // 圆点之外，读屏也要知道有没保存
   const unsaved = !last
@@ -523,7 +530,7 @@ function sameContent(a: { macros: Macro[] } & TalentFields, b?: SchemeVersion) {
 
 /**
  * 方案标题：点一下直接改，回车或点别处保存，Esc 取消。
- * 清空后恢复默认的「心法 · 模式」。改标题不产生新版本。
+ * 清空后恢复默认：第一段宏的名字，没有宏时是「心法 · 模式」。改标题不产生新版本。
  */
 function SchemeTitle({
   schemeId,
@@ -691,6 +698,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
   const [activeSet, setActiveSet] = useState<string>("main");
   const [renamingSet, setRenamingSet] = useState<string | null>(null);
   const src = draft ?? last;
+  const rawTitle = scheme?.title ?? draft?.title;
   const sets = src ? talentSetsOf(src) : [];
   // 放弃修改后刚加的那套没了：回到第一套
   const curSet = sets.find(x => x.id === activeSet) ?? sets[0];
@@ -812,14 +820,25 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
           title={
             <SchemeTitle
               schemeId={schemeId}
-              title={scheme?.title ?? draft?.title}
-              fallback={`${xinfa} · ${mode}`}
+              title={customTitle({ title: rawTitle, xinfa, mode })}
+              fallback={schemeName(
+                {
+                  xinfa,
+                  mode,
+                  title: customTitle({ title: rawTitle, xinfa, mode })
+                    ? undefined
+                    : rawTitle,
+                },
+                src
+              )}
               editable={editable && online}
             />
           }
           meta={[
-            // 起了名字时写心法和模式；没起名字时标题本身就是这两个
-            ...((scheme?.title ?? draft?.title) ? [`${xinfa} · ${mode}`] : []),
+            // 标题是用户填的名字时写心法和模式；否则标题本身就是这两个
+            ...(userSchemeName({ title: rawTitle, xinfa, mode }, src)
+              ? [`${xinfa} · ${mode}`]
+              : []),
             ...(!last
               ? [tx("新方案，还没保存")]
               : !solo

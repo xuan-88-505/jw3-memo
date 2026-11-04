@@ -10,7 +10,7 @@ import {
 } from "@/components/manager/TalentScan";
 import { inputCls } from "@/components/manager/shared";
 import { XINFA_LIST, defaultTalents } from "@/data/seed";
-import type { Scheme } from "@/data/types";
+import type { Macro, Scheme } from "@/data/types";
 import { pasteHint } from "@/lib/format";
 import { MACRO_LIMIT, cleanMacro } from "@/lib/macro";
 import { tx } from "@/lib/i18n";
@@ -27,6 +27,7 @@ import { PanelForm } from "./PanelForm";
  * 点开先选门派、再选心法，任何门派和流派都能选；同一个心法已经有方案也能再建一个。
  * 奇穴可以粘贴截图（Ctrl+V / ⌘V）自动选上；标题右边的「识别截图」读剪贴板里的图片。
  * 面板不打开选文件：选文件窗口会抢走焦点，面板一失焦就收起。
+ * 给了 edit（宏名后面的编辑铅笔）时是改这段宏：内容先填好，改了才能保存，存成新版本。
  * 保存后面板回到列表。Esc 或「取消」回到原来的样子。「取消 / 保存」固定在面板底部。
  */
 export function PanelNewScheme({
@@ -35,6 +36,7 @@ export function PanelNewScheme({
   choose,
   shown,
   target,
+  edit,
   context,
   onDone,
   onCancel,
@@ -49,6 +51,8 @@ export function PanelNewScheme({
   shown?: string[];
   /** 加到哪个方案；没有时新建 */
   target?: Scheme;
+  /** 改 target 里的这段宏 */
+  edit?: Macro;
   /** 标题旁边弱显示存到哪里：心法有好几个方案、或角色玩好几个心法时用 */
   context?: string;
   /** 带上新宏的 id（列表可以滚到它）和存到的方案 */
@@ -59,17 +63,21 @@ export function PanelNewScheme({
 }) {
   const { state, actions } = useProto();
   const [xinfa, setXinfa] = useState(initialXinfa);
-  const [icon, setIcon] = useState(13);
-  const [name, setName] = useState("");
-  const [note, setNote] = useState("");
-  const [content, setContent] = useState("/cast ");
+  const [icon, setIcon] = useState(edit?.icon ?? 13);
+  const [name, setName] = useState(edit?.name ?? "");
+  const [note, setNote] = useState(edit?.note ?? "");
+  const [content, setContent] = useState(edit?.content ?? "/cast ");
   const [talents, setTalents] = useState(defaultTalents);
   const [blocked, setBlocked] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const first = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (kind === "macro") nameRef.current?.focus();
-    else first.current?.querySelector<HTMLElement>("[role=tab]")?.focus();
+    if (kind === "macro") {
+      const el = nameRef.current;
+      el?.focus();
+      // 改名时光标放在名字最后
+      if (el && edit) el.setSelectionRange(el.value.length, el.value.length);
+    } else first.current?.querySelector<HTMLElement>("[role=tab]")?.focus();
   }, [kind]);
   // 截图识别：认出的层直接改进表单，换心法时提示清掉
   const scan = useTalentScan({
@@ -91,7 +99,15 @@ export function PanelNewScheme({
   const cleaned = cleanMacro(content);
   const over = cleaned.length > MACRO_LIMIT;
   const empty = cleaned.length === 0;
-  const canSave = kind === "talent" || (!!name.trim() && !empty && !over);
+  // 编辑时什么都没改就不能保存，免得多出一个一样的版本
+  const changed =
+    !edit ||
+    name.trim() !== edit.name ||
+    icon !== edit.icon ||
+    note.trim() !== (edit.note ?? "").trim() ||
+    content.trim() !== edit.content.trim();
+  const canSave =
+    kind === "talent" || (!!name.trim() && !empty && !over && changed);
   // 存到的心法不在这个角色的面板里：保存后面板看不到，告诉用户在方案库
   const savedText = (text: string) =>
     shown && !shown.includes(xinfa)
@@ -99,6 +115,27 @@ export function PanelNewScheme({
       : text;
   const save = () => {
     if (!canSave) return;
+    if (edit && target) {
+      const r = actions.updateMacro(target.id, {
+        ...edit,
+        name: name.trim(),
+        icon,
+        content: content.trim(),
+        note: note.trim(),
+      });
+      if (r === "draft") {
+        setBlocked(true);
+        return;
+      }
+      if (r === "missing") {
+        actions.toast("panel", "error", tx("这个宏已经不在了"));
+        onCancel();
+        return;
+      }
+      actions.toast("panel", "success", tx("已保存修改"));
+      onDone(edit.id, target.id, target.xinfa);
+      return;
+    }
     if (kind === "macro") {
       const macroId = `${xinfa}-n${Date.now()}`;
       const r = actions.addMacro(
@@ -164,7 +201,11 @@ export function PanelNewScheme({
           // 20px 行高上下各留 2px，和右边 24px 高的按钮居中对齐
           className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5 py-[2px] text-[14px] font-medium leading-5 text-paper"
         >
-          {kind === "macro" ? tx("新建宏") : tx("新建奇穴")}
+          {edit
+            ? tx("编辑宏")
+            : kind === "macro"
+              ? tx("新建宏")
+              : tx("新建奇穴")}
           {context && (
             <span className="min-w-0 text-[12px] font-normal text-paper-3 [overflow-wrap:anywhere]">
               {context}

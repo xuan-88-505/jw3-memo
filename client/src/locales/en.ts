@@ -1201,5 +1201,10 @@ const dict: Record<string, string> = {
   "亲友团还在同步，等一会儿再试": "Your group is still syncing. Try again in a moment",
   "方案库里有 {0} 个方案没保存，更新后这些修改会丢掉": "{0} presets have unsaved changes. They'll be lost after the update",
   "{0}的方案已保存到方案库": "{0} preset saved to Presets",
+  "方案 {0}": "Preset {0}",
+  "编辑宏": "Edit macro",
+  "编辑宏 {0}": "Edit macro {0}",
+  "修改宏「{0}」": "Edited macro “{0}”",
+  "这个宏已经不在了": "This macro no longer exists",
 };
 export default dict;

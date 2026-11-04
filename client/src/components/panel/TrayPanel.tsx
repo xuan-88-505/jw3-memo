@@ -27,7 +27,7 @@ import {
   viewXinfa,
   type ManagerIntent,
 } from "@/state/store";
-import { schemeName } from "@/lib/schemeSets";
+import { customTitle, userSchemeName } from "@/lib/schemeSets";
 import { useUpdateNotice } from "@/lib/update/notice";
 import { cn } from "@/lib/utils";
 import { Inbox } from "./Inbox";
@@ -40,6 +40,23 @@ import { talentSetsOf } from "@/lib/talentSets";
 
 // 多心法分段的折叠状态：按「角色:心法」记，宏和奇穴共用；关面板、重启后保持
 const COLLAPSE_KEY = "tongdiao.panelCollapsed.v1";
+
+/**
+ * 面板里方案的名字：用户起的标题 → 第一段宏的名字。不写心法，分段标题已经有了；
+ * 都没填时按顺序叫「方案 2」
+ */
+function setName(s: Scheme, sets: Scheme[]): string {
+  return (
+    userSchemeName(s) ||
+    tx(
+      "方案 {0}",
+      Math.max(
+        0,
+        sets.findIndex(x => x.id === s.id)
+      ) + 1
+    )
+  );
+}
 
 function readCollapsed(): Set<string> {
   try {
@@ -136,6 +153,11 @@ function PanelMain({
   const [creating, setCreating] = useState<null | "scheme" | "char">(null);
   // 给已有方案加宏：记下是哪个心法；保存后滚到新宏
   const [addingTo, setAddingTo] = useState<string | null>(null);
+  // 宏名后面的编辑铅笔：改哪个方案里的哪段宏
+  const [editing, setEditing] = useState<{
+    schemeId: string;
+    macroId: string;
+  } | null>(null);
   const [justAdded, setJustAdded] = useState<string | null>(null);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
   const mine = myCharacters(state);
@@ -144,10 +166,14 @@ function PanelMain({
   useEffect(() => {
     setCreating(c => (c === "scheme" ? null : c));
     setAddingTo(null);
+    setEditing(null);
   }, [char.id]);
-  // 离开宏页签就收起新建宏的表单
+  // 离开宏页签就收起新建宏、编辑宏的表单
   useEffect(() => {
-    if (tab !== "macro") setAddingTo(null);
+    if (tab !== "macro") {
+      setAddingTo(null);
+      setEditing(null);
+    }
   }, [tab]);
   useEffect(() => {
     if (!justAdded) return;
@@ -187,6 +213,21 @@ function PanelMain({
   const missing = sections.filter(x => !x.scheme || !x.last);
   const focusScheme = (ready.find(x => isPending(x.status)) ?? ready[0])
     ?.scheme;
+  // 正在改的宏；亲友同步下来、宏已经不在了时回到列表
+  const editScheme = editing ? schemeById(state, editing.schemeId) : undefined;
+  const editMacro = latest(editScheme)?.macros.find(
+    m => m.id === editing?.macroId
+  );
+  const editSec = sections.find(x => x.scheme?.id === editScheme?.id);
+  // 表单标题旁边写存到哪里：心法有好几个方案时写方案名，角色玩好几个心法时写心法
+  const contextOf = (sec: (typeof sections)[number] | undefined) => {
+    if (!sec?.scheme) return undefined;
+    if (sec.sets.length > 1) {
+      const n = setName(sec.scheme, sec.sets);
+      return multi ? `${sec.xinfa} · ${n}` : n;
+    }
+    return multi ? sec.xinfa : undefined;
+  };
   const inboxCount = inboxItems(state).length;
   // 软件有新版本（管理窗口查到的）：没有方案更新时，铃铛上显示金色小点
   const newVersion = useUpdateNotice();
@@ -341,6 +382,24 @@ function PanelMain({
           {tab === "note" ? (
             // 每个角色一份：按角色 id 重新挂载，切角色时内容跟着变
             <NotePad key={char.id} charId={char.id} />
+          ) : editing && editScheme && editMacro && tab === "macro" ? (
+            <PanelNewScheme
+              key={`${char.id}-edit-${editing.macroId}`}
+              kind="macro"
+              xinfa={editScheme.xinfa}
+              target={editScheme}
+              edit={editMacro}
+              context={contextOf(editSec)}
+              onDone={id => {
+                setEditing(null);
+                if (id) setJustAdded(id);
+              }}
+              onCancel={() => {
+                setEditing(null);
+                setJustAdded(editMacro.id);
+              }}
+              onOpenManager={id => openManager("schemes", id)}
+            />
           ) : addingTo && tab === "macro" ? (
             <PanelNewScheme
               key={`${char.id}-add-${addingTo}`}
@@ -348,12 +407,7 @@ function PanelMain({
               xinfa={addingTo}
               target={sections.find(x => x.xinfa === addingTo)?.scheme}
               // 心法有好几个方案、或角色玩好几个心法时，写明加到哪个方案
-              context={(() => {
-                const sec = sections.find(x => x.xinfa === addingTo);
-                return sec?.scheme && (multi || sec.sets.length > 1)
-                  ? schemeName(sec.scheme)
-                  : undefined;
-              })()}
+              context={contextOf(sections.find(x => x.xinfa === addingTo))}
               onDone={id => {
                 setAddingTo(null);
                 if (id) setJustAdded(id);
@@ -400,6 +454,15 @@ function PanelMain({
                       base={sec.base}
                       compact={multi}
                       onAdd={canAdd ? () => setAddingTo(sec.xinfa) : undefined}
+                      onEdit={
+                        canAdd
+                          ? m =>
+                              setEditing({
+                                schemeId: sec.scheme!.id,
+                                macroId: m.id,
+                              })
+                          : undefined
+                      }
                     />
                   ) : (
                     <TalentList
@@ -439,7 +502,12 @@ function PanelMain({
                     <SectionHeading
                       id={id}
                       xinfa={sec.xinfa}
-                      title={sec.scheme?.title}
+                      // 好几个方案时名字在下面一排切换里，这里只写心法
+                      title={
+                        sec.sets.length > 1
+                          ? undefined
+                          : customTitle(sec.scheme!)
+                      }
                       collapsed={isCollapsed}
                       onToggle={() => setSectionCollapsed(key, !isCollapsed)}
                     />
@@ -505,7 +573,7 @@ function SetChips({
             )}
           >
             <span className="min-w-0 [overflow-wrap:anywhere]">
-              {s.title || xinfa}
+              {setName(s, sets)}
             </span>
             {s.mode === "PVP" && (
               <span className="shrink-0 text-[10.5px] font-medium tracking-wide text-paper-3">

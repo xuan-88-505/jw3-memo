@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { Check, Copy, Plus } from "lucide-react";
+import { Check, Copy, Pencil, Plus } from "lucide-react";
 import { Jx3Icon } from "@/components/brand/Marks";
-import { Btn } from "@/components/common/ui";
+import { Btn, IconBtn } from "@/components/common/ui";
 import { layersOf } from "@/data/seed";
 import type { Macro, SchemeVersion, TalentSet } from "@/data/types";
 import { changedLines, type SchemeDiff } from "@/lib/diff";
@@ -105,6 +105,7 @@ export function MacroList({
   base,
   compact,
   onAdd,
+  onEdit,
 }: {
   macros: Macro[];
   base?: SchemeVersion;
@@ -112,6 +113,8 @@ export function MacroList({
   compact?: boolean;
   /** 有就在列表最后加一行「新建宏」；只读成员不传 */
   onAdd?: () => void;
+  /** 有就在宏名后面加编辑铅笔（悬停才显示）；只读成员不传 */
+  onEdit?: (macro: Macro) => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const baseMap = useMemo(
@@ -152,6 +155,7 @@ export function MacroList({
           prev={base ? (baseMap.get(m.id) ?? null) : undefined}
           open={openId === m.id}
           onToggle={() => setOpenId(id => (id === m.id ? null : m.id))}
+          onEdit={onEdit ? () => onEdit(m) : undefined}
         />
       ))}
       {onAdd && <AddMacroRow onClick={onAdd} numbered={numbered} />}
@@ -197,6 +201,7 @@ export function MacroCard({
   prev,
   open,
   onToggle,
+  onEdit,
 }: {
   macro: Macro;
   /** 第几段；只有一段时不传，不显示 */
@@ -205,6 +210,7 @@ export function MacroCard({
   prev: Macro | null | undefined;
   open: boolean;
   onToggle: () => void;
+  onEdit?: () => void;
 }) {
   const { actions } = useProto();
   const [copied, setCopied] = useState(false);
@@ -240,53 +246,81 @@ export function MacroCard({
     <li
       data-macro-id={macro.id}
       className={cn(
-        "rounded-lg transition-colors",
+        "group/macro rounded-lg transition-colors",
         open ? "bg-paper/[0.04]" : "hover:bg-paper/[0.035]"
       )}
     >
       <div className="flex items-center gap-2 py-1 pl-1 pr-2">
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-label={tx(
-            "{0}宏 {1}",
-            open ? tx("收起") : tx("展开"),
-            macro.name
-          )}
-          onClick={onToggle}
-          className="flex min-h-[44px] min-w-0 flex-1 items-center gap-2.5 rounded-md px-1 py-1 text-left"
-        >
-          {index !== undefined && (
-            <span
-              aria-hidden="true"
-              className="w-3.5 shrink-0 text-center text-[11.5px] font-medium tabular-nums text-paper-3"
-            >
-              {index}
-            </span>
-          )}
-          <span className="relative shrink-0">
-            <Jx3Icon id={macro.icon} name={macro.name} size={32} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13.5px] font-medium text-paper">
-              {macro.name}
-            </span>
-            {over ? (
-              <span className="mt-0.5 block text-[11.5px] font-medium text-cinnabar-text">
-                {tx("超出 {0} 字，游戏里放不下", MACRO_LIMIT)}
-              </span>
-            ) : (
-              note && (
-                <span
-                  className="mt-0.5 block truncate text-[11.5px] text-paper-3"
-                  title={note}
-                >
-                  {note}
-                </span>
-              )
+        {/* 展开按钮宽度跟着名字走，编辑铅笔紧跟在名字后面；右边空着的地方点了也是展开 */}
+        <div className="flex min-w-0 flex-1 items-center">
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-label={tx(
+              "{0}宏 {1}",
+              open ? tx("收起") : tx("展开"),
+              macro.name
             )}
-          </span>
-        </button>
+            onClick={onToggle}
+            className={cn(
+              "flex min-h-[44px] min-w-0 items-center gap-2.5 rounded-md px-1 py-1 text-left",
+              !onEdit && "flex-1"
+            )}
+          >
+            {index !== undefined && (
+              <span
+                aria-hidden="true"
+                className="w-3.5 shrink-0 text-center text-[11.5px] font-medium tabular-nums text-paper-3"
+              >
+                {index}
+              </span>
+            )}
+            <span className="relative shrink-0">
+              <Jx3Icon id={macro.icon} name={macro.name} size={32} />
+            </span>
+            <span className={cn("min-w-0", !onEdit && "flex-1")}>
+              <span className="block truncate text-[13.5px] font-medium text-paper">
+                {macro.name}
+              </span>
+              {over ? (
+                <span className="mt-0.5 block text-[11.5px] font-medium text-cinnabar-text">
+                  {tx("超出 {0} 字，游戏里放不下", MACRO_LIMIT)}
+                </span>
+              ) : (
+                note && (
+                  <span
+                    className="mt-0.5 block truncate text-[11.5px] text-paper-3"
+                    title={note}
+                  >
+                    {note}
+                  </span>
+                )
+              )}
+            </span>
+          </button>
+          {onEdit && (
+            <>
+              <IconBtn
+                label={tx("编辑")}
+                aria-label={tx("编辑宏 {0}", macro.name)}
+                onClick={onEdit}
+                className={cn(
+                  // 名字下面有说明时，和第一行的名字对齐
+                  (over || note) && "self-start",
+                  "-ml-1 text-paper-3 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/macro:opacity-100 [@media(hover:none)]:opacity-100",
+                  open && "opacity-100"
+                )}
+              >
+                <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+              </IconBtn>
+              <div
+                aria-hidden="true"
+                onClick={onToggle}
+                className="min-h-[44px] min-w-2 flex-1 cursor-pointer"
+              />
+            </>
+          )}
+        </div>
         <Btn
           variant="secondary"
           size="sm"

@@ -4,10 +4,12 @@ import {
   activeSetFromMode,
   cleanActiveSet,
   compareSchemes,
+  customTitle,
   defaultSchemeTitle,
   newSchemeId,
   normalizeSynced,
   schemeName,
+  userSchemeName,
 } from "./schemeSets";
 import {
   currentSetId,
@@ -116,6 +118,54 @@ describe("方案顺序、名字和 id", () => {
     ];
     expect(defaultSchemeTitle(list, "紫霞功", "PVE")).toBe("紫霞功 · PVE 3");
     expect(defaultSchemeTitle(list, "紫霞功", "PVP")).toBeUndefined();
+  });
+  it("自动起的标题不算用户起的名字，换成第一段宏的名字", () => {
+    const base = { xinfa: "紫霞功", mode: "PVE" as const };
+    expect(customTitle({ ...base, title: "紫霞功 · PVE" })).toBeUndefined();
+    expect(customTitle({ ...base, title: "紫霞功 · PVE 2" })).toBeUndefined();
+    expect(customTitle({ ...base, title: "紫霞功 · PVE 二段" })).toBe(
+      "紫霞功 · PVE 二段"
+    );
+    expect(customTitle({ ...base, title: "  " })).toBeUndefined();
+    const content = {
+      macros: [{ name: " " }, { name: "11" }],
+      talentsName: "AOE",
+    };
+    // 截图里的情况：自动标题「紫霞功 · PVE 2」+ 宏「11」→ 显示「11」
+    expect(schemeName({ ...base, title: "紫霞功 · PVE 2" }, content)).toBe(
+      "11"
+    );
+    expect(schemeName({ ...base, title: "二段" }, content)).toBe("二段");
+    // 只有奇穴：用奇穴套的名字；什么都没填：用自动标题
+    expect(userSchemeName(base, { macros: [], talentsName: "AOE" })).toBe(
+      "AOE"
+    );
+    expect(
+      userSchemeName(base, {
+        macros: [],
+        moreTalents: [{ name: "" }, { name: "单体" }],
+      })
+    ).toBe("单体");
+    expect(
+      schemeName({ ...base, title: "紫霞功 · PVE 2" }, { macros: [] })
+    ).toBe("紫霞功 · PVE 2");
+    // 不传内容时用方案最新的版本
+    const s = scheme("s", "紫霞功", "PVE", [v(1, "2026-01-01")]);
+    const named = {
+      ...s,
+      versions: [
+        {
+          ...s.versions[0],
+          macros: [{ id: "m", name: "旧宏", icon: 1, content: "" }],
+        },
+        {
+          ...s.versions[0],
+          version: 2,
+          macros: [{ id: "m", name: "新宏", icon: 1, content: "" }],
+        },
+      ],
+    };
+    expect(schemeName(named)).toBe("新宏");
   });
   it("新方案 id 以心法开头，不重复", () => {
     const ids = new Set(

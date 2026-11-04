@@ -18,6 +18,7 @@ import { layersOf } from "@/data/seed";
 import type { Mode } from "@/data/types";
 import { diffVersions } from "@/lib/diff";
 import { absoluteTime, relativeTime } from "@/lib/format";
+import { userSchemeName } from "@/lib/schemeSets";
 import { useUpdateNotice } from "@/lib/update/notice";
 import { DESKTOP_VERSION } from "@/lib/version";
 import {
@@ -165,8 +166,12 @@ function InboxRow({
   const { state, actions } = useProto();
   const [open, setOpen] = useState(false);
   const { char, xinfa, mode, scheme, last, base, versions } = item;
-  // 方案名：一个心法有好几套宏时靠它区分；没起名时是「心法 模式」
-  const label = scheme.title || `${xinfa} ${mode}`;
+  // 方案名：一个心法有好几套宏时靠它区分。用户填的名字（标题或第一段宏名）前面带上心法，
+  // 通知里没有别的地方写心法；都没填时是「心法 模式」
+  const named = userSchemeName(scheme, last);
+  const label = named
+    ? `${xinfa} · ${named}`
+    : scheme.title || `${xinfa} ${mode}`;
   const diff = useMemo(
     () => diffVersions(base, last, layersOf(xinfa)),
     [base, last, xinfa]
@@ -189,7 +194,7 @@ function InboxRow({
             onClick={onOpen}
             className="group flex max-w-full items-center gap-1 text-left"
             aria-label={tx("切到 {0} {1}", char.name, label)}
-            title={scheme.title ? `${xinfa} · ${mode}` : undefined}
+            title={named ? `${xinfa} · ${mode}` : undefined}
           >
             <span className="truncate text-[13.5px] font-medium text-paper group-hover:underline group-hover:underline-offset-2">
               {char.name}
