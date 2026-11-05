@@ -1141,3 +1141,20 @@
 - 新浏览器测试 `mac_title_test.py` 4/4：Mac 标题栏没有文字、只有红绿灯，窗口名仍是「备忘录」；Windows 仍写「备忘录」。`desktop_mock.py`、`lang_test.py`、`lang_team.py`、`native/smoke.py` 全部通过。
 **未验证**
 - 没有在 Mac 真机上看。这次改动没有打包，现有 2.2.0 安装包里没有。
+
+## 2.3.0 打包发布（2026-11-05）
+用户：「打包发一个新版吧」
+- [x] 版本号改为 2.3.0：`package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`。服务端自 2.2.0 以来没改，不用重新发布网站。
+- [x] 本版内容：面板新建可选任何门派心法（一个按钮，先门派后心法，默认面板正在看的心法）；方案名字用宏名；面板里直接编辑宏；Mac 管理窗口标题栏不显示「备忘录」。
+- [x] 用 `tools/release/publish-update.mjs` 给两个安装包签名，上传 `latest.json` 和两个 `.sig`；Release 正文前加「本版更新」和从 2.2.0 一键升级的说明。
+**已验证**
+- 发版前：`pnpm check`、`pnpm test` 13 个文件 118/118、`pnpm build`、`cargo check` 都退出 0；`update_test.py` 53/53（版本预期改为当前 2.3.0、新版本 2.4.0）；`desktop_mock.py` 50/50（版本预期改为 2.3.0）。
+- 第 26 轮全量（和打包同时跑，签名上传前看结果）：`pnpm check`、`pnpm test`、`pnpm build`、`cargo test` 通过；30 个浏览器回归 1704 项，0 失败。
+- 提交 `b57985c`，标签 `v2.3.0`；Actions run 41976614901 的 Windows 和 Mac 两个任务都成功（约 18 分钟）。
+- Release https://github.com/xuan-88-505/jw3-memo/releases/tag/v2.3.0 不是草稿，是最新版：`JW3-Memo_2.3.0_windows_x64-setup.exe`（10,102,149 字节）、`JW3-Memo_2.3.0_darwin_universal.dmg`（21,596,104 字节）、`JW3-Memo_2.3.0_darwin_universal.app.tar.gz`（21,431,295 字节）、两个 `.sig`、`latest.json`。
+- 签名脚本自检 11/11；空跑和正式运行都是两个包签名并验证通过，上传前服务端接口在线（503 JSON）。
+- 线上（2026-11-05 14:20 UTC+8）：`/api/update/windows/x86_64/2.2.0`、`darwin/aarch64/2.2.0`、`darwin/x86_64/2.2.0`、`windows/x86_64/2.1.0` 返回 200 和 2.3.0，下载地址走我们服务器；`windows/x86_64/2.3.0`、`darwin/aarch64/2.3.0` 返回 204。下载地址分段请求返回 206，Windows 文件头 `MZ`、Mac 更新包文件头 gzip；线上签名和本地 `.sig` 一致；更新内容第一行「## 本版更新」。
+- 中国大陆 30 个节点（Globalping，`/tmp/cnnet/gp6.py`）：检查更新 30/30 返回 200 和 2.3.0；安装包地址 HEAD 30/30 返回 200，大小 10,102,149 字节。中位用时：检查更新约 1.9 秒，安装包地址约 1.6 秒。
+**未验证**
+- 没有在 Windows / Mac 真机上从 2.2.0 一键更新到 2.3.0（下载、安装、重启、数据保留），也没有在真机上看新功能。
+- Globalping 只读前一段内容，没有测出国内完整下载速度。
