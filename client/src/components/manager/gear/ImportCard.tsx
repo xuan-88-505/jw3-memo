@@ -1,5 +1,18 @@
-import { CheckCircle2, Download, Loader2, WifiOff } from "lucide-react";
-import { useEffect, useId, useState, type ReactNode } from "react";
+import {
+  CheckCircle2,
+  Download,
+  ImagePlus,
+  Loader2,
+  WifiOff,
+} from "lucide-react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type DragEvent,
+  type ReactNode,
+} from "react";
 import {
   IMPORT_KIND_LABEL,
   IMPORT_SOURCE,
@@ -9,9 +22,10 @@ import {
   type LoadoutSource,
   type MyCodeSummary,
 } from "@/data/gear";
-import { Btn } from "@/components/common/ui";
+import { Btn, IconBtn } from "@/components/common/ui";
 import { cn } from "@/lib/utils";
 import { tx } from "@/lib/i18n";
+import { hasFiles } from "../records/NoteImages";
 
 /** 装备码解码状态 */
 type Decode =
@@ -71,7 +85,17 @@ export function useImportInput() {
 
 export type ImportInput = ReturnType<typeof useImportInput>;
 
-/** 粘贴框 + 识别结果 */
+/** 截图导入（新建配装弹窗用，见 ImageImport.tsx） */
+export interface ImportImage {
+  /** 有截图时的截图卡片，代替导入框；没有截图时是 null */
+  chip: ReactNode | null;
+  /** 截图卡片下面的说明 */
+  note: ReactNode | null;
+  /** 选了或拖进来一张图 */
+  onFile: (file: File) => void;
+}
+
+/** 粘贴框 + 识别结果；传 image 时也能粘贴、拖进来、上传截图 */
 export function ImportField({
   input,
   label,
@@ -80,6 +104,7 @@ export function ImportField({
   xinfa,
   talentSource,
   onSubmitKey,
+  image,
 }: {
   input: ImportInput;
   label: ReactNode;
@@ -90,9 +115,29 @@ export function ImportField({
   /** "紫霞功 PVE v4"；没有方案时为 null */
   talentSource: string | null;
   onSubmitKey: () => void;
+  image?: ImportImage;
 }) {
   const id = useId();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState(false);
   const { parsed, decode, code, codeBad, showError } = input;
+
+  // 导入框和截图卡片互换时，原来有焦点的元素没了，焦点会掉到页面上（Esc 就关不了弹窗）。
+  // 只在焦点已经丢了的时候接住：换成截图卡片就落在卡片上，移除截图就回到导入框
+  const hasChip = !!image?.chip;
+  const prevChip = useRef(hasChip);
+  useEffect(() => {
+    if (prevChip.current === hasChip) return;
+    prevChip.current = hasChip;
+    const a = document.activeElement;
+    if (a && a !== document.body) return;
+    const root = rootRef.current;
+    const el = hasChip
+      ? root?.querySelector<HTMLElement>("[data-scan-chip]")
+      : root?.querySelector("textarea");
+    el?.focus({ preventScroll: true });
+  }, [hasChip]);
 
   let detail: string | null = null;
   if (parsed.ok && decode.state === "ok") {
@@ -111,30 +156,102 @@ export function ImportField({
     detail = tx("{0} · 12 件装备", xinfa);
   }
 
+  // 拖进来的图：交给截图导入
+  const dropProps = image
+    ? {
+        onDragOver: (e: DragEvent) => {
+          if (!hasFiles(e)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+          setDragging(true);
+        },
+        onDragLeave: (e: DragEvent) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+            setDragging(false);
+        },
+        onDrop: (e: DragEvent) => {
+          if (!hasFiles(e)) return;
+          e.preventDefault();
+          setDragging(false);
+          const f = Array.from(e.dataTransfer.files).find(x =>
+            x.type.startsWith("image/")
+          );
+          if (f) image.onFile(f);
+        },
+      }
+    : {};
+
+  if (image?.chip) {
+    return (
+      <div ref={rootRef} data-import-field {...dropProps}>
+        <p className={labelClassName}>{label}</p>
+        {image.chip}
+        <div className="mt-2.5 min-h-[40px] text-[12px] leading-relaxed text-paper-3">
+          {image.note}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div>
+    <div ref={rootRef} data-import-field {...dropProps}>
       <label htmlFor={id} className={labelClassName}>
         {label}
       </label>
-      <textarea
-        id={id}
-        value={input.text}
-        rows={3}
-        spellCheck={false}
-        onChange={e => input.setText(e.target.value)}
-        onKeyDown={e => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onSubmitKey();
-        }}
-        aria-invalid={showError || undefined}
-        aria-describedby={`${id}-msg`}
-        placeholder={tx("粘贴茗伊插件导出的装备码\n也可以贴魔盒配装链接")}
-        className={cn(
-          "mt-2 block w-full resize-none break-all rounded-lg bg-paper/[0.04] px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-paper placeholder:text-paper-3/70 ring-1 ring-inset focus:outline-none focus:ring-2",
-          showError
-            ? "ring-cinnabar/70 focus:ring-cinnabar"
-            : "ring-paper/10 hover:ring-paper/[0.18] focus:ring-cinnabar-text/60"
+      <div className="relative mt-2">
+        <textarea
+          id={id}
+          value={input.text}
+          rows={3}
+          spellCheck={false}
+          onChange={e => input.setText(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onSubmitKey();
+          }}
+          aria-invalid={showError || undefined}
+          aria-describedby={`${id}-msg`}
+          placeholder={
+            image
+              ? tx(
+                  "粘贴茗伊插件导出的装备码\n也可以贴魔盒配装链接，或者装备截图"
+                )
+              : tx("粘贴茗伊插件导出的装备码\n也可以贴魔盒配装链接")
+          }
+          className={cn(
+            "block w-full resize-none break-all rounded-lg bg-paper/[0.04] px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-paper placeholder:text-paper-3/70 ring-1 ring-inset focus:outline-none focus:ring-2",
+            image && "pr-11",
+            dragging
+              ? "ring-2 ring-cinnabar-text/60"
+              : showError
+                ? "ring-cinnabar/70 focus:ring-cinnabar"
+                : "ring-paper/10 hover:ring-paper/[0.18] focus:ring-cinnabar-text/60"
+          )}
+        />
+        {image && (
+          <>
+            <IconBtn
+              label={tx("上传截图")}
+              onClick={() => fileRef.current?.click()}
+              className="absolute bottom-2 right-2 text-paper-3"
+            >
+              <ImagePlus className="h-4 w-4" />
+            </IconBtn>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              tabIndex={-1}
+              aria-hidden="true"
+              onChange={e => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) image.onFile(f);
+              }}
+            />
+          </>
         )}
-      />
+      </div>
 
       <div id={`${id}-msg`} className="mt-2.5 min-h-[40px]">
         {codeBad ? (

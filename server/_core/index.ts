@@ -6,6 +6,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { publicPlatformScript } from "./publicConfig";
 import { appRouter } from "../routers";
 import { registerFeedbackRoutes } from "../feedbackRoute";
+import { registerGearScanRoutes } from "../gearScanRoute";
 import { registerTeamRoutes } from "../teamRoute";
 import { registerUpdateRoutes } from "../update";
 import { createContext } from "./context";
@@ -16,6 +17,8 @@ async function startServer() {
   const server = createServer(app);
   // 意见反馈有自己的 16 KB 请求体上限，要在下面 50 MB 的全局解析之前注册
   registerFeedbackRoutes(app);
+  // 配装截图识别：6 MB 请求体上限，同样要先注册
+  registerGearScanRoutes(app);
   // 亲友团接口有自己的请求体上限，也必须先注册。
   registerTeamRoutes(app);
   // 桌面版一键更新：检查更新、转发安装包（只有 GET，没有请求体）

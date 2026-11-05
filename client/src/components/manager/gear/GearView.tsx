@@ -162,6 +162,12 @@ export function GearView() {
       actions.toast("manager", "success", tx("已新建「{0}」", p.name));
       return;
     }
+    // 按截图建的：弹窗里已经识别完、当季装备库也加载好了，直接用原版算好建出来
+    if (p.source === "image") {
+      actions.createLoadout(p);
+      actions.toast("manager", "success", tx("已新建「{0}」", p.name));
+      return;
+    }
     setPending(p);
     // 导入的：等当季装备库加载好再建，建好马上换成当季，外面不会先闪一下上赛季的数值
     const ready = native ? loadCatalog(p.xinfa).catch(() => null) : null;
@@ -218,7 +224,7 @@ export function GearView() {
         <EmptyState
           icon="sword"
           title={tx("还没有配装")}
-          description={tx("导入茗伊装备码、魔盒链接，或者手动配")}
+          description={tx("导入茗伊装备码、魔盒链接、装备截图，或者手动配")}
           action={
             <Btn
               variant="primary"

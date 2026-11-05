@@ -78,7 +78,7 @@ const joinLayers = (layers: number[]) =>
   layers.join(getLang() === "zh" ? "、" : ", ");
 
 /** 焦点在能输入文字的地方：粘贴的文字交给它 */
-const isTextField = (t: Element | null) =>
+export const isTextField = (t: Element | null) =>
   !!t?.closest(
     'input:not([type=checkbox]):not([type=radio]):not([type=button]), textarea, [contenteditable=""], [contenteditable="true"]'
   );
@@ -90,7 +90,7 @@ const focusOutside = () => {
 };
 
 /** 这台电脑的粘贴键：Mac ⌘V，Windows Ctrl+V */
-const isPasteKey = (e: KeyboardEvent) =>
+export const isPasteKey = (e: KeyboardEvent) =>
   !e.repeat &&
   !e.shiftKey &&
   !e.altKey &&

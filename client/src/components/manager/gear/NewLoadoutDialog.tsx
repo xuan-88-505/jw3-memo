@@ -19,7 +19,9 @@ import { EnchantEditor } from "./EnchantEditor";
 import { ImportField, OfflineHint, useImportInput } from "./ImportCard";
 import { tx } from "@/lib/i18n";
 import { calcSupported } from "@/lib/dpsCalc";
-import { useBundledCalc } from "@/lib/calcEngine";
+import { useBundledCalc, type Seed } from "@/lib/calcEngine";
+import { useScanMatch } from "@/lib/gearScan";
+import { ScanChip, scanView, useGearImage, useImagePaste } from "./ImageImport";
 
 const sameConfig = (a: GearConfig, b: GearConfig) =>
   JSON.stringify(a) === JSON.stringify(b);
@@ -86,6 +88,7 @@ function CharLinkSelect({
 /**
  * 新建配装：按心法建，大多数人只是想看某个心法不同配装的属性。
  * 导入是选填的：不填就手动配，先放一套当前品级的推荐装备，再到配装器里逐件换。
+ * 也可以粘贴、拖进来或上传一张装备截图：识别出装备后按当季装备库建（见 ImageImport.tsx）。
  * 关联角色放在最后，默认不关联。取消时什么都不会创建。
  */
 export function NewLoadoutDialog({
@@ -110,6 +113,8 @@ export function NewLoadoutDialog({
     sourceId: string | null;
     /** 用户改过附魔才有；没改就用导入的 */
     config?: GearConfig;
+    /** 按截图识别出的当季输入 */
+    scan?: Seed;
   }) => void;
 }) {
   const { state } = useProto();
@@ -117,6 +122,7 @@ export function NewLoadoutDialog({
   const mine = myCharacters(state);
   const offline = state.dataState === "offline";
   const input = useImportInput();
+  const img = useGearImage();
   const xinfaId = useId();
   const nameId = useId();
 
@@ -127,6 +133,8 @@ export function NewLoadoutDialog({
   const [charId, setCharId] = useState("");
   const [error, setError] = useState("");
   const [enchantOpen, setEnchantOpen] = useState(false);
+  // 按截图里的心法自动换过
+  const [switched, setSwitched] = useState(false);
   // 这个心法导入后的样子，用来显示默认附魔、估算秒伤
   const draft = useMemo(
     () =>
@@ -146,6 +154,64 @@ export function NewLoadoutDialog({
   const bundled = useBundledCalc();
   const native = calcSupported(xinfa) && bundled !== false;
 
+  const changeXinfa = (x: string) => {
+    setXinfa(x);
+    // 关联的角色也玩这个心法就留着，否则解除关联
+    const keep = mine.some(c => c.id === charId && xinfasOf(c).includes(x));
+    if (!keep) setCharId("");
+    setError("");
+    // 换心法后附魔选项不同，回到默认
+    setConfig(
+      configOf(
+        makeLoadout({
+          id: "draft",
+          xinfa: x,
+          name: "",
+          charId: null,
+          source: "json",
+          sourceId: null,
+        })
+      )
+    );
+  };
+
+  // 截图识别出来了：截图里认出了别的心法、配装器也支持，就换过去
+  const scanResult = img.image?.state === "ok" ? img.image.result : null;
+  useEffect(() => {
+    const x = scanResult?.xinfa;
+    if (x && x !== xinfa && XINFA_LIST.includes(x) && calcSupported(x)) {
+      changeXinfa(x);
+      setSwitched(true);
+    } else setSwitched(false);
+    // 只在换了截图时看一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanResult]);
+  const scan = useScanMatch(xinfa, native ? scanResult : null);
+  const view = img.image
+    ? scanView({
+        image: img.image,
+        match: scan.match,
+        matching: scan.loading,
+        matchFailed: scan.failed,
+        native,
+        bundled,
+        xinfa,
+        switched,
+      })
+    : null;
+
+  useImagePaste({
+    enabled: open,
+    onImage: src => {
+      input.setText("");
+      void img.run(src);
+    },
+    onText: text => {
+      img.clear();
+      input.setText(text);
+    },
+  });
+
   useEffect(() => {
     if (!open) return;
     setXinfa(fallbackXinfa);
@@ -155,6 +221,8 @@ export function NewLoadoutDialog({
     setEnchantOpen(false);
     setConfig(configOf(draft));
     input.setText("");
+    img.clear();
+    setSwitched(false);
     // 只在打开时重置
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -166,15 +234,35 @@ export function NewLoadoutDialog({
   const talentSource =
     source && v ? `${schemeName(source)} v${v.version}` : null;
   const placeholder = autoLoadoutName(all, xinfa);
-  // 导入框是空的：手动配
-  const manual = !input.text.trim();
+  // 导入框是空的、也没贴截图：手动配
+  const manual = !input.text.trim() && !img.image;
+  const imageReady = !!view?.ready && !!scan.match;
 
   const submit = () => {
-    const r = manual ? null : input.submit();
+    const r = manual || img.image ? null : input.submit();
     const n = name.trim();
     const err = loadoutNameError(all, xinfa, n);
     setError(err);
-    if (err || offline || (!manual && !r)) return;
+    if (err || offline) return;
+    if (img.image) {
+      if (!imageReady || !scan.match) return;
+      const m = scan.match;
+      onClose();
+      onStart({
+        xinfa,
+        name: n || placeholder,
+        charId: linked ? linked.id : null,
+        source: "image",
+        sourceId: null,
+        scan: {
+          input: m.input,
+          replaced: m.replaced,
+          stoneReplaced: m.stoneReplaced,
+        },
+      });
+      return;
+    }
+    if (!manual && !r) return;
     onClose();
     onStart({
       xinfa,
@@ -209,7 +297,9 @@ export function NewLoadoutDialog({
                 <Download className="h-4 w-4" />
               )
             }
-            disabled={offline || (!manual && !input.canSubmit)}
+            disabled={
+              offline || (img.image ? !imageReady : !manual && !input.canSubmit)
+            }
             onClick={submit}
           >
             {manual ? tx("手动配装") : tx("导入并计算")}
@@ -224,26 +314,8 @@ export function NewLoadoutDialog({
               id={xinfaId}
               value={xinfa}
               onChange={x => {
-                setXinfa(x);
-                // 关联的角色也玩这个心法就留着，否则解除关联
-                const keep = mine.some(
-                  c => c.id === charId && xinfasOf(c).includes(x)
-                );
-                if (!keep) setCharId("");
-                setError("");
-                // 换心法后附魔选项不同，回到默认
-                setConfig(
-                  configOf(
-                    makeLoadout({
-                      id: "draft",
-                      xinfa: x,
-                      name: "",
-                      charId: null,
-                      source: "json",
-                      sourceId: null,
-                    })
-                  )
-                );
+                changeXinfa(x);
+                setSwitched(false);
               }}
             />
           </Field>
@@ -274,9 +346,28 @@ export function NewLoadoutDialog({
           xinfa={xinfa}
           talentSource={talentSource}
           onSubmitKey={submit}
+          image={{
+            chip:
+              img.image && view ? (
+                <ScanChip
+                  image={img.image}
+                  view={view}
+                  onRemove={img.clear}
+                  onRetry={img.retry}
+                />
+              ) : null,
+            note: view
+              ? (view.note ??
+                (view.ready ? tx("截图只用来识别，不会保存") : null))
+              : null,
+            onFile: f => {
+              input.setText("");
+              void img.run(f);
+            },
+          }}
         />
 
-        {!native && (
+        {!native && !img.image && (
           <section>
             <button
               type="button"

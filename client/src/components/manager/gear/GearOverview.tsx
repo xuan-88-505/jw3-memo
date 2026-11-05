@@ -209,7 +209,8 @@ export function GearOverview({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          {lo.source !== "manual" && (
+          {/* 手动配的、按截图建的没有能重新导入的来源（重新导入只能贴装备码和链接） */}
+          {lo.source !== "manual" && lo.source !== "image" && (
             <Btn
               variant="ghost"
               size="md"

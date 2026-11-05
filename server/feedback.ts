@@ -91,20 +91,31 @@ export function parseFeedback(body: unknown): ParseResult {
 
 /* ---------------- 限流：同一 IP 10 分钟 5 条、24 小时 20 条 ---------------- */
 
-const WINDOWS = [
+export interface RateWindow {
+  ms: number;
+  max: number;
+}
+
+const WINDOWS: RateWindow[] = [
   { ms: 10 * 60 * 1000, max: 5 },
   { ms: 24 * 60 * 60 * 1000, max: 20 },
 ];
-const LONGEST = Math.max(...WINDOWS.map(w => w.ms));
 
+/** 按 key（一般是 IP）限流；不传窗口时用意见反馈的窗口 */
 export class RateLimiter {
   private hits = new Map<string, number[]>();
+  private readonly longest: number;
+
+  constructor(private readonly windows: RateWindow[] = WINDOWS) {
+    this.longest = Math.max(...windows.map(w => w.ms));
+  }
 
   /** 能发就记一次并返回 0；不能发返回还要等多少秒 */
   take(key: string, now = Date.now()): number {
-    const list = (this.hits.get(key) ?? []).filter(t => now - t < LONGEST);
+    const longest = this.longest;
+    const list = (this.hits.get(key) ?? []).filter(t => now - t < longest);
     let wait = 0;
-    for (const w of WINDOWS) {
+    for (const w of this.windows) {
       const inWindow = list.filter(t => now - t < w.ms);
       if (inWindow.length >= w.max) {
         // 窗口里最早那条过期后才能再发
@@ -121,7 +132,7 @@ export class RateLimiter {
     // 偶尔清掉早已过期的 IP，避免一直增长
     if (this.hits.size > 5000) {
       this.hits.forEach((v, k) => {
-        if (!v.some(t => now - t < LONGEST)) this.hits.delete(k);
+        if (!v.some(t => now - t < longest)) this.hits.delete(k);
       });
     }
     return 0;

@@ -689,6 +689,26 @@ export function seasonSync(lo: Loadout): Loadout | null {
   return next;
 }
 
+/**
+ * 按现成的输入算配装（截图识别出的，lib/gearScan.ts matchScan）。
+ * 截图里没认出、用了原版默认装备的部位记在 calc.replaced，配装页会说明。
+ * 目录还没加载完、或算不出来时返回 null。
+ */
+export function loadoutFromSeed(lo: Loadout, seed: Seed): Loadout | null {
+  const cat = loaded.get(calcCode(lo.xinfa));
+  if (!cat) return null;
+  const r = computeSync(lo.xinfa, seed.input);
+  if (!r.ok) return null;
+  const next = loadoutFromEngine(lo, cat, seed.input, r);
+  if (seed.replaced.length || seed.stoneReplaced)
+    next.calc = {
+      ...next.calc!,
+      replaced: seed.replaced,
+      stoneReplaced: seed.stoneReplaced,
+    };
+  return next;
+}
+
 let bundledKnown: boolean | null = null;
 
 /** 内置计算器在不在：null 是还在查；网页版的部署里没有 */

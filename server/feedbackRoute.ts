@@ -21,7 +21,7 @@ const limiter = new RateLimiter();
  * 取限流用的 IP。网站在 Cloudflare 后面，优先用它设置的 CF-Connecting-IP（客户端伪造不了）；
  * 没有时退回 X-Forwarded-For 的第一个。限流只是尽力而为，不当作安全边界。
  */
-function clientIp(req: Request) {
+export function clientIp(req: Request) {
   const cf = req.headers["cf-connecting-ip"];
   const cfIp = (Array.isArray(cf) ? cf[0] : cf)?.trim();
   if (cfIp) return cfIp;
@@ -30,7 +30,7 @@ function clientIp(req: Request) {
   return first || req.socket.remoteAddress || "unknown";
 }
 
-function cors(req: Request, res: Response) {
+export function cors(req: Request, res: Response) {
   const origin = req.headers.origin;
   if (origin && DESKTOP_ORIGINS.has(origin)) {
     res.set({

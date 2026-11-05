@@ -96,8 +96,8 @@ export interface DpsPoint {
   detail?: string;
 }
 
-/** 配装从哪里来：三种导入，或者不导入、手动配 */
-export type LoadoutSource = "myplugin" | "jx3box" | "json" | "manual";
+/** 配装从哪里来：三种导入、按装备截图识别（lib/gearScan.ts），或者不导入、手动配 */
+export type LoadoutSource = "myplugin" | "jx3box" | "json" | "manual" | "image";
 
 /**
  * 面板属性（不含增益），和魔盒配装器的面板一样按"等级"存，百分比用 LEVEL_COEF 换算。
@@ -1037,6 +1037,9 @@ export const SOURCE_LABEL: Record<LoadoutSource, string> = {
   },
   get manual() {
     return tx("手动");
+  },
+  get image() {
+    return tx("截图");
   },
 };
 
