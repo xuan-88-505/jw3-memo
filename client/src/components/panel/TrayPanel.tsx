@@ -432,6 +432,7 @@ function PanelMain({
               }}
               onCancel={() => setCreating(null)}
               onOpenManager={id => openManager("schemes", id)}
+              onSwitchKind={setTab}
             />
           ) : missing.length && (!multi || ready.length === 0) ? (
             <NoScheme

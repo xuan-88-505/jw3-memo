@@ -717,6 +717,24 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
     enabled: editable && hasContent,
     onApply: talents => editSet(curSetId, () => talents),
     pasteKey: pasteHint(state.platform),
+    // 截图是别的心法：给它新建方案（和「新建」一样先是草稿）、带上认出的奇穴，打开它接着写宏
+    onCreateFor: (x, talents) => {
+      if (!isOnline(state)) {
+        actions.toast("manager", "error", tx("离线时不能新建"));
+        return;
+      }
+      const id = actions.startNewScheme({ xinfa: x, mode: "PVE" });
+      actions.editDraft(id, d =>
+        mapTalentSets(d, list =>
+          list.map((t, i) => (i === 0 ? { ...t, talents } : t))
+        )
+      );
+      actions.toast(
+        "manager",
+        "success",
+        tx("新建了{0}的方案，奇穴已选上，写好宏后保存", x)
+      );
+    },
   });
 
   // 左栏只列出有内容的方案，删掉后这里也不会再显示它
@@ -973,6 +991,7 @@ function SchemeEditor({ schemeId }: { schemeId: string }) {
                 notice={scan.notice}
                 onUndo={scan.undo}
                 onChoose={scan.choose}
+                onCreate={scan.createFor}
                 onClose={scan.dismiss}
               />
             )}

@@ -1236,5 +1236,11 @@ const dict: Record<string, string> = {
   "{0} 个部位截图里没认出来，用了原版默认装备": "{0} slots weren't recognized in the screenshot; the original calculator's defaults are used",
   "1 个部位截图里没认出来，用了原版默认装备": "1 slot wasn't recognized in the screenshot; the original calculator's default is used",
   "{0} 个部位没认出来，先用原版默认装备，建好后可以在配装器里换": "{0} slots weren't recognized. Using the original calculator's defaults for now — you can change them in the editor after creating",
+  "写宏": "Write macro",
+  "已保存宏和奇穴": "Macro and talents saved",
+  "已切到{0}，认出 {1} 层": "Switched to {0}: {1} of 9 tiers recognized",
+  "新建{0}": "New {0}",
+  "新建了{0}的方案，奇穴已选上，写好宏后保存": "Created a {0} preset with these talents. Add macros, then save",
+  "没认出奇穴。截图里要有奇穴图标或名字": "No talents recognized. The screenshot needs talent icons or names",
 };
 export default dict;

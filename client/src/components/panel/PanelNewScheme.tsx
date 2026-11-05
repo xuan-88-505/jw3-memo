@@ -26,6 +26,8 @@ import { PanelForm } from "./PanelForm";
  * 新建方案（choose）时顶部只有一个心法按钮，默认是面板正在看的心法，不改就直接填。
  * 点开先选门派、再选心法，任何门派和流派都能选；同一个心法已经有方案也能再建一个。
  * 奇穴可以粘贴截图（Ctrl+V / ⌘V）自动选上；标题右边的「识别截图」读剪贴板里的图片。
+ * 截图是别的心法的奇穴时自动切到那个心法（本机认不出时发服务器读奇穴名字），提示里有「写宏」，切到宏页签接着写。
+ * 新建方案时宏、奇穴两个页签是同一个方案：在哪个页签保存，都把另一页签填好的一起存进去。
  * 面板不打开选文件：选文件窗口会抢走焦点，面板一失焦就收起。
  * 给了 edit（宏名后面的编辑铅笔）时是改这段宏：内容先填好，改了才能保存，存成新版本。
  * 保存后面板回到列表。Esc 或「取消」回到原来的样子。「取消 / 保存」固定在面板底部。
@@ -41,6 +43,7 @@ export function PanelNewScheme({
   onDone,
   onCancel,
   onOpenManager,
+  onSwitchKind,
 }: {
   kind: "macro" | "talent";
   /** 存到哪个心法；choose 时是默认选中的心法 */
@@ -60,6 +63,8 @@ export function PanelNewScheme({
   onCancel: () => void;
   /** 管理窗口里有这个方案没保存的草稿时，去那里处理 */
   onOpenManager: (schemeId: string) => void;
+  /** 切到宏或奇穴页签（新建方案时两个页签是同一个表单） */
+  onSwitchKind?: (kind: "macro" | "talent") => void;
 }) {
   const { state, actions } = useProto();
   const [xinfa, setXinfa] = useState(initialXinfa);
@@ -108,6 +113,9 @@ export function PanelNewScheme({
     content.trim() !== edit.content.trim();
   const canSave =
     kind === "talent" || (!!name.trim() && !empty && !over && changed);
+  // 新建方案：另一页签填好的内容一起存
+  const macroReady = !!name.trim() && !empty && !over;
+  const talentsSet = talents.join() !== defaultTalents().join();
   // 存到的心法不在这个角色的面板里：保存后面板看不到，告诉用户在方案库
   const savedText = (text: string) =>
     shown && !shown.includes(xinfa)
@@ -136,19 +144,20 @@ export function PanelNewScheme({
       onDone(edit.id, target.id, target.xinfa);
       return;
     }
-    if (kind === "macro") {
-      const macroId = `${xinfa}-n${Date.now()}`;
+    const macroId = `${xinfa}-n${Date.now()}`;
+    const macro = {
+      id: macroId,
+      name: name.trim(),
+      icon,
+      content: content.trim(),
+      note: note.trim(),
+    };
+    if (kind === "macro" && target) {
       const r = actions.addMacro(
         target?.xinfa === xinfa ? target.id : null,
         xinfa,
         target?.mode ?? "PVE",
-        {
-          id: macroId,
-          name: name.trim(),
-          icon,
-          content: content.trim(),
-          note: note.trim(),
-        }
+        macro
       );
       if (r.result === "draft") {
         setBlocked(true);
@@ -158,9 +167,25 @@ export function PanelNewScheme({
       onDone(macroId, r.schemeId, xinfa);
       return;
     }
-    const schemeId = actions.createScheme(xinfa, "PVE", { talents });
-    actions.toast("panel", "success", savedText(tx("已保存奇穴")));
-    onDone(undefined, schemeId, xinfa);
+    // 新建方案：宏页签保存时带上选好的奇穴，奇穴页签保存时带上写好的宏
+    const withMacro = kind === "macro" || macroReady;
+    const withTalents = kind === "talent" || talentsSet;
+    const schemeId = actions.createScheme(xinfa, "PVE", {
+      macros: withMacro ? [macro] : undefined,
+      talents: withTalents ? talents : undefined,
+    });
+    actions.toast(
+      "panel",
+      "success",
+      savedText(
+        withMacro && withTalents
+          ? tx("已保存宏和奇穴")
+          : withMacro
+            ? tx("已保存宏")
+            : tx("已保存奇穴")
+      )
+    );
+    onDone(withMacro ? macroId : undefined, schemeId, xinfa);
   };
 
   return (
@@ -299,6 +324,11 @@ export function PanelNewScheme({
               notice={scan.notice}
               onUndo={scan.undo}
               onClose={scan.dismiss}
+              onWriteMacro={
+                choose && !target && onSwitchKind
+                  ? () => onSwitchKind("macro")
+                  : undefined
+              }
             />
           )}
           <TalentPicker

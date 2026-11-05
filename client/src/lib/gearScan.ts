@@ -64,7 +64,9 @@ export class GearScanError extends Error {
   }
 }
 
-const ENDPOINT = IS_DESKTOP ? `${SITE_ORIGIN}/api/gear-scan` : "/api/gear-scan";
+/** 桌面版发到备忘录服务器；网页版同源 */
+const endpoint = (path: string) =>
+  IS_DESKTOP ? `${SITE_ORIGIN}${path}` : path;
 
 /** 长边最多这么多像素：推栏 1080×4330 的长截图缩到 599×2400，字还认得清 */
 export const SCAN_MAX_SIDE = 2400;
@@ -99,18 +101,19 @@ export async function prepareImage(src: Blob | ImageData): Promise<string> {
   throw new GearScanError("too_large");
 }
 
-/** 发给服务器识别；一分钟没结果算失败 */
-export async function requestScan(
+/** 发给服务器识别；一分钟没结果算失败。配装 /api/gear-scan，奇穴 /api/talent-scan */
+export async function postScan<T>(
+  path: string,
   dataUrl: string,
   signal?: AbortSignal
-): Promise<ScanResult> {
+): Promise<T> {
   const ctl = new AbortController();
   const timer = window.setTimeout(() => ctl.abort(), 60_000);
   const onAbort = () => ctl.abort();
   signal?.addEventListener("abort", onAbort);
   let res: Response;
   try {
-    res = await fetch(ENDPOINT, {
+    res = await fetch(endpoint(path), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image: dataUrl }),
@@ -126,7 +129,7 @@ export async function requestScan(
   }
   const body = (await res.json().catch(() => null)) as {
     ok?: boolean;
-    result?: ScanResult;
+    result?: T;
     retryAfter?: number;
   } | null;
   if (res.status === 429)
@@ -135,6 +138,9 @@ export async function requestScan(
   if (!res.ok || !body?.ok || !body.result) throw new GearScanError("failed");
   return body.result;
 }
+
+export const requestScan = (dataUrl: string, signal?: AbortSignal) =>
+  postScan<ScanResult>("/api/gear-scan", dataUrl, signal);
 
 /* ---------------- 对上当季装备库 ---------------- */
 

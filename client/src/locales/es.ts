@@ -1236,5 +1236,11 @@ const dict: Record<string, string> = {
   "{0} 个部位截图里没认出来，用了原版默认装备": "{0} ranuras no se reconocieron en la captura; se usa el equipo predeterminado de la calculadora original",
   "1 个部位截图里没认出来，用了原版默认装备": "1 ranura no se reconoció en la captura; se usa el equipo predeterminado de la calculadora original",
   "{0} 个部位没认出来，先用原版默认装备，建好后可以在配装器里换": "No se reconocieron {0} ranuras. Por ahora se usa el equipo predeterminado de la calculadora original; puedes cambiarlo en el editor después de crearlo",
+  "写宏": "Escribir macro",
+  "已保存宏和奇穴": "Macro y talentos guardados",
+  "已切到{0}，认出 {1} 层": "Cambiado a {0}: {1} de 9 niveles reconocidos",
+  "新建{0}": "Crear {0}",
+  "新建了{0}的方案，奇穴已选上，写好宏后保存": "Se creó un preset de {0} con estos talentos. Añade macros y guarda",
+  "没认出奇穴。截图里要有奇穴图标或名字": "No se reconoció ningún talento. La captura debe mostrar iconos o nombres de talentos",
 };
 export default dict;
