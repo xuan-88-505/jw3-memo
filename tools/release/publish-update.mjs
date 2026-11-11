@@ -8,6 +8,8 @@
  *
  * 做的事：
  *   1. 用 gh 下载 Release 里的 Windows setup.exe 和 Mac app.tar.gz。
+ *      Mac 优先用两种芯片各自的包（darwin_aarch64 / darwin_x64，2.4.0 起由 Actions 打出），
+ *      没有就用通用包（darwin_universal）。
  *   2. 用 `tauri signer sign --app-version` 签名（签名里写入版本号）。
  *   3. 用 tauri.conf.json 里的公钥按插件的规则验证签名和版本号。
  *   4. 检查服务端更新接口已经上线（返回 JSON，不是网页）。
@@ -377,13 +379,28 @@ async function main() {
   );
   const names = new Set(rel.assets.map(a => a.name));
   const win = `${PRODUCT}_${version}_windows_x64-setup.exe`;
-  const mac = `${PRODUCT}_${version}_darwin_universal.app.tar.gz`;
-  for (const n of [win, mac])
-    if (!names.has(n)) throw new Error(`${tag} 里没有 ${n}，等打包完成再运行`);
+  // Mac：两种芯片优先用各自的包（只有一种芯片的代码，小一半）；没有就用通用包
+  const macUniversal = `${PRODUCT}_${version}_darwin_universal.app.tar.gz`;
+  const macFor = {
+    "darwin-aarch64": `${PRODUCT}_${version}_darwin_aarch64.app.tar.gz`,
+    "darwin-x86_64": `${PRODUCT}_${version}_darwin_x64.app.tar.gz`,
+  };
+  for (const [platform, n] of Object.entries(macFor)) {
+    if (names.has(n)) continue;
+    if (!names.has(macUniversal))
+      throw new Error(
+        `${tag} 里没有 ${n}，也没有 ${macUniversal}，等打包完成再运行`
+      );
+    console.log(`WARN ${tag} 里没有 ${n}，${platform} 改用通用包`);
+    macFor[platform] = macUniversal;
+  }
+  if (!names.has(win))
+    throw new Error(`${tag} 里没有 ${win}，等打包完成再运行`);
+  const files = [...new Set([win, ...Object.values(macFor)])];
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `jw3-update-${version}-`));
   console.log(`下载到 ${dir}`);
-  for (const n of [win, mac]) {
+  for (const n of files) {
     run("gh", [
       "release",
       "download",
@@ -400,7 +417,7 @@ async function main() {
 
   const url = n => `https://github.com/${REPO}/releases/download/${tag}/${n}`;
   const signed = {};
-  for (const n of [win, mac]) {
+  for (const n of files) {
     const file = path.join(dir, n);
     const sig = sign(file, version, keyPath, password);
     verifyUpdateSignature(
@@ -425,14 +442,19 @@ async function main() {
     pub_date: pubDate,
     platforms: {
       "windows-x86_64": { signature: signed[win], url: url(win) },
-      // Mac 包是 universal，两种芯片用同一个文件
-      "darwin-aarch64": { signature: signed[mac], url: url(mac) },
-      "darwin-x86_64": { signature: signed[mac], url: url(mac) },
+      ...Object.fromEntries(
+        Object.entries(macFor).map(([platform, n]) => [
+          platform,
+          { signature: signed[n], url: url(n) },
+        ])
+      ),
     },
   };
   const out = path.join(dir, "latest.json");
   fs.writeFileSync(out, `${JSON.stringify(manifest, null, 2)}\n`);
   console.log(`已生成 ${out}`);
+  for (const [platform, n] of Object.entries(macFor))
+    console.log(`  ${platform} → ${n}`);
 
   const server = cfg.endpoints.find(e => !e.includes("github.com"));
   if (server) {
@@ -456,10 +478,9 @@ async function main() {
     REPO,
     "--clobber",
     out,
-    path.join(dir, `${win}.sig`),
-    path.join(dir, `${mac}.sig`),
+    ...files.map(n => path.join(dir, `${n}.sig`)),
   ]);
-  console.log(`已上传 latest.json 和 2 个 .sig 到 ${tag}`);
+  console.log(`已上传 latest.json 和 ${files.length} 个 .sig 到 ${tag}`);
 }
 
 if (

@@ -4,6 +4,8 @@
  * 流程：检查 → 有新版本时侧栏「设置」出现小点、设置页「版本」行出现「更新」→
  * 用户确认后下载（显示进度）→ 写盘并备份 data.json → 安装 →
  * Windows 安装程序自动关掉并重新打开软件；Mac 换好后由这里重启。
+ * 下载最多试 3 次：前两次经我们的服务器转发；第三次带直连请求头重新检查，
+ * 服务器返回 GitHub 的原始地址，改从 GitHub 直接下。三次都断了才报错。
  * 查到的新版本同时记进 localStorage（lib/update/notice.ts），面板的通知里也显示。
  *
  * 更新地址和公钥在 src-tauri/tauri.conf.json 的 plugins.updater；
@@ -18,6 +20,12 @@ import { noticeVersion, writeUpdateNotice } from "./notice";
 
 /** 下载安装包的最长时间 */
 const DOWNLOAD_TIMEOUT = 15 * 60 * 1000;
+/** 下载最多试几次；最后一次改从 GitHub 直接下 */
+export const DOWNLOAD_TRIES = 3;
+/** 断了以后等一会儿再试，避开短暂的断网 */
+const RETRY_DELAY_MS = 1500;
+/** 检查更新时带上，服务器返回 GitHub 的原始下载地址（server/update.ts 的 DIRECT_HEADER） */
+const DIRECT_HEADERS = { "X-JW3-Download": "direct" };
 
 export interface UpdateInfo {
   version: string;
@@ -51,6 +59,10 @@ export interface UpdateState {
   checkedAt: number | null;
   received: number;
   total: number | null;
+  /** 第几次下载（从 1 开始）；大于 1 表示前面断过，正在重试 */
+  attempt: number;
+  /** 这次下载是不是从 GitHub 直接下（不经我们的服务器） */
+  direct: boolean;
   error: UpdateErrorStage | null;
 }
 
@@ -61,6 +73,8 @@ const INITIAL: UpdateState = {
   checkedAt: null,
   received: 0,
   total: null,
+  attempt: 1,
+  direct: false,
   error: null,
 };
 
@@ -174,27 +188,38 @@ interface Pending {
  */
 export async function installUpdate() {
   if (!IS_DESKTOP || !handle || !state.available || busy()) return;
-  const update = handle;
-  const to = state.available.version;
-  set({ phase: "downloading", received: 0, total: null, error: null });
-  try {
-    let received = 0;
-    await update.download(
-      ev => {
-        if (ev.event === "Started") {
-          set({ total: ev.data.contentLength ?? null });
-        } else if (ev.event === "Progress") {
-          received += ev.data.chunkLength;
-          set({ received });
-        }
-      },
-      // 网络卡住时不要一直转圈：15 分钟还没下完就算失败，可以重试
-      { timeout: DOWNLOAD_TIMEOUT }
-    );
-  } catch (err) {
-    console.warn("下载更新失败", err);
-    set({ phase: "error", error: "download" });
-    return;
+  let update = handle;
+  let to = state.available.version;
+  set({
+    phase: "downloading",
+    received: 0,
+    total: null,
+    attempt: 1,
+    direct: false,
+    error: null,
+  });
+  for (let attempt = 1; ; attempt++) {
+    const direct = attempt === DOWNLOAD_TRIES;
+    try {
+      if (attempt > 1) {
+        set({ attempt, direct, received: 0, total: null });
+        await sleep(RETRY_DELAY_MS);
+      }
+      if (direct) {
+        const next = await recheckDirect();
+        if (!next) throw new Error("重新检查时没有新版本了");
+        update = next;
+        to = next.version;
+      }
+      await downloadOnce(update);
+      break;
+    } catch (err) {
+      console.warn(`下载更新失败（第 ${attempt} 次）`, err);
+      if (attempt >= DOWNLOAD_TRIES) {
+        set({ phase: "error", error: "download" });
+        return;
+      }
+    }
   }
   set({ phase: "installing" });
   // 锁定两个窗口的数据，确认改动都写进了 data.json，之后的改动不再生效（见 hold.ts）
@@ -225,6 +250,49 @@ export async function installUpdate() {
     releaseDataHold();
     set({ phase: "error", error: "install" });
   }
+}
+
+const sleep = (ms: number) => new Promise(r => window.setTimeout(r, ms));
+
+/** 下载一次，进度写进 state；断了、超时都抛错 */
+async function downloadOnce(update: Update) {
+  let received = 0;
+  await update.download(
+    ev => {
+      if (ev.event === "Started") {
+        set({ total: ev.data.contentLength ?? null });
+      } else if (ev.event === "Progress") {
+        received += ev.data.chunkLength;
+        set({ received });
+      }
+    },
+    // 网络卡住时不要一直转圈：15 分钟还没下完就算这次失败
+    { timeout: DOWNLOAD_TIMEOUT }
+  );
+}
+
+/**
+ * 带直连请求头重新检查一次，拿到下载地址是 GitHub 原始地址的更新。
+ * 换掉手上的更新对象；版本变了（刚好又发了新版）就按新版本显示。
+ */
+async function recheckDirect(): Promise<Update | null> {
+  const { check } = await import("@tauri-apps/plugin-updater");
+  const next = await check({ timeout: 20_000, headers: DIRECT_HEADERS });
+  if (!next) return null;
+  const old = handle;
+  handle = next;
+  if (old && old !== next) void old.close().catch(() => {});
+  if (next.version !== state.available?.version) {
+    set({
+      available: {
+        version: next.version,
+        notes: (next.body ?? "").trim(),
+        date: parseDate(next.date),
+      },
+    });
+    writeUpdateNotice(next.version);
+  }
+  return next;
 }
 
 /**

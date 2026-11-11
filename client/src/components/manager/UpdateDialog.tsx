@@ -165,6 +165,8 @@ export function UpdateDialog({
             received={u.received}
             total={u.total}
             pct={pct}
+            attempt={u.attempt}
+            direct={u.direct}
           />
         ) : (
           <>
@@ -214,18 +216,35 @@ function UpdateProgress({
   received,
   total,
   pct,
+  attempt,
+  direct,
 }: {
   phase: string;
   received: number;
   total: number | null;
   pct: number | null;
+  /** 第几次下载；大于 1 表示前面断过 */
+  attempt: number;
+  /** 这次从 GitHub 直接下 */
+  direct: boolean;
 }) {
   const installing = phase === "installing";
+  const got = formatMB(received);
+  const all = total ? formatMB(total) : null;
+  // 断过一次：说明在重下；最后一次换了线路：说明改从 GitHub 下
   const label = installing
     ? tx("正在安装，软件马上会重新打开")
-    : total
-      ? tx("正在下载 {0} / {1} MB", formatMB(received), formatMB(total))
-      : tx("正在下载 {0} MB", formatMB(received));
+    : direct
+      ? all
+        ? tx("改从 GitHub 下载 {0} / {1} MB", got, all)
+        : tx("改从 GitHub 下载 {0} MB", got)
+      : attempt > 1
+        ? all
+          ? tx("网络断了，正在重新下载 {0} / {1} MB", got, all)
+          : tx("网络断了，正在重新下载 {0} MB", got)
+        : all
+          ? tx("正在下载 {0} / {1} MB", got, all)
+          : tx("正在下载 {0} MB", got);
   return (
     <div className="w-full" role="status" aria-live="polite">
       <div className="mb-2 flex items-center gap-2 text-[12.5px] text-paper-2">

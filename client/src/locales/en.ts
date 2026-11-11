@@ -1242,5 +1242,9 @@ const dict: Record<string, string> = {
   "新建{0}": "New {0}",
   "新建了{0}的方案，奇穴已选上，写好宏后保存": "Created a {0} preset with these talents. Add macros, then save",
   "没认出奇穴。截图里要有奇穴图标或名字": "No talents recognized. The screenshot needs talent icons or names",
+  "网络断了，正在重新下载 {0} / {1} MB": "Connection dropped. Downloading again {0} / {1} MB",
+  "网络断了，正在重新下载 {0} MB": "Connection dropped. Downloading again {0} MB",
+  "改从 GitHub 下载 {0} / {1} MB": "Downloading from GitHub instead {0} / {1} MB",
+  "改从 GitHub 下载 {0} MB": "Downloading from GitHub instead {0} MB",
 };
 export default dict;

@@ -4,6 +4,7 @@ import { once } from "events";
 import type { Server } from "http";
 import {
   compareSemver,
+  DIRECT_HEADER,
   isMirrorFile,
   mirrorUrl,
   parseSemver,
@@ -107,6 +108,46 @@ describe("挑出这台电脑要的更新", () => {
       `${ORIGIN}/api/update/file/v2.2.0/JW3-Memo_2.2.0_darwin_universal.app.tar.gz`
     );
   });
+  it("direct：下载地址保持 GitHub 原样，其他字段不变", () => {
+    const u = pickUpdate(
+      manifest(),
+      "windows",
+      "x86_64",
+      "2.1.0",
+      ORIGIN,
+      true
+    );
+    expect(u).toEqual({
+      version: "2.2.0",
+      notes: "## 本版更新\n- 一键更新",
+      pub_date: "2026-11-03T08:00:00Z",
+      url: `${GH}/v2.2.0/JW3-Memo_2.2.0_windows_x64-setup.exe`,
+      signature: "sig-win",
+    });
+  });
+  it("Mac 两种芯片各有自己的包时，各拿各的（转发和直连都是）", () => {
+    const m = manifest("2.4.0");
+    m.platforms["darwin-aarch64"] = {
+      url: `${GH}/v2.4.0/JW3-Memo_2.4.0_darwin_aarch64.app.tar.gz`,
+      signature: "sig-arm",
+    };
+    m.platforms["darwin-x86_64"] = {
+      url: `${GH}/v2.4.0/JW3-Memo_2.4.0_darwin_x64.app.tar.gz`,
+      signature: "sig-intel",
+    };
+    const arm = pickUpdate(m, "darwin", "aarch64", "2.3.0", ORIGIN);
+    const intel = pickUpdate(m, "darwin", "x86_64", "2.3.0", ORIGIN, true);
+    expect(arm && arm !== "invalid" && [arm.url, arm.signature]).toEqual([
+      `${ORIGIN}/api/update/file/v2.4.0/JW3-Memo_2.4.0_darwin_aarch64.app.tar.gz`,
+      "sig-arm",
+    ]);
+    expect(
+      intel && intel !== "invalid" && [intel.url, intel.signature]
+    ).toEqual([
+      `${GH}/v2.4.0/JW3-Memo_2.4.0_darwin_x64.app.tar.gz`,
+      "sig-intel",
+    ]);
+  });
   it("一样或更旧的版本、没有这个平台：没有更新", () => {
     expect(
       pickUpdate(manifest(), "windows", "x86_64", "2.2.0", ORIGIN)
@@ -196,6 +237,27 @@ describe("更新接口路由（假的 GitHub）", () => {
     expect((await fetch(`${base}/api/update/windows/x86_64/abc`)).status).toBe(
       400
     );
+  });
+
+  it("带直连请求头：返回 GitHub 原始地址；值不对按转发处理", async () => {
+    const direct = await fetch(`${base}/api/update/windows/x86_64/2.1.0`, {
+      headers: { [DIRECT_HEADER]: "Direct" },
+    });
+    expect(direct.status).toBe(200);
+    expect(direct.headers.get("cache-control")).toBe("no-store");
+    expect((await direct.json()).url).toBe(
+      `${GH}/v2.2.0/JW3-Memo_2.2.0_windows_x64-setup.exe`
+    );
+    const other = await fetch(`${base}/api/update/windows/x86_64/2.1.0`, {
+      headers: { [DIRECT_HEADER]: "yes" },
+    });
+    expect((await other.json()).url).toBe(
+      `${ORIGIN}/api/update/file/v2.2.0/JW3-Memo_2.2.0_windows_x64-setup.exe`
+    );
+    const latest = await fetch(`${base}/api/update/windows/x86_64/2.2.0`, {
+      headers: { [DIRECT_HEADER]: "direct" },
+    });
+    expect(latest.status).toBe(204);
   });
 
   it("latest.json 缓存 5 分钟；GitHub 读不到时 1 天内用旧缓存，没缓存返回 503", async () => {

@@ -18,9 +18,17 @@ jobs:
         include:
           - platform: windows-latest
             args: ""
-          # 通用版：M 芯片和 Intel 芯片的 Mac 都能用
+          # 通用版：M 芯片和 Intel 芯片的 Mac 都能用。dmg 安装包用它
           - platform: macos-latest
             args: "--target universal-apple-darwin"
+          # 一键更新用的 Mac 包：两种芯片各打一个，只打 .app（tauri-action 压成 .app.tar.gz 上传），
+          # 比通用包小一半，下载更快。签名和 latest.json 见 tools/release/publish-update.mjs
+          - platform: macos-latest
+            args: "--target aarch64-apple-darwin --bundles app"
+            cacheKey: mac-aarch64
+          - platform: macos-latest
+            args: "--target x86_64-apple-darwin --bundles app"
+            cacheKey: mac-x64
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +47,8 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
+          # 两个单芯片任务各用各的缓存；Windows 和通用版不填，沿用原来的缓存
+          key: ${{ matrix.cacheKey }}
 
       - name: 安装前端依赖
         run: pnpm install --frozen-lockfile

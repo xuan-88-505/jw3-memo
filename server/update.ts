@@ -5,6 +5,8 @@
  *   读 GitHub Release 里的 latest.json，有新版本返回 200 和
  *   `{version, notes, pub_date, url, signature}`，没有返回 204。
  *   下载地址改成本服务器的 `/api/update/file/...`，国内用户不用直连 GitHub。
+ *   请求带 `X-JW3-Download: direct` 时返回 GitHub 的原始下载地址：客户端经本服务器
+ *   下载两次都断掉后，第三次改从 GitHub 直接下（见 client/src/lib/update/appUpdate.ts）。
  * - `GET /api/update/file/:tag/:name`：转发 GitHub Release 里的安装包。
  *   只转发本仓库、版本标签和更新包后缀都符合规则的文件。
  *
@@ -20,6 +22,8 @@ export { compareSemver, parseSemver };
 export const UPDATE_REPO = "xuan-88-505/jw3-memo";
 /** 已发布网站的地址。下载地址必须是完整网址，不能用请求里的 Host 拼 */
 export const UPDATE_PUBLIC_ORIGIN = "https://tongdiao-k5ujnxu8.manus.space";
+/** 检查更新时带这个请求头（值为 direct），返回 GitHub 的原始下载地址，不经本服务器转发 */
+export const DIRECT_HEADER = "x-jw3-download";
 const MANIFEST_URL = `https://github.com/${UPDATE_REPO}/releases/latest/download/latest.json`;
 const RELEASE_DOWNLOAD = `https://github.com/${UPDATE_REPO}/releases/download/`;
 
@@ -62,13 +66,15 @@ export interface DynamicUpdate {
  * 从 latest.json 里挑出这台电脑要的更新。
  * 返回 null 表示没有更新（版本不比当前新，或没有这个平台的包）；
  * 返回 "invalid" 表示 latest.json 格式不对。
+ * direct 为 true 时下载地址保持 latest.json 里的原样（GitHub），不改成转发地址。
  */
 export function pickUpdate(
   manifest: unknown,
   target: string,
   arch: string,
   current: string,
-  origin = UPDATE_PUBLIC_ORIGIN
+  origin = UPDATE_PUBLIC_ORIGIN,
+  direct = false
 ): DynamicUpdate | null | "invalid" {
   if (!manifest || typeof manifest !== "object") return "invalid";
   const m = manifest as Record<string, unknown>;
@@ -99,7 +105,7 @@ export function pickUpdate(
       version: version.replace(/^v/, ""),
       notes: typeof m.notes === "string" ? m.notes : "",
       ...(pubDate ? { pub_date: pubDate } : {}),
-      url: mirrorUrl(url, origin),
+      url: direct ? url : mirrorUrl(url, origin),
       signature,
     };
   }
@@ -229,7 +235,8 @@ export function registerUpdateRoutes(
       res.status(503).json({ error: "unavailable" });
       return;
     }
-    const update = pickUpdate(manifest, target, arch, current, origin);
+    const direct = req.get(DIRECT_HEADER)?.trim().toLowerCase() === "direct";
+    const update = pickUpdate(manifest, target, arch, current, origin, direct);
     if (update === "invalid") {
       console.warn("[update] latest.json 格式不对");
       res.status(503).json({ error: "unavailable" });
