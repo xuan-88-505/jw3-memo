@@ -1,0 +1,29 @@
+# 模板：gh 没有上传 Release 文件的权限时用（见 tools/release/README.md「gh 上传不了时」）。
+# 不要放进 main 的 .github/workflows。只复制到临时分支 release-upload/vX.Y.Z 的
+# .github/workflows/upload-update.yml，推送后由 Actions 自带令牌上传，传完删掉分支。
+name: Upload update files
+
+on:
+  push:
+    branches: ["release-upload/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload latest.json and .sig, update release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="$(tr -d '[:space:]' < release-upload/TAG)"
+          ls -la release-upload/files
+          gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber release-upload/files/*
+          if [ -f release-upload/body.md ]; then
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file release-upload/body.md
+          fi
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[] | "\(.size) \(.name)"'

@@ -24,6 +24,19 @@ GitHub Actions 只负责打包。签名和生成 `latest.json` 在本地做，�
 
 5. 检查：`curl https://tongdiao-k5ujnxu8.manus.space/api/update/windows/x86_64/<旧版本号>` 应该返回 200 和新版本的 JSON。服务器把清单缓存 5 分钟，所以刚上传时可能要等一会儿。
 
+## gh 上传不了时
+
+如果第 4 步上传时报 403「Resource not accessible by integration」，说明 gh 的凭据没有上传 Release 文件的权限。签名已经做完了，脚本会打印「已生成 /tmp/jw3-update-X.Y.Z-xxxx」，里面就是 `latest.json` 和各个 `.sig`。这些都是公开文件，不含私钥。用临时分支让 Actions 代传（2.4.0 就是这样传的）：
+
+1. `git worktree add -b release-upload/vX.Y.Z /tmp/upload vX.Y.Z`，在这个目录里放：
+   - `release-upload/TAG`：一行 `vX.Y.Z`
+   - `release-upload/files/`：`latest.json` 和所有 `.sig`
+   - `release-upload/body.md`（可选）：新的 Release 正文
+   - `.github/workflows/upload-update.yml`：从 `tools/release/upload-update.yml` 复制
+2. 提交，只推到 GitHub：`git push github release-upload/vX.Y.Z`（用部署密钥）。Actions 会运行「Upload update files」，用自带的令牌上传并改正文。
+3. 核对 Release 上的文件，然后删掉分支：`git push github --delete release-upload/vX.Y.Z`，`git worktree remove /tmp/upload`，`git branch -D release-upload/vX.Y.Z`。main 上不要留这个工作流。
+4. 照第 5 步检查线上接口。
+
 ## 其他
 
 - `node tools/release/publish-update.mjs --self-test` 用临时密钥检查签名、验证和服务器探测的规则，不碰真实密钥和 Release。
