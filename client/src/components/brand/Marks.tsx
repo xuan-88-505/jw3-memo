@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Huangji, huangjiSrc } from "./Huangji";
 import { XINFA_META } from "@/data/seed";
 import { xinfaIconUrl } from "@/data/xinfaIcons";
 import { cn } from "@/lib/utils";
 import { tx } from "@/lib/i18n";
+import { useImageRetry } from "@/lib/useImageRetry";
 
 /** 品牌标记：黄鸡大笑（游戏表情第 1 帧），和托盘图标、应用图标同一只 */
 export function BrandSeal({
@@ -88,7 +89,7 @@ export function HuangjiLaugh({
   return <Huangji mood="大笑" size={size} animated={animated} />;
 }
 
-/** 心法标记：游戏里的心法图标；没有图标或加载失败时，显示方印里一个字 */
+/** 心法标记：游戏里的心法图标；没有图标或加载失败时，显示方印里一个字（失败后会在后台重试，成功就换回图标） */
 export function XinfaMark({
   xinfa,
   size = 28,
@@ -98,7 +99,6 @@ export function XinfaMark({
   size?: number;
   className?: string;
 }) {
-  const [failed, setFailed] = useState(false);
   const meta = XINFA_META[xinfa] ?? {
     short: xinfa.slice(0, 1),
     color: "#968F82",
@@ -106,6 +106,7 @@ export function XinfaMark({
   };
   const label = meta.school ? `${meta.school} · ${xinfa}` : xinfa;
   const src = xinfaIconUrl(xinfa);
+  const { failed, onError } = useImageRetry(src);
   if (src && !failed) {
     return (
       <span
@@ -119,7 +120,7 @@ export function XinfaMark({
           width={size}
           height={size}
           draggable={false}
-          onError={() => setFailed(true)}
+          onError={onError}
           className="h-full w-full select-none object-contain"
         />
       </span>
@@ -146,7 +147,7 @@ export function XinfaMark({
   );
 }
 
-/** 魔盒图标，加载失败时显示名字的第一个字 */
+/** 魔盒图标，加载失败时显示名字的第一个字（失败后会在后台重试，成功就换回图标） */
 export function Jx3Icon({
   id,
   name,
@@ -163,7 +164,8 @@ export function Jx3Icon({
   /** 铺满外面的格子并保持正方形；size 只决定缺图时的字号 */
   fluid?: boolean;
 }) {
-  const [failed, setFailed] = useState(false);
+  const src = `https://icon.jx3box.com/icon/${id}.png`;
+  const { failed, onError } = useImageRetry(src);
   return (
     <span
       className={cn(
@@ -183,13 +185,13 @@ export function Jx3Icon({
         </span>
       ) : (
         <img
-          src={`https://icon.jx3box.com/icon/${id}.png`}
+          src={src}
           alt=""
           width={size}
           height={size}
           loading="lazy"
           draggable={false}
-          onError={() => setFailed(true)}
+          onError={onError}
           className={cn(
             "h-full w-full object-cover",
             // 绝对定位：图片自身的宽高不会把格子撑大
