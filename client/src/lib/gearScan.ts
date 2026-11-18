@@ -298,12 +298,25 @@ export interface ScanMatch extends Seed {
   found: number;
   /** 截图里有、当季装备库里找不到的部位名（帽子、戒指…） */
   missing: string[];
+  /** missing 里是 PVP 装备的部位名（带化劲、御劲；原版计算器只收 PVE 装备） */
+  pvp: string[];
+  /** 截图里对不上的 PVP 装备件数（两个戒指算两件） */
+  pvpCount: number;
   /** 截图里没有的部位名 */
   absent: string[];
   /** 五彩石：found 对上了；missing 截图里有、当季没有；absent 截图里没有 */
   stone: "found" | "missing" | "absent";
   /** 截图里每件精炼都一样时的精炼等级 */
   refine: number | null;
+}
+
+/** PVP 装备才有的属性。原版计算器算木桩秒伤，装备库里没有带这两个属性的装备 */
+const PVP_ATTRS = ["化劲", "御劲"];
+
+export function isPvpItem(item: ScanItem) {
+  return [...item.attrs, item.enchant ?? ""].some(a =>
+    PVP_ATTRS.some(p => a.includes(p))
+  );
 }
 
 export function matchScan(cat: CalcCatalog, scan: ScanResult): ScanMatch {
@@ -316,6 +329,8 @@ export function matchScan(cat: CalcCatalog, scan: ScanResult): ScanMatch {
   }
   const slots: CalcInput["slots"] = {};
   const missing: string[] = [];
+  const pvp: string[] = [];
+  let pvpCount = 0;
   const seen = new Set<string>();
   // 截图里五行石的等级：没写等级的孔按截图里最高的等级算，都没写按原版默认
   const gemLevels = scan.items.flatMap(it => it.gems.filter(g => g > 0));
@@ -343,6 +358,10 @@ export function matchScan(cat: CalcCatalog, scan: ScanResult): ScanMatch {
     if (!hit) {
       if (!seen.has(item.slot)) missing.push(item.slot);
       seen.add(item.slot);
+      if (isPvpItem(item)) {
+        pvpCount++;
+        if (!pvp.includes(item.slot)) pvp.push(item.slot);
+      }
       continue;
     }
     free.set(
@@ -390,6 +409,8 @@ export function matchScan(cat: CalcCatalog, scan: ScanResult): ScanMatch {
     stoneReplaced: stone === "missing",
     found,
     missing,
+    pvp,
+    pvpCount,
     absent,
     stone,
     refine:

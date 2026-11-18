@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CalcCatalog, CalcEquip } from "./calcEngine";
 import {
+  isPvpItem,
   bestEnchant,
   bestStone,
   matchScan,
@@ -263,6 +264,28 @@ describe("matchScan", () => {
     expect(m.replaced).not.toContain("hat");
     expect(m.input.slots._2?.id).toBe(10);
     expect(m.refine).toBe(6);
+    expect(m.pvp).toEqual([]);
+    expect(m.pvpCount).toBe(0);
+  });
+
+  it("PVP 装备（带化劲、御劲）对不上：记下部位和件数，两个戒指算两件", () => {
+    const pvp = { attrs: ["元气", "攻击", "破防", "化劲"] };
+    const m = matchScan(
+      catalog(),
+      scan([
+        item("武器", "渊穆剑"),
+        item("衣服", "独镇乾坤·默山衣", pvp),
+        item("项链", "征雁同霄·澄怀链", { enchant: "御劲" }),
+        item("戒指", "独镇乾坤·默山指环", pvp),
+        item("戒指", "独镇乾坤·默山指环", pvp),
+        item("帽子", "不存在的帽子"),
+      ])
+    );
+    expect(m.found).toBe(1);
+    expect(m.missing).toEqual(["衣服", "项链", "戒指", "帽子"]);
+    expect(m.pvp).toEqual(["衣服", "项链", "戒指"]);
+    expect(m.pvpCount).toBe(4);
+    expect(isPvpItem(item("帽子", "铮砥冠", { attrs: ["会心"] }))).toBe(false);
   });
 
   it("部位写错了：别的部位里有同名装备就挪过去", () => {
