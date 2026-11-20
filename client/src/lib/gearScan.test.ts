@@ -3,6 +3,7 @@ import type { CalcCatalog, CalcEquip } from "./calcEngine";
 import {
   bestEnchant,
   bestStone,
+  enchantScope,
   matchScan,
   normName,
   similarity,
@@ -348,6 +349,59 @@ describe("bestEnchant / bestStone", () => {
     expect(bestEnchant(c, "_1", "会心")).toBe(502);
     expect(bestEnchant(c, "_1", null)).toBeNull();
     expect(bestEnchant(c, "_2", "急速")).toBeNull();
+  });
+
+  it("附魔：「内功·攻击」是往季的内攻，「全攻击」是当季的；PVP 装备取装分最高的，PVE 装备先取 PVE 的", () => {
+    const c = catalog();
+    c.enchants.push(
+      {
+        id: 701,
+        附魔名称: "峡金焠·头（攻击）",
+        附魔效果简写: "攻击+90",
+        附魔支持部位: ["帽子"],
+        附魔装分: 122,
+        增益集合: [{ 属性: "allAttackPowerBase", 值: 90 }],
+      },
+      {
+        id: 702,
+        附魔名称: "风语·头·铸（内攻）",
+        附魔效果简写: "内攻+39",
+        附魔支持部位: ["帽子"],
+        附魔装分: 57,
+        增益集合: [{ 属性: "atMagicAttackPowerBase", 值: 39 }],
+        pvp: true,
+        legacy: true,
+      },
+      {
+        id: 703,
+        附魔名称: "镇渊石·戒指（攻击）",
+        附魔效果简写: "攻击+90",
+        附魔支持部位: ["戒指"],
+        附魔装分: 122,
+        增益集合: [{ 属性: "allAttackPowerBase", 值: 90 }],
+      },
+      {
+        id: 704,
+        附魔名称: "铸世·归正·戒指（攻击）",
+        附魔效果简写: "攻击+126",
+        附魔支持部位: ["戒指"],
+        附魔装分: 158,
+        增益集合: [{ 属性: "allAttackPowerBase", 值: 126 }],
+        pvp: true,
+      }
+    );
+    expect(enchantScope("内功·攻击")).toBe("magic");
+    expect(enchantScope("外攻")).toBe("physics");
+    expect(enchantScope("全攻击")).toBe("all");
+    expect(enchantScope("元气")).toBeNull();
+    expect(bestEnchant(c, "_1", "内功·攻击")).toBe(702);
+    expect(bestEnchant(c, "_1", "内功·攻击", true)).toBe(702);
+    expect(bestEnchant(c, "_1", "全攻击")).toBe(701);
+    expect(bestEnchant(c, "_1", "攻击")).toBe(701);
+    // 范围里没有（外功）就不限范围
+    expect(bestEnchant(c, "_1", "外功·攻击")).toBe(701);
+    expect(bestEnchant(c, "_9", "全攻击", true)).toBe(704);
+    expect(bestEnchant(c, "_9", "全攻击")).toBe(703);
   });
 
   it("五彩石：全名、全角写法、没写等级取最高级", () => {

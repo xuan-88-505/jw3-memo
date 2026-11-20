@@ -387,11 +387,23 @@ function Body({
                                 {f.附魔效果简写}
                               </option>
                             ))}
-                          {/* 化劲、御劲小附魔单独一组，不和 PVE 附魔按装分混排 */}
-                          {enchants.some(f => f.pvp) && (
+                          {/* 魔盒的 PVP 附魔（化劲、御劲、铸世·归正）单独一组，不和 PVE 附魔按装分混排 */}
+                          {enchants.some(f => f.pvp && !f.legacy) && (
                             <optgroup label="PVP">
                               {enchants
-                                .filter(f => f.pvp)
+                                .filter(f => f.pvp && !f.legacy)
+                                .map(f => (
+                                  <option key={f.id} value={f.id}>
+                                    {f.附魔效果简写}
+                                  </option>
+                                ))}
+                            </optgroup>
+                          )}
+                          {/* 往季附魔：当季没有的属性（帽子、鞋、武器的内攻外攻等） */}
+                          {enchants.some(f => f.legacy) && (
+                            <optgroup label={tx("往季")}>
+                              {enchants
+                                .filter(f => f.legacy)
                                 .map(f => (
                                   <option key={f.id} value={f.id}>
                                     {f.附魔效果简写}

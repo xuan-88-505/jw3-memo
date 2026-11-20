@@ -1,21 +1,25 @@
 /**
- * 从魔盒（JX3BOX）抓当季 PVP 装备、套装和化劲/御劲小附魔，换成内置原版计算器的格式，
+ * 从魔盒（JX3BOX）抓当季 PVP 装备、套装和 PVP 小附魔，换成内置原版计算器的格式，
  * 写到 client/public/pvp-equip/。用法见同目录 README.md：
  *
  *   npx tsx tools/pvp-equip/build.ts            抓取并写文件
  *   npx tsx tools/pvp-equip/build.ts --check    只抓取和校验，不写文件
  *
  * 校验不过（接口挂了、返回的数量明显不对）时直接退出，不动旧文件。
+ * 内容没变的文件不改（updatedAt 也不变），所以定时跑没有新数据时不会有改动。
+ * 在 GitHub Actions 里跑时，把 changed=true/false 写进 $GITHUB_OUTPUT，变更摘要写进 $GITHUB_STEP_SUMMARY。
  */
-import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  convertEnchant,
   convertEquip,
   convertSet,
+  DECRIT_KEY,
+  pickEnchants,
   PVP_DATA_VERSION,
   PVP_SCHOOL_FILE,
+  TOUGH_KEY,
   type BoxEnchant,
   type BoxEquip,
   type PvpEnchant,
@@ -30,10 +34,19 @@ const KINDS = ["armor", "trinket", "weapon"] as const;
 const SEASON_RATIO = 0.9;
 const PER = 200;
 const CHECK_ONLY = process.argv.includes("--check");
+/** 附魔 id 扫描：从化劲/御劲附魔的最大 id 往前 BACK 个，往后扫到连续 GAP 个空号 */
+const ENCHANT_BACK = 500;
+const ENCHANT_GAP = 40;
+const ENCHANT_STEP = 60;
+const ENCHANT_MAX_AHEAD = 1000;
+const PARTS = ["武器", "暗器", "帽子", "衣服", "腰带", "护腕", "下装", "鞋子", "项链", "腰坠", "戒指"];
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-async function get<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
+async function get<T>(
+  path: string,
+  params: Record<string, string | number> = {}
+): Promise<T> {
   const url = new URL(path, API);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
   let last: unknown;
@@ -100,11 +113,12 @@ interface ItemSearch {
 }
 
 /**
- * 化劲、御劲小附魔：物品搜索找到附魔 id，再取附魔详情。
- * 只留当季的：魔盒标了 _latest_enhance 的还包括前几季，所以再按装分筛，
- * 同品质（蓝、紫）里装分不低于最高的 60%（当季紫 105–158、蓝 42–52；上一季紫最高 85、蓝 28）。
+ * PVP 小附魔。魔盒没有附魔列表接口，物品搜索也搜不全（搜「铸世」搜不到），所以：
+ * 1. 物品搜索「化劲」「御劲」，取附魔 id 的最大值当锚点（当季的 PVP 附魔都在它附近）；
+ * 2. 按 id 扫 [锚点 − 500, …]，往后一直扫到连续 40 个空号（无效 id 返回 []）；
+ * 3. 交给 pickEnchants 挑：当季的化劲御劲和 PVP 专用系列（铸世·归正），加上当季没有的往季属性（帽子内攻等）。
  */
-async function fetchEnchants(): Promise<PvpEnchant[]> {
+async function fetchEnchants(): Promise<{ list: PvpEnchant[]; scanned: number; range: string }> {
   const ids = new Set<number>();
   for (const keyword of ["化劲", "御劲"]) {
     for (let page = 1; ; page++) {
@@ -116,24 +130,119 @@ async function fetchEnchants(): Promise<PvpEnchant[]> {
       if (page * 50 >= (d.data?.total || 0)) break;
     }
   }
-  const recs = await pool(Array.from(ids).sort((a, b) => a - b), 8, id =>
-    get<BoxEnchant>(`resource/std/enchant.${id}`).catch(() => null)
-  );
-  const all = recs
-    .filter((r): r is BoxEnchant => !!r?._latest_enhance)
-    .map(r => convertEnchant(r))
-    .filter((x): x is PvpEnchant => !!x);
-  const group = (x: PvpEnchant) => (x.附魔类型 === "蓝" ? "蓝" : "紫");
-  const top = new Map<string, number>();
-  for (const x of all) top.set(group(x), Math.max(top.get(group(x)) ?? 0, x.附魔装分));
-  return all
-    .filter(x => x.附魔装分 >= (top.get(group(x)) ?? 0) * 0.6)
-    .sort((a, b) => a.id - b.id);
+  if (!ids.size) fail("搜不到化劲、御劲附魔");
+  const anchor = Math.max(...Array.from(ids));
+  const lo = Math.max(1, anchor - ENCHANT_BACK);
+  const recs = new Map<number, BoxEnchant>();
+  let failed = 0;
+  const scan = async (from: number, to: number) => {
+    const list = Array.from({ length: to - from + 1 }, (_, i) => from + i);
+    await pool(list, 12, async id => {
+      try {
+        const r = await get<BoxEnchant | unknown[]>(`resource/std/enchant.${id}`);
+        if (r && !Array.isArray(r) && (r as BoxEnchant).ID) recs.set(id, r as BoxEnchant);
+      } catch {
+        failed++;
+      }
+    });
+  };
+  await scan(lo, anchor + ENCHANT_STEP);
+  let hi = anchor + ENCHANT_STEP;
+  const lastFound = () => Math.max(...Array.from(recs.keys()));
+  while (hi - lastFound() < ENCHANT_GAP && hi < anchor + ENCHANT_MAX_AHEAD) {
+    await scan(hi + 1, hi + ENCHANT_STEP);
+    hi += ENCHANT_STEP;
+  }
+  // 有请求失败就不更新：漏掉的附魔会让结果忽多忽少
+  if (failed) fail(`${failed} 个附魔详情没取到`);
+  const sorted = Array.from(recs.values()).sort((a, b) => a.ID - b.ID);
+  return { list: pickEnchants(sorted), scanned: recs.size, range: `${lo}–${hi}` };
 }
 
 function fail(msg: string): never {
   console.error(`校验没过，不写文件：${msg}`);
   process.exit(1);
+}
+
+/* ---------------- 和旧文件比 ---------------- */
+
+/** 输出顺序固定：部位按 PARTS，装备按品级、id，套装按 id */
+function normalize(f: PvpFile): PvpFile {
+  const equips: PvpFile["equips"] = {};
+  const parts = Object.keys(f.equips).sort(
+    (a, b) => (PARTS.indexOf(a) + 1 || 99) - (PARTS.indexOf(b) + 1 || 99) || a.localeCompare(b)
+  );
+  for (const p of parts)
+    equips[p] = [...f.equips[p]].sort((a, b) => b.装备品级 - a.装备品级 || a.id - b.id);
+  const sets: PvpFile["sets"] = {};
+  for (const k of Object.keys(f.sets).sort((a, b) => Number(a) - Number(b))) sets[k] = f.sets[k];
+  const out: PvpFile = {
+    v: f.v,
+    school: f.school,
+    updatedAt: f.updatedAt,
+    levels: [...f.levels].sort((a, b) => b - a),
+    equips,
+    sets,
+  };
+  if (f.enchants) out.enchants = [...f.enchants].sort((a, b) => a.id - b.id);
+  return out;
+}
+
+const body = (f: PvpFile) => JSON.stringify({ ...f, updatedAt: "" });
+
+function readOld(name: string): PvpFile | null {
+  const p = join(OUT, name);
+  if (!existsSync(p)) return null;
+  try {
+    return JSON.parse(readFileSync(p, "utf8")) as PvpFile;
+  } catch {
+    return null;
+  }
+}
+
+/** 按 id 比两组：新增、删掉、改了的个数 */
+function diffById<T extends { id: number }>(prev: T[], next: T[]) {
+  const a = new Map(prev.map(x => [x.id, JSON.stringify(x)]));
+  const b = new Map(next.map(x => [x.id, JSON.stringify(x)]));
+  let add = 0;
+  let del = 0;
+  let mod = 0;
+  b.forEach((v, id) => {
+    if (!a.has(id)) add++;
+    else if (a.get(id) !== v) mod++;
+  });
+  a.forEach((_, id) => {
+    if (!b.has(id)) del++;
+  });
+  return { add, del, mod };
+}
+
+const fmtDiff = (label: string, d: { add: number; del: number; mod: number }) =>
+  d.add || d.del || d.mod ? `${label} +${d.add} −${d.del} 改${d.mod}` : "";
+
+function describe(prev: PvpFile | null, next: PvpFile) {
+  const flat = (f: PvpFile | null) => (f ? Object.values(f.equips).flat() : []);
+  const parts = [
+    fmtDiff("装备", diffById(flat(prev), flat(next))),
+    fmtDiff("附魔", diffById(prev?.enchants ?? [], next.enchants ?? [])),
+  ].filter(Boolean);
+  if (!parts.length) parts.push(prev ? "套装或品级有变化" : "新文件");
+  return `${next.school}：${parts.join("，")}`;
+}
+
+function ghOutput(changed: boolean, lines: string[]) {
+  const out = process.env.GITHUB_OUTPUT;
+  if (out) {
+    appendFileSync(out, `changed=${changed}\n`);
+    appendFileSync(out, `summary<<__PVP_EOF__\n${lines.join("\n")}\n__PVP_EOF__\n`);
+  }
+  const sum = process.env.GITHUB_STEP_SUMMARY;
+  if (sum) {
+    const text = changed
+      ? `### PVP 装备数据有更新\n\n${lines.map(l => `- ${l}`).join("\n")}\n`
+      : "### PVP 装备数据没有变化\n";
+    appendFileSync(sum, text);
+  }
 }
 
 async function main() {
@@ -180,43 +289,61 @@ async function main() {
     console.warn("没收录的门派（PVP_SCHOOL_FILE 里没有）：", Object.fromEntries(unknownSchools));
   if (dropped.size) console.log("丢掉的属性：", Array.from(dropped).sort().join(" "));
 
-  const enchants = await fetchEnchants();
-  console.log(`化劲、御劲小附魔：${enchants.length} 个`);
+  const { list: enchants, scanned, range } = await fetchEnchants();
+  const defense = enchants.filter(x =>
+    x.增益集合.some(g => g.属性 === DECRIT_KEY || g.属性 === TOUGH_KEY)
+  ).length;
+  const legacy = enchants.filter(x => x.legacy).length;
+  console.log(
+    `附魔：扫了 ${range}（有效 ${scanned} 个），收 ${enchants.length} 个（化劲御劲 ${defense}，往季 ${legacy}）`
+  );
 
   // 校验：数量明显不对时宁可不更新
   if (top < 1000) fail(`最高品级只有 ${top}`);
   if (season.length < 500) fail(`当季装备只有 ${season.length} 件`);
   const common = files.get("通用");
   // 通用的主武器没有 PVP 版，只有暗器
-  const parts = ["帽子", "衣服", "腰带", "护腕", "下装", "鞋子", "项链", "腰坠", "戒指", "暗器"];
   if (!common) fail("没有通用装备");
-  const lack = parts.filter(p => !common.equips[p]?.length);
+  const lack = PARTS.filter(p => p !== "武器" && !common.equips[p]?.length);
   if (lack.length) fail(`通用装备缺部位：${lack.join("、")}`);
   if (files.size < 15) fail(`只有 ${files.size} 个门派`);
-  if (enchants.length < 4) fail(`化劲、御劲小附魔只有 ${enchants.length} 个`);
+  if (defense < 4) fail(`化劲、御劲小附魔只有 ${defense} 个`);
+  if (enchants.length < 20) fail(`PVP 小附魔只有 ${enchants.length} 个`);
   common.enchants = enchants;
 
-  for (const f of files.values()) {
-    f.levels.sort((a, b) => b - a);
-    for (const list of Object.values(f.equips))
-      list.sort((a, b) => b.装备品级 - a.装备品级 || a.id - b.id);
-  }
   const summary = Array.from(files.values())
     .map(f => `${f.school} ${Object.values(f.equips).reduce((n, l) => n + l.length, 0)}`)
     .join("，");
   console.log(`按门派：${summary}`);
-  if (CHECK_ONLY) return;
 
-  mkdirSync(OUT, { recursive: true });
-  const written = new Set<string>();
+  // 和旧文件比：内容一样的不动（连 updatedAt 也不改）
+  const changes: string[] = [];
+  const keep = new Set<string>();
+  const writes: [string, PvpFile][] = [];
   for (const f of files.values()) {
     const name = `${PVP_SCHOOL_FILE[f.school]}.json`;
-    writeFileSync(join(OUT, name), JSON.stringify(f) + "\n");
-    written.add(name);
+    keep.add(name);
+    const next = normalize(f);
+    const prev = readOld(name);
+    if (prev && body(normalize(prev)) === body(next)) continue;
+    changes.push(describe(prev, next));
+    writes.push([name, next]);
   }
-  for (const name of readdirSync(OUT))
-    if (name.endsWith(".json") && !written.has(name)) rmSync(join(OUT, name));
-  console.log(`已写入 ${written.size} 个文件到 ${OUT}`);
+  const stale = existsSync(OUT)
+    ? readdirSync(OUT).filter(n => n.endsWith(".json") && !keep.has(n))
+    : [];
+  for (const n of stale) changes.push(`${n}：删掉（门派没有当季 PVP 装备了）`);
+  console.log(changes.length ? `有变化：\n  ${changes.join("\n  ")}` : "和现有数据一样，没有变化");
+  ghOutput(!CHECK_ONLY && changes.length > 0, changes);
+  if (CHECK_ONLY || !changes.length) return;
+
+  mkdirSync(OUT, { recursive: true });
+  for (const [name, f] of writes) {
+    f.updatedAt = today;
+    writeFileSync(join(OUT, name), JSON.stringify(f) + "\n");
+  }
+  for (const n of stale) rmSync(join(OUT, n));
+  console.log(`已写入 ${writes.length} 个文件，删掉 ${stale.length} 个（${OUT}）`);
 }
 
 main().catch(e => {

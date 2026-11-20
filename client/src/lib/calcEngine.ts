@@ -73,8 +73,12 @@ export interface CalcEnchant {
   附魔支持部位: string[];
   附魔装分?: number;
   附魔颜色?: string;
-  /** 化劲、御劲小附魔（魔盒数据） */
+  /** 属性加成（属性键同原版：allAttackPowerBase、atMagicAttackPowerBase…） */
+  增益集合?: CalcAttr[];
+  /** 魔盒 PVP 数据里的附魔（化劲、御劲、铸世·归正等，见 lib/pvpEquip.ts） */
   pvp?: boolean;
+  /** 往季附魔（例如帽子的内攻），附魔下拉里单独一组 */
+  legacy?: boolean;
 }
 
 export interface CalcStone {

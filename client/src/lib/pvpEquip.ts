@@ -50,6 +50,7 @@ const KEEP = new Set([
   "atAgilityBase",
   "atMagicAttackPowerBase",
   "atPhysicsAttackPowerBase",
+  "allAttackPowerBase",
   "atTherapyPowerBase",
   "atMagicCriticalStrike",
   "atPhysicsCriticalStrike",
@@ -69,6 +70,9 @@ const KEEP = new Set([
   DECRIT_KEY,
   TOUGH_KEY,
 ]);
+
+/** 附魔多收一个武器伤害（原版的武伤附魔就是这个键；装备的武器伤害另外算） */
+const ENCHANT_KEEP = new Set([...Array.from(KEEP), "atMeleeWeaponDamageBase"]);
 
 /** 装备接口 SubType（魔盒）→ 原版的部位名 */
 const PART_BY_SUBTYPE: Record<number, string> = {
@@ -93,7 +97,33 @@ const MAIN_BY_KEY: Record<string, string> = {
 };
 const MAINS = ["元气", "根骨", "力道", "身法"];
 
+/** 附魔效果简写，同原版（「攻击+90」「元气+90」），往季的内外功属性用游戏里的叫法 */
 const SHORT: Record<string, string> = {
+  atVitalityBase: "体质",
+  atSpunkBase: "元气",
+  atSpiritBase: "根骨",
+  atStrengthBase: "力道",
+  atAgilityBase: "身法",
+  allAttackPowerBase: "攻击",
+  atMagicAttackPowerBase: "内攻",
+  atPhysicsAttackPowerBase: "外攻",
+  atTherapyPowerBase: "治疗",
+  atAllTypeCriticalStrike: "会心",
+  atMagicCriticalStrike: "内功会心",
+  atPhysicsCriticalStrike: "外功会心",
+  atAllTypeCriticalDamagePowerBase: "会效",
+  atMagicCriticalDamagePowerBase: "内功会效",
+  atPhysicsCriticalDamagePowerBase: "外功会效",
+  atAllOvercome: "破防",
+  atMagicOvercome: "内破",
+  atPhysicsOvercomeBase: "外破",
+  atStrainBase: "无双",
+  atHasteBase: "加速",
+  atSurplusValueBase: "破招",
+  atPVXAllRound: "全能",
+  atMaxLifeBase: "气血",
+  atMaxLifeAdditional: "气血",
+  atMeleeWeaponDamageBase: "武伤",
   [DECRIT_KEY]: "化劲",
   [TOUGH_KEY]: "御劲",
 };
@@ -149,6 +179,8 @@ export interface PvpEnchant {
   附魔类型: string;
   附魔颜色: string;
   pvp: true;
+  /** 往季附魔：当季没有这个部位、这个属性的附魔时才收（例如帽子的内攻） */
+  legacy?: true;
 }
 
 export interface PvpFile {
@@ -205,8 +237,19 @@ const MAGIC_KEY: Record<string, string> = {
   CriticalDamagePowerBase: "atMagicCriticalDamagePowerBase",
 };
 
-/** 内功分系的属性（混元、阳性、阴性、毒性、阴阳）统一成原版用的内功属性，同原版魔盒导入 */
+/** 魔盒和原版叫法不一样的属性（同原版 根据外部附魔属性获取ID） */
+const RENAME: Record<string, string> = {
+  atAllTypeAttackPowerBase: "allAttackPowerBase",
+  atAllTypeOvercomeBase: "atAllOvercome",
+  atMagicOvercomeBase: "atMagicOvercome",
+};
+
+/**
+ * 魔盒属性键换成原版的：全攻击、全破防改名；内功分系的属性（混元、阳性、阴性、毒性、阴阳）
+ * 统一成原版用的内功属性，同原版魔盒导入
+ */
 export function normAttr(key: string): string {
+  if (RENAME[key]) return RENAME[key];
   const m = ELEMENT.exec(key);
   return m ? MAGIC_KEY[m[1]] : key;
 }
@@ -323,7 +366,7 @@ export function convertEnchant(rec: BoxEnchant): PvpEnchant | null {
     const raw = rec[`Attribute${i}ID`];
     if (!raw) continue;
     const key = normAttr(String(raw));
-    if (KEEP.has(key)) addAttr(增益集合, key, num(rec[`Attribute${i}Value1`]));
+    if (ENCHANT_KEEP.has(key)) addAttr(增益集合, key, num(rec[`Attribute${i}Value1`]));
   }
   if (!增益集合.length) return null;
   const score = num(rec.Score);
@@ -342,6 +385,78 @@ export function convertEnchant(rec: BoxEnchant): PvpEnchant | null {
     附魔颜色: color,
     pvp: true,
   };
+}
+
+/** 附魔的系列：名字去掉最后一段，例如「铸世·归正·戒指（攻击）」→「铸世·归正」，「峡金铸·腰（御劲）」→「峡金铸」 */
+export function enchantSeries(name: string) {
+  const parts = name.split("·");
+  return parts.length > 1 ? parts.slice(0, -1).join("·") : name;
+}
+
+const isDefense = (e: PvpEnchant) =>
+  e.增益集合.some(g => g.属性 === DECRIT_KEY || g.属性 === TOUGH_KEY);
+const PVE_ONLY_RAW = new Set(["atTherapyPowerBase", "atActiveThreatCoefficient"]);
+const rawKeys = (rec: BoxEnchant) =>
+  [1, 2, 3, 4].map(i => rec[`Attribute${i}ID`]).filter(Boolean).map(String);
+
+/**
+ * 从一段附魔 id 里挑 PVP 要用的附魔（抓取脚本用）：
+ * - 当季：装分 ≥ 同色（蓝 / 紫、精）最高分 × 0.6。收化劲、御劲附魔；系列里有化劲、御劲，且没有治疗、
+ *   仇恨附魔的（PVP 专用系列，例如铸世·归正），整个系列都收。
+ * - 往季：当季没有的「部位 + 属性」（例如帽子的内攻），收往季装分最高的一个，标 legacy。
+ * - 只有治疗的不收。原版已有的 id 引擎会跳过，多收不影响。
+ */
+export function pickEnchants(records: BoxEnchant[]): PvpEnchant[] {
+  const rows = records
+    .filter(r => r && r._latest_enhance !== false)
+    .map(rec => ({ rec, e: convertEnchant(rec) }))
+    .filter(
+      (x): x is { rec: BoxEnchant; e: PvpEnchant } =>
+        !!x.e &&
+        x.e.附魔装分 > 0 &&
+        !x.e.增益集合.every(g => g.属性 === "atTherapyPowerBase")
+    );
+  const group = (e: PvpEnchant) => (e.附魔颜色 === "蓝" ? "蓝" : "紫");
+  const top = new Map<string, number>();
+  for (const { e } of rows)
+    top.set(group(e), Math.max(top.get(group(e)) ?? 0, e.附魔装分));
+  const current = (e: PvpEnchant) => e.附魔装分 >= (top.get(group(e)) ?? 0) * 0.6;
+  const now = rows.filter(x => current(x.e));
+
+  // PVP 系列：有化劲、御劲，没有治疗、仇恨（用魔盒原始属性判断，仇恨附魔换完格式就没了）
+  const seriesDef = new Set<string>();
+  const seriesPve = new Set<string>();
+  for (const r of records) {
+    if (!r?.Name) continue;
+    const s = enchantSeries(r.Name);
+    const keys = rawKeys(r);
+    if (keys.some(k => k === DECRIT_KEY || k === TOUGH_KEY)) seriesDef.add(s);
+    if (keys.some(k => PVE_ONLY_RAW.has(k))) seriesPve.add(s);
+  }
+  const out = new Map<number, PvpEnchant>();
+  for (const { e } of now) {
+    const s = enchantSeries(e.附魔名称);
+    if (isDefense(e) || (seriesDef.has(s) && !seriesPve.has(s))) out.set(e.id, e);
+  }
+
+  const combo = (e: PvpEnchant) =>
+    `${e.附魔支持部位.join("/")}|${e.增益集合
+      .map(g => g.属性)
+      .sort()
+      .join("+")}`;
+  const covered = new Set(now.map(x => combo(x.e)));
+  const legacy = new Map<string, PvpEnchant>();
+  for (const { e } of rows) {
+    if (current(e)) continue;
+    const k = combo(e);
+    if (covered.has(k)) continue;
+    const hit = legacy.get(k);
+    // 装分高的优先，一样高取新的（id 大）
+    if (!hit || e.附魔装分 > hit.附魔装分 || (e.附魔装分 === hit.附魔装分 && e.id > hit.id))
+      legacy.set(k, e);
+  }
+  legacy.forEach(e => out.set(e.id, { ...e, legacy: true }));
+  return Array.from(out.values()).sort((a, b) => a.id - b.id);
 }
 
 /* ---------------- 按心法挑装备 ---------------- */
@@ -371,6 +486,36 @@ export function pvpFits(e: PvpEquip, who: PvpWho) {
   );
 }
 
+const MAIN_KEY: Record<string, string> = {
+  元气: "atSpunkBase",
+  根骨: "atSpiritBase",
+  力道: "atStrengthBase",
+  身法: "atAgilityBase",
+};
+const PHYSICS_ONLY = new Set([
+  "atPhysicsAttackPowerBase",
+  "atPhysicsCriticalStrike",
+  "atPhysicsCriticalDamagePowerBase",
+  "atPhysicsOvercomeBase",
+]);
+const MAGIC_ONLY = new Set([
+  "atMagicAttackPowerBase",
+  "atMagicCriticalStrike",
+  "atMagicCriticalDamagePowerBase",
+  "atMagicOvercome",
+]);
+
+/** 这个心法能用的附魔，同原版 获取附魔数据：主属性只要本心法的，武伤只给力道、身法，外功属性只给外功，内功属性只给非外功 */
+export function enchantFits(x: PvpEnchant, who: PvpWho) {
+  return x.增益集合.every(({ 属性 }) => {
+    if (Object.values(MAIN_KEY).includes(属性)) return 属性 === MAIN_KEY[who.main];
+    if (属性 === "atMeleeWeaponDamageBase") return who.main === "力道" || who.main === "身法";
+    if (PHYSICS_ONLY.has(属性)) return who.gongfa === "外功";
+    if (MAGIC_ONLY.has(属性)) return who.gongfa !== "外功";
+    return true;
+  });
+}
+
 export function pickPvp(files: (PvpFile | null | undefined)[], who: PvpWho): PvpPick {
   const out: PvpPick = { equips: {}, sets: {}, enchants: [] };
   const seen = new Set<number>();
@@ -385,7 +530,8 @@ export function pickPvp(files: (PvpFile | null | undefined)[], who: PvpWho): Pvp
       }
     }
     for (const x of f.enchants || []) {
-      if (!out.enchants.some(y => y.id === x.id)) out.enchants.push(x);
+      if (enchantFits(x, who) && !out.enchants.some(y => y.id === x.id))
+        out.enchants.push(x);
     }
   }
   return out;

@@ -1251,5 +1251,6 @@ const dict: Record<string, string> = {
   "1 个部位没对上当季装备库，用了原版默认装备": "1 slot didn't match the current library; the original calculator's default is used",
   "玩法": "Mode",
   "获取途径": "Source",
+  "往季": "Past seasons",
 };
 export default dict;

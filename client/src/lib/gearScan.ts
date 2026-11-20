@@ -20,6 +20,7 @@ import {
   normSlot,
   SLOT_INDEXES,
   type CalcCatalog,
+  type CalcEnchant,
   type CalcEquip,
   type Seed,
 } from "./calcEngine";
@@ -234,9 +235,9 @@ const ENCHANT_WORDS: [string, string[]][] = [
   ["会心效果", ["会效"]],
   ["会效", ["会效"]],
   ["会心", ["会心"]],
-  ["破防", ["破防"]],
+  ["破防", ["破防", "内破", "外破"]],
   ["无双", ["无双"]],
-  ["攻击", ["攻击"]],
+  ["攻击", ["攻击", "内攻", "外攻"]],
   ["根骨", ["根骨"]],
   ["元气", ["元气"]],
   ["身法", ["身法"]],
@@ -246,10 +247,36 @@ const ENCHANT_WORDS: [string, string[]][] = [
   ["破招", ["破招"]],
 ];
 
+type EnchantScope = "magic" | "physics" | "all" | null;
+
+/** 附魔词的作用范围：推栏把当季的写成「全攻击」，往季的写成「内功·攻击」 */
+export function enchantScope(text: string): EnchantScope {
+  if (/内功|内攻|内破|内伤|内会/.test(text)) return "magic";
+  if (/外功|外攻|外破|外伤|外会/.test(text)) return "physics";
+  if (text.includes("全")) return "all";
+  return null;
+}
+
+const SCOPE_TEST: Record<Exclude<EnchantScope, null>, RegExp> = {
+  magic: /Magic/,
+  physics: /Physics/,
+  all: /^(?:all|atAll)/,
+};
+
+function inScope(f: CalcEnchant, scope: EnchantScope) {
+  if (!scope || !f.增益集合?.length) return true;
+  return f.增益集合.some(g => SCOPE_TEST[scope].test(g.属性));
+}
+
+/**
+ * 截图上的附魔对上附魔库。只写了属性词时：先按「内功 / 外功 / 全」缩小范围（范围里没有就不限），
+ * PVP 装备取装分最高的；PVE 装备先找 PVE 附魔，没有再找 PVP、往季的（结果和没接 PVP 前一样）。
+ */
 export function bestEnchant(
   cat: CalcCatalog,
   idx: string,
-  text: string | null
+  text: string | null,
+  pvpEquip = false
 ): number | null {
   if (!text) return null;
   const list = enchantsFor(cat, idx); // 装分高的在前
@@ -263,12 +290,19 @@ export function bestEnchant(
     if (sim >= 0.8 && (!close || sim > close.sim)) close = { id: f.id, sim };
   }
   if (close) return close.id;
-  for (const [word, alias] of ENCHANT_WORDS) {
-    if (!n.includes(word)) continue;
-    const hit = list.find(f =>
-      alias.some(a => f.附魔名称.includes(a) || f.附魔效果简写.includes(a))
-    );
-    if (hit) return hit.id;
+  const ranked = pvpEquip
+    ? list
+    : [...list.filter(f => !f.pvp), ...list.filter(f => f.pvp)];
+  const scope = enchantScope(n);
+  const pools = scope ? [ranked.filter(f => inScope(f, scope)), ranked] : [ranked];
+  for (const pool of pools) {
+    for (const [word, alias] of ENCHANT_WORDS) {
+      if (!n.includes(word)) continue;
+      const hit = pool.find(f =>
+        alias.some(a => f.附魔名称.includes(a) || f.附魔效果简写.includes(a))
+      );
+      if (hit) return hit.id;
+    }
   }
   return null;
 }
@@ -365,7 +399,7 @@ export function matchScan(cat: CalcCatalog, scan: ScanResult): ScanMatch {
       gems: Array.from({ length: holes }, (_, i) =>
         item.gems[i] && item.gems[i] > 0 ? item.gems[i] : fill
       ),
-      enchant: bestEnchant(cat, idx, item.enchant),
+      enchant: bestEnchant(cat, idx, item.enchant, !!e.pvp),
     };
     const ok = normSlot(cat, idx, input);
     if (!ok) continue;

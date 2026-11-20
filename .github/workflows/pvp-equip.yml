@@ -1,0 +1,60 @@
+# 每天北京时间早上 6 点从魔盒（JX3BOX）抓当季 PVP 装备、套装和小附魔（tools/pvp-equip/build.ts），
+# 有变化就跑单元测试，然后提交到 main。没变化时什么都不提交。
+# 也可以在 Actions 页面手动运行：选「更新 PVP 装备数据」→ Run workflow（可以勾「只检查」）。
+# 新数据要等下次打包发版才会进安装包。
+name: 更新 PVP 装备数据
+on:
+  schedule:
+    # UTC 22:00 = 北京时间 6:00
+    - cron: "0 22 * * *"
+  workflow_dispatch:
+    inputs:
+      check_only:
+        description: "只抓取和校验，不提交"
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: pvp-equip
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+      - name: 抓取魔盒数据
+        id: build
+        run: npx tsx tools/pvp-equip/build.ts ${{ inputs.check_only && '--check' || '' }}
+      - name: 单元测试
+        if: steps.build.outputs.changed == 'true'
+        run: pnpm test
+      - name: 提交到 main
+        if: steps.build.outputs.changed == 'true' && github.ref == 'refs/heads/main'
+        env:
+          SUMMARY: ${{ steps.build.outputs.summary }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add client/public/pvp-equip
+          if git diff --cached --quiet; then
+            echo "没有要提交的改动"
+            exit 0
+          fi
+          {
+            echo "数据：更新魔盒 PVP 装备（$(TZ=Asia/Shanghai date +%F)）"
+            echo
+            echo "$SUMMARY"
+          } > "$RUNNER_TEMP/msg.txt"
+          git commit -F "$RUNNER_TEMP/msg.txt"
+          # 跑的这几分钟里 main 有新提交时，接到最新的后面再推
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -5,14 +5,19 @@ import {
   convertSet,
   decritPct,
   DECRIT_KEY,
+  enchantFits,
+  enchantSeries,
   holeValue,
   normAttr,
+  pickEnchants,
   pickPvp,
   PVP_DATA_VERSION,
   pvpDefense,
   schoolOf,
   TOUGH_KEY,
   toughPct,
+  type BoxEnchant,
+  type PvpEnchant,
   type PvpEquip,
   type PvpFile,
 } from "./pvpEquip";
@@ -27,6 +32,12 @@ describe("normAttr", () => {
     );
     expect(normAttr("atVitalityBase")).toBe("atVitalityBase");
     expect(normAttr(DECRIT_KEY)).toBe(DECRIT_KEY);
+  });
+  it("全攻击、全破防换成原版的叫法", () => {
+    expect(normAttr("atAllTypeAttackPowerBase")).toBe("allAttackPowerBase");
+    expect(normAttr("atAllTypeOvercomeBase")).toBe("atAllOvercome");
+    expect(normAttr("atMagicOvercomeBase")).toBe("atMagicOvercome");
+    expect(normAttr("atSolarAndLunarAttackPowerBase")).toBe("atMagicAttackPowerBase");
   });
 });
 
@@ -138,6 +149,135 @@ describe("convertEnchant", () => {
     expect(convertEnchant({ ...base, Score: 122 })?.附魔颜色).toBe("精");
     expect(convertEnchant({ ...base, Score: 52, _quality: 3 })?.附魔颜色).toBe("蓝");
     expect(convertEnchant({ ...base, DestItemSubType: 99 })).toBeNull();
+  });
+  it("全攻击、主属性、往季内攻、武伤都收，简写同原版", () => {
+    const one = (Attribute1ID: string, Attribute1Value1: number, DestItemSubType = 5) =>
+      convertEnchant({
+        ID: 1,
+        Name: "x",
+        Score: 158,
+        _quality: 4,
+        DestItemSubType,
+        Attribute1ID,
+        Attribute1Value1,
+      });
+    expect(one("atAllTypeAttackPowerBase", 126)).toMatchObject({
+      附魔效果简写: "攻击+126",
+      增益集合: [{ 属性: "allAttackPowerBase", 值: 126 }],
+    });
+    expect(one("atSpunkBase", 126)?.附魔效果简写).toBe("元气+126");
+    expect(one("atMagicAttackPowerBase", 39, 3)?.附魔效果简写).toBe("内攻+39");
+    expect(one("atAllTypeOvercomeBase", 126, 1)?.附魔效果简写).toBe("破防+126");
+    expect(one("atMeleeWeaponDamageBase", 13, 0)?.附魔效果简写).toBe("武伤+13");
+    expect(one("atActiveThreatCoefficient", 13)).toBeNull();
+  });
+});
+
+describe("pickEnchants", () => {
+  const rec = (
+    ID: number,
+    Name: string,
+    sub: number,
+    attr: string,
+    value: number,
+    Score: number,
+    quality = 4
+  ): BoxEnchant => ({
+    ID,
+    Name,
+    Score,
+    DestItemSubType: sub,
+    _quality: quality,
+    _latest_enhance: true,
+    Attribute1ID: attr,
+    Attribute1Value1: value,
+  });
+  const records = [
+    rec(16248, "风语·头·铸（外攻）", 3, "atPhysicsAttackPowerBase", 39, 57),
+    rec(16249, "风语·头·铸（内攻）", 3, "atMagicAttackPowerBase", 39, 57),
+    rec(16252, "风语·头·铸（急速）", 3, "atHasteBase", 39, 57),
+    rec(16260, "风语·腰·铸（御劲）", 6, TOUGH_KEY, 39, 57),
+    rec(16272, "风语·头·甲（内攻）", 3, "atMagicAttackPowerBase", 19, 28, 3),
+    rec(16352, "远风·衣·化劲", 2, DECRIT_KEY, 16, 23, 3),
+    rec(16516, "峡金焠·头（攻击）", 3, "atAllTypeAttackPowerBase", 90, 122),
+    rec(16517, "峡金焠·头（治疗）", 3, "atTherapyPowerBase", 90, 122),
+    rec(16518, "峡金焠·头（加速）", 3, "atHasteBase", 90, 122),
+    rec(16520, "峡金焠·腰（御劲）", 6, TOUGH_KEY, 90, 122),
+    rec(16580, "河洛纹·衣（化劲）", 2, DECRIT_KEY, 36, 52, 3),
+    rec(16591, "撑天·衣·化劲", 2, DECRIT_KEY, 29, 42, 3),
+    rec(16598, "撑天·衣·无双", 2, "atStrainBase", 22, 42, 3),
+    rec(16599, "撑天·衣·减仇", 2, "atActiveThreatCoefficient", 4, 42, 3),
+    rec(16641, "铸世·息烽·戒指（元气）", 5, "atSpunkBase", 126, 158),
+    rec(16653, "铸世·归正·腰坠（化劲）", 7, DECRIT_KEY, 126, 158),
+    rec(16658, "铸世·归正·戒指（攻击）", 5, "atAllTypeAttackPowerBase", 126, 158),
+    rec(16661, "铸世·归正·暗器（元气）", 1, "atSpunkBase", 126, 158),
+    { ...rec(16700, "旧客户端的", 2, DECRIT_KEY, 90, 158), _latest_enhance: false },
+  ];
+
+  it("系列：名字去掉最后一段", () => {
+    expect(enchantSeries("铸世·归正·戒指（攻击）")).toBe("铸世·归正");
+    expect(enchantSeries("峡金铸·腰（御劲）")).toBe("峡金铸");
+    expect(enchantSeries("某附魔")).toBe("某附魔");
+  });
+
+  it("当季的化劲御劲 + PVP 专用系列（归正）整个收，往季只补当季没有的部位属性", () => {
+    const r = pickEnchants(records);
+    expect(r.map(e => e.id)).toEqual([
+      16248, 16249, 16520, 16580, 16591, 16653, 16658, 16661,
+    ]);
+    expect(r.filter(e => e.legacy).map(e => e.id)).toEqual([16248, 16249]);
+    expect(r.find(e => e.id === 16658)).toMatchObject({
+      附魔效果简写: "攻击+126",
+      附魔支持部位: ["戒指"],
+      附魔颜色: "精",
+      pvp: true,
+    });
+    expect(r.find(e => e.id === 16658)?.legacy).toBeUndefined();
+    expect(r.find(e => e.id === 16249)).toMatchObject({
+      附魔效果简写: "内攻+39",
+      legacy: true,
+    });
+  });
+
+  it("同一部位属性的往季附魔取装分最高的，一样高取 id 大的", () => {
+    const r = pickEnchants([
+      ...records,
+      rec(16396, "暗影·白虹·戒指（内攻）", 5, "atMagicAttackPowerBase", 68, 85),
+      rec(16413, "暗影·荆岫·戒指（内攻）", 5, "atMagicAttackPowerBase", 68, 85),
+      rec(16430, "阆风仙玉·戒指（内伤）", 5, "atMagicAttackPowerBase", 49, 66),
+    ]);
+    expect(
+      r.filter(e => e.附魔支持部位[0] === "戒指" && e.legacy).map(e => e.id)
+    ).toEqual([16413]);
+  });
+});
+
+describe("enchantFits", () => {
+  const en = (属性: string): PvpEnchant => ({
+    id: 1,
+    附魔名称: "x",
+    附魔效果简写: "x",
+    附魔支持部位: ["戒指"],
+    增益集合: [{ 属性, 值: 1 }],
+    附魔装分: 158,
+    附魔类型: "精",
+    附魔颜色: "精",
+    pvp: true,
+  });
+  it("同原版：主属性只要本心法的，武伤只给力道身法，外功属性只给外功，内功属性只给非外功", () => {
+    const magic = { school: "衍天", gongfa: "内功", main: "元气" };
+    const phys = { school: "霸刀", gongfa: "外功", main: "力道" };
+    expect(enchantFits(en("atSpunkBase"), magic)).toBe(true);
+    expect(enchantFits(en("atSpiritBase"), magic)).toBe(false);
+    expect(enchantFits(en("atMagicAttackPowerBase"), magic)).toBe(true);
+    expect(enchantFits(en("atPhysicsAttackPowerBase"), magic)).toBe(false);
+    expect(enchantFits(en("atMeleeWeaponDamageBase"), magic)).toBe(false);
+    expect(enchantFits(en("allAttackPowerBase"), magic)).toBe(true);
+    expect(enchantFits(en(DECRIT_KEY), magic)).toBe(true);
+    expect(enchantFits(en("atPhysicsOvercomeBase"), phys)).toBe(true);
+    expect(enchantFits(en("atMagicOvercome"), phys)).toBe(false);
+    expect(enchantFits(en("atMeleeWeaponDamageBase"), phys)).toBe(true);
+    expect(enchantFits(en("atStrengthBase"), phys)).toBe(true);
   });
 });
 
