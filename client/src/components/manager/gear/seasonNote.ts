@@ -4,7 +4,7 @@ import { tx, txn } from "@/lib/i18n";
 /**
  * 自动换成当季时（lib/calcEngine.ts seasonSync），导入的装备当季装备库里没有、
  * 换成了原版默认装备的说明。没换过、或用户已经在配装器里保存过时返回 null。
- * 按截图建的配装：截图里没有、或者当季装备库里没有（如 PVP 装备）的部位用了原版默认装备。
+ * 按截图建的配装：截图里没有、或者当季装备库里没有（如旧赛季装备）的部位用了原版默认装备。
  */
 export function seasonNote(lo: Loadout): string | null {
   const n = lo.calc?.replaced?.length ?? 0;

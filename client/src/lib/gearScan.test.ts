@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CalcCatalog, CalcEquip } from "./calcEngine";
 import {
-  isPvpItem,
   bestEnchant,
   bestStone,
   matchScan,
@@ -45,6 +44,8 @@ const eq = (
   ...more,
 });
 
+const pvp: Partial<CalcEquip> = { pvp: true, 装备品级: 1320, 来源: "威望" };
+
 function catalog(): CalcCatalog {
   const equips: Record<string, CalcEquip[]> = {
     帽子: [
@@ -52,11 +53,26 @@ function catalog(): CalcCatalog {
       eq(2, "铮砥冠", ["atStrain", "atOvercome"]),
       eq(3, "凌云冠", ["atHaste"]),
     ],
-    衣服: [eq(10, "铮砥衣", ["atOvercome"])],
+    衣服: [
+      eq(10, "铮砥衣", ["atOvercome"]),
+      // 魔盒的 PVP 装备：同名两个品级
+      eq(40, "独镇乾坤·默山衣", ["atCriticalStrike", "atDecrit"], 2, pvp),
+      eq(41, "独镇乾坤·默山衣", ["atCriticalStrike", "atDecrit"], 2, {
+        ...pvp,
+        装备品级: 1260,
+      }),
+    ],
     腰带: [eq(11, "铮砥带", ["atOvercome"])],
     护腕: [eq(12, "铮砥腕", ["atOvercome"])],
     下装: [eq(13, "铮砥裤", ["atOvercome"])],
-    鞋子: [eq(14, "铮砥靴", ["atOvercome"])],
+    鞋子: [
+      eq(14, "铮砥靴", ["atOvercome"]),
+      eq(42, "独镇乾坤·默山鞋", ["atCriticalStrike", "atDecrit"], 2, pvp),
+      eq(43, "独镇乾坤·默山鞋", ["atCriticalStrike", "atDecrit"], 2, {
+        ...pvp,
+        装备品级: 1260,
+      }),
+    ],
     项链: [eq(15, "铮砥链", ["atOvercome"], 1)],
     腰坠: [eq(16, "铮砥坠", ["atOvercome"], 1)],
     戒指: [
@@ -90,6 +106,7 @@ function catalog(): CalcCatalog {
       atOvercome: "破防",
       atStrain: "无双",
       atHaste: "加速",
+      atDecrit: "化劲",
     },
     enchants: [
       {
@@ -112,6 +129,22 @@ function catalog(): CalcCatalog {
         附魔效果简写: "加速+60",
         附魔支持部位: ["帽子"],
         附魔装分: 80,
+      },
+      {
+        id: 601,
+        附魔名称: "峡金铸·衣（化劲）",
+        附魔效果简写: "化劲+90",
+        附魔支持部位: ["衣服"],
+        附魔装分: 122,
+        pvp: true,
+      },
+      {
+        id: 602,
+        附魔名称: "蜀锦绣·衣（化劲）",
+        附魔效果简写: "化劲+72",
+        附魔支持部位: ["衣服"],
+        附魔装分: 105,
+        pvp: true,
       },
     ],
     stones: {
@@ -264,28 +297,24 @@ describe("matchScan", () => {
     expect(m.replaced).not.toContain("hat");
     expect(m.input.slots._2?.id).toBe(10);
     expect(m.refine).toBe(6);
-    expect(m.pvp).toEqual([]);
-    expect(m.pvpCount).toBe(0);
   });
 
-  it("PVP 装备（带化劲、御劲）对不上：记下部位和件数，两个戒指算两件", () => {
-    const pvp = { attrs: ["元气", "攻击", "破防", "化劲"] };
+  it("PVP 装备也在库里：按名字对上，截图只写「化劲」的附魔取装分最高的化劲附魔", () => {
     const m = matchScan(
       catalog(),
       scan([
-        item("武器", "渊穆剑"),
-        item("衣服", "独镇乾坤·默山衣", pvp),
-        item("项链", "征雁同霄·澄怀链", { enchant: "御劲" }),
-        item("戒指", "独镇乾坤·默山指环", pvp),
-        item("戒指", "独镇乾坤·默山指环", pvp),
-        item("帽子", "不存在的帽子"),
+        item("衣服", "独镇乾坤·默山衣", {
+          attrs: ["元气", "会心", "化劲"],
+          enchant: "化劲",
+        }),
+        item("鞋子", "独镇乾坤·默山鞋"),
       ])
     );
-    expect(m.found).toBe(1);
-    expect(m.missing).toEqual(["衣服", "项链", "戒指", "帽子"]);
-    expect(m.pvp).toEqual(["衣服", "项链", "戒指"]);
-    expect(m.pvpCount).toBe(4);
-    expect(isPvpItem(item("帽子", "铮砥冠", { attrs: ["会心"] }))).toBe(false);
+    expect(m.found).toBe(2);
+    expect(m.missing).toEqual([]);
+    // 截图没写品级、也没装分：同名的取品级最高的
+    expect(m.input.slots._2).toMatchObject({ id: 40, enchant: 601 });
+    expect(m.input.slots._6?.id).toBe(42);
   });
 
   it("部位写错了：别的部位里有同名装备就挪过去", () => {

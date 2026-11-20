@@ -6,7 +6,10 @@
  *
  * 备忘录在隐藏的同源 iframe 里打开这个页面，直接调用 window.jw3Engine：
  * - load(简写)：加载心法数据，返回配装界面要用的目录（装备库、附魔、五彩石、循环、增益……）。
+ *   同时读 ../pvp-equip/ 下这个门派和通用的 PVP 装备库（魔盒数据，见 tools/pvp-equip），合进装备库和小附魔；
+ *   读不到时照常加载，只是没有 PVP 装备。
  * - compute(简写, 输入)：按配装和战斗配置算装分、面板和秒伤。同步执行，调用前先 load。
+ *   化劲、御劲和 PVP 套装的属性原版不算，这里补上（见 src/备忘录PVP.ts）。
  *
  * 两个接口都收发 JSON 字符串：iframe 里的对象属于另一个页面，直接交给父窗口用容易出问题。
  * 算法和数据全是上游的；这里只做格式转换，默认值写死，不读计算器自己的缓存设置。
@@ -14,6 +17,7 @@
 import 获取当前数据, { 确保心法数据已加载, 在指定心法数据下执行 } from '@/数据/数据工具/获取当前数据'
 import { 简写转心法名 } from '@/心法模块/模块工具/获取心法数据'
 import 根据表单选项获取装备信息 from '@/功能模块/基础设置/属性录入/配装器/工具函数/根据表单选项获取装备信息'
+import { 基础属性计算 } from '@/功能模块/基础设置/属性录入/配装器/工具函数/根据装备信息获取基础属性'
 import { 获取角色需要展示的面板数据 } from '@/功能模块/基础设置/面板信息/工具'
 import { 有效配装装备 } from '@/角色/计划'
 import { 创建默认角色状态, 获取循环配套数据 } from '@/角色/状态'
@@ -22,8 +26,22 @@ import useCycle from '@/hooks/use-cycle'
 import 目标集合 from '@/数据/目标'
 import * as 常量模块 from '@/数据/常量'
 import { 属性简写枚举 } from '@/@types/枚举'
+import { 注册外部附魔 } from '@/数据/附魔/查询'
+import {
+  DECRIT_KEY,
+  NORMAL_HOLE_BASE,
+  PVP_SCHOOL_FILE,
+  TOUGH_KEY,
+  decritPct,
+  holeValue,
+  pickPvp,
+  pvpDefense,
+  schoolOf,
+  toughPct,
+} from './备忘录PVP'
+import type { DefenseSlot, PvpFile, PvpSet } from './备忘录PVP'
 
-const 版本 = 1
+const 版本 = 2
 
 const 部位表: Record<string, string> = {
   _1: '帽子',
@@ -81,6 +99,8 @@ interface 计算输入 {
 }
 
 const 心法数据表 = new Map<string, any>()
+/** 心法 → 这个心法能穿的 PVP 套装（套装 id → 件数加成） */
+const 套装表 = new Map<string, Record<string, PvpSet>>()
 
 const 取心法 = (简写: string) => {
   const 心法名 = 简写转心法名(简写)
@@ -136,6 +156,79 @@ const 默认延迟 = () => {
   return Number(默认数据?.网络延迟) || 1
 }
 
+/* ---------------- PVP 装备库 ---------------- */
+
+const 读PVP文件 = async (文件: string): Promise<PvpFile | null> => {
+  try {
+    const 地址 = new URL(`../pvp-equip/${文件}.json`, window.location.href).toString()
+    const 响应 = await fetch(地址, { cache: 'no-cache' })
+    return 响应.ok ? ((await 响应.json()) as PvpFile) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * PVP 装的孔：普通孔（基数 304）且原版孔表里有这种属性的，直接用原版的孔；
+ * 其他的（体质孔 456、气血孔、化劲孔……）换成「属性@基数」，由 补PVP孔 加进孔表。
+ */
+const 孔键 = (孔表: any[], 孔: { 镶嵌类型: string; 镶嵌基数?: number }) => {
+  if (!孔.镶嵌基数) return 孔.镶嵌类型
+  const 原版有 = 孔表.some(
+    (b: any) => !b.pvp && (b.镶嵌类型 === 孔.镶嵌类型 || b.镶嵌索引?.includes(孔.镶嵌类型)),
+  )
+  return 原版有 && 孔.镶嵌基数 === NORMAL_HOLE_BASE ? 孔.镶嵌类型 : `${孔.镶嵌类型}@${孔.镶嵌基数}`
+}
+
+const 补PVP孔 = (孔表: any[], 装备列表: any[]) => {
+  const 表 = [...孔表]
+  for (const 装备 of 装备列表) {
+    for (const 孔 of 装备.镶嵌孔数组 || []) {
+      const 键 = 孔键(表, 孔)
+      if (键 === 孔.镶嵌类型 || 表.some((b: any) => b.镶嵌索引?.includes(键))) continue
+      表.push({
+        pvp: true,
+        镶嵌类型: 孔.镶嵌类型,
+        镶嵌索引: [键],
+        各等级增益数据: Array.from({ length: 9 }, (_, 等级) => ({
+          镶嵌等级: 等级,
+          增益数值: holeValue(孔.镶嵌基数, 等级),
+        })),
+      })
+    }
+  }
+  return 表
+}
+
+/** 把这个心法能穿的 PVP 装备、化劲/御劲小附魔合进心法数据（每个心法的数据对象是单独的） */
+const 合并PVP = async (简写: string, 数据: any) => {
+  if (套装表.has(简写)) return
+  const 门派 = schoolOf(数据.装备数据 || {})
+  const 文件 = [PVP_SCHOOL_FILE['通用'], PVP_SCHOOL_FILE[门派]].filter(Boolean)
+  const 列表 = await Promise.all(文件.map(读PVP文件))
+  if (套装表.has(简写)) return
+  const 挑 = pickPvp(列表, { school: 门派, gongfa: 数据.功法, main: 数据.主属性 })
+  const 装备数据 = { ...(数据.装备数据 || {}) }
+  const 新装备: any[] = []
+  for (const [部位, 列] of Object.entries(挑.equips)) {
+    const 已有 = new Set((装备数据[部位] || []).map((项: any) => 项.id))
+    const 新 = 列.filter((项) => !已有.has(项.id))
+    装备数据[部位] = [...(装备数据[部位] || []), ...新]
+    新装备.push(...新)
+  }
+  if (新装备.length) {
+    数据.装备数据 = 装备数据
+    数据.镶嵌孔 = 补PVP孔(数据.镶嵌孔 || [], 新装备)
+  }
+  const 已有附魔 = new Set((数据.附魔 || []).map((项: any) => 项.id))
+  const 新附魔 = 挑.enchants.filter((项) => !已有附魔.has(项.id))
+  if (新附魔.length) {
+    数据.附魔 = [...(数据.附魔 || []), ...新附魔]
+    注册外部附魔(新附魔 as any)
+  }
+  套装表.set(简写, 挑.sets)
+}
+
 /** 循环列表；战斗时间随加速变，在 compute 的结果里给 */
 const 循环列表 = () => {
   const { 全部循环 = [] } = useCycle({ 使用内存数据: false, 覆盖数据: {} })
@@ -164,7 +257,7 @@ const 目录 = (简写: string, 数据: any) => {
         (数据.装备数据?.[部位] || []).map((项: any) => ({ ...项, 最大精炼等级: 最大精炼(项) })),
       ]),
     ),
-    attrNames: 属性简写枚举,
+    attrNames: { ...属性简写枚举, [DECRIT_KEY]: '化劲', [TOUGH_KEY]: '御劲' },
     enchants: 数据.附魔 || [],
     stones: 数据.五彩石 || [],
     holes: 数据.镶嵌孔 || [],
@@ -178,13 +271,14 @@ const 目录 = (简写: string, 数据: any) => {
   }
 }
 
-/** 备忘录的输入换成上游配装器的表单值；返回找不到的部位 */
+/** 备忘录的输入换成上游配装器的表单值；返回找不到的部位，和算化劲、御劲用的各部位 */
 const 生成表单值 = (数据: any, 输入: 计算输入) => {
   const 表单值: Record<string, any> = { 五彩石: 输入.stone || undefined }
   for (const [键, 表单键] of Object.entries(大附魔表)) {
     表单值[表单键] = 等级(输入.big?.[键 as 大附魔部位] || 0)
   }
   const 缺: string[] = []
+  const 槽: DefenseSlot[] = []
   for (const [索引, 部位] of Object.entries(部位表)) {
     const 格 = 输入.slots?.[索引]
     if (!格) continue
@@ -196,28 +290,45 @@ const 生成表单值 = (数据: any, 输入: 计算输入) => {
     const 附魔 = 格.enchant
       ? (数据.附魔 || []).find((f: any) => f.id === 格.enchant && (f.附魔支持部位 || []).includes(部位))
       : undefined
+    const 精炼 = Math.min(等级(格.refine), 最大精炼(定义))
+    const 孔 = (定义.镶嵌孔数组 || []).slice(0, 3)
     表单值[索引] = {
       id: 定义.id,
       装备部位: 部位,
-      当前精炼等级: Math.min(等级(格.refine), 最大精炼(定义)),
-      镶嵌孔数组: (定义.镶嵌孔数组 || []).slice(0, 3).map((孔: any, 序号: number) => ({
-        镶嵌类型: 孔.镶嵌类型,
+      当前精炼等级: 精炼,
+      镶嵌孔数组: 孔.map((项: any, 序号: number) => ({
+        镶嵌类型: 孔键(数据.镶嵌孔 || [], 项),
         镶嵌宝石等级: 等级(格.gems?.[序号]),
       })),
       附魔: 附魔?.id,
     }
+    if (定义.pvp)
+      槽.push({
+        def: 定义,
+        refine: 精炼,
+        gems: 孔.map((_: any, 序号: number) => 等级(格.gems?.[序号])),
+        enchant: 附魔,
+      })
+    else if (附魔?.pvp) 槽.push({ def: {}, refine: 0, gems: [], enchant: 附魔 })
   }
-  return { 表单值, 缺 }
+  return { 表单值, 缺, 槽 }
 }
 
 const 计算 = (简写: string, 数据: any, 输入: 计算输入) => {
-  const { 表单值, 缺 } = 生成表单值(数据, 输入)
+  const { 表单值, 缺, 槽 } = 生成表单值(数据, 输入)
   if (!Object.keys(表单值).some((键) => 键.startsWith('_'))) {
     return { ok: false, error: 'empty', missing: 缺 }
   }
-  const 装备信息 = 根据表单选项获取装备信息(表单值) as any
+  let 装备信息 = 根据表单选项获取装备信息(表单值) as any
   if (!有效配装装备(装备信息)) {
     return { ok: false, error: 'invalid', missing: 缺 }
+  }
+  // PVP：化劲、御劲原版不算；套装的其他属性（破防、会心……）加进装备属性
+  const 防御 = pvpDefense(槽, 套装表.get(简写) || {}, (常量模块 as any).精炼加成系数 || {})
+  if (防御.setGains.length) {
+    let 属性 = 装备信息.装备基础属性
+    for (const 增益 of 防御.setGains) 属性 = { ...基础属性计算(增益 as any, 属性), 装分: 属性.装分 }
+    装备信息 = { ...装备信息, 装备基础属性: 属性 }
   }
 
   const 战斗 = 输入.battle || {}
@@ -277,6 +388,8 @@ const 计算 = (简写: string, 数据: any, 输入: 计算输入) => {
   const 系数: any = (常量模块 as any).自身属性系数 || {}
   const 比 = (值: number, 键: string) => (系数[键] ? (值 / 系数[键]) * 100 : 0)
   const 循环信息 = 循环列表().find((项: any) => 项.name === 循环.当前计算循环名称)
+  // 每点全能另给 1 点化劲（130 级起的规则，见 https://www.jx3box.com/bps/85797）
+  const 化劲 = 防御.decrit + (Number(面板?.全能等级) || 0)
 
   return {
     ok: true,
@@ -296,6 +409,8 @@ const 计算 = (简写: string, 数据: any, 输入: 计算输入) => {
       strainLv: Math.round(面板?.无双等级 || 0),
       versatility: Math.round(面板?.全能等级 || 0),
       haste: Math.round(面板?.加速等级 || 0),
+      decrit: Math.round(化劲),
+      tough: Math.round(防御.tough),
     },
     pct: {
       crit: 两位(Math.min(比(面板?.会心等级 || 0, '会心'), 100)),
@@ -303,6 +418,9 @@ const 计算 = (简写: string, 数据: any, 输入: 计算输入) => {
       overcome: 两位(比(面板?.破防等级 || 0, '破防')),
       strain: 两位(比(面板?.无双等级 || 0, '无双')),
       haste: 两位(Math.min(比(面板?.加速等级 || 0, '急速'), 25)),
+      // 化劲不是线性的：n / (n + 系数) + 基础 102/1024；御劲是 n / 系数
+      decrit: 两位(decritPct(化劲, Number(系数['化劲']) || 0)),
+      tough: 两位(toughPct(防御.tough, Number(系数['御劲']) || 0)),
     },
     loop: {
       name: 循环.当前计算循环名称,
@@ -321,6 +439,7 @@ const 引擎 = {
   async load(简写: string): Promise<string> {
     const 心法名 = 取心法(简写)
     const 数据 = await 确保心法数据已加载(心法名)
+    await 合并PVP(简写, 数据)
     心法数据表.set(简写, 数据)
     return JSON.stringify(在指定心法数据下执行(数据, () => 目录(简写, 数据)))
   },

@@ -4,9 +4,9 @@
  * 1. prepareImage：截图缩到长边 2400 像素、转 JPEG（一般 200–600 KB），推栏长截图也看得清字。
  * 2. requestScan：发到备忘录服务器 /api/gear-scan（server/gearScanRoute.ts），模型只照抄截图上的字：
  *    部位、装备名、精炼、五行石、附魔、五彩石、副属性。截图不保存。
- * 3. matchScan：在本机把这些字对上当季装备库（原版计算器的目录），得到配装器的输入：
+ * 3. matchScan：在本机把这些字对上当季装备库（原版计算器的目录，含魔盒的 PVP 装备），得到配装器的输入：
  *    - 装备：先按名字（容一两个字认错），同名的按副属性、品级区分，都一样时取原版默认的那件、再取品级高的；
- *    - 小附魔：先按全名，截图里只有「急速」这种属性词时取这个部位装分最高的同属性附魔；
+ *    - 小附魔：先按全名，截图里只有「急速」「化劲」这种属性词时取这个部位装分最高的同属性附魔；
  *    - 五彩石：按全名；没写等级时取最高级；
  *    - 截图里没有、或当季库里找不到的部位用原版默认装备，配装页会说明（calc.replaced）。
  */
@@ -227,6 +227,8 @@ function bestEquip(
 
 /** 附魔里的属性词（截图上常常只写这个） */
 const ENCHANT_WORDS: [string, string[]][] = [
+  ["化劲", ["化劲"]],
+  ["御劲", ["御劲"]],
   ["急速", ["急速", "加速"]],
   ["加速", ["急速", "加速"]],
   ["会心效果", ["会效"]],
@@ -298,10 +300,6 @@ export interface ScanMatch extends Seed {
   found: number;
   /** 截图里有、当季装备库里找不到的部位名（帽子、戒指…） */
   missing: string[];
-  /** missing 里是 PVP 装备的部位名（带化劲、御劲；原版计算器只收 PVE 装备） */
-  pvp: string[];
-  /** 截图里对不上的 PVP 装备件数（两个戒指算两件） */
-  pvpCount: number;
   /** 截图里没有的部位名 */
   absent: string[];
   /** 五彩石：found 对上了；missing 截图里有、当季没有；absent 截图里没有 */
@@ -310,15 +308,11 @@ export interface ScanMatch extends Seed {
   refine: number | null;
 }
 
-/** PVP 装备才有的属性。原版计算器算木桩秒伤，装备库里没有带这两个属性的装备 */
-const PVP_ATTRS = ["化劲", "御劲"];
-
-export function isPvpItem(item: ScanItem) {
-  return [...item.attrs, item.enchant ?? ""].some(a =>
-    PVP_ATTRS.some(p => a.includes(p))
-  );
-}
-
+/**
+ * 截图识别结果对上当季装备库（PVE 和魔盒的 PVP 装备都在里面）。
+ * PVP 装备同名的常有几个品级（1320 / 1260），截图没写品级时取最高的，建好后可以在配装器里换。
+ * （试过按截图装分挑品级：装分差多半来自附魔、武器，挑出来气血反而对不上，没用。）
+ */
 export function matchScan(cat: CalcCatalog, scan: ScanResult): ScanMatch {
   const d = cat.defaults;
   // 部位名 → 计算器的部位索引（戒指有两个）
@@ -329,8 +323,6 @@ export function matchScan(cat: CalcCatalog, scan: ScanResult): ScanMatch {
   }
   const slots: CalcInput["slots"] = {};
   const missing: string[] = [];
-  const pvp: string[] = [];
-  let pvpCount = 0;
   const seen = new Set<string>();
   // 截图里五行石的等级：没写等级的孔按截图里最高的等级算，都没写按原版默认
   const gemLevels = scan.items.flatMap(it => it.gems.filter(g => g > 0));
@@ -358,10 +350,6 @@ export function matchScan(cat: CalcCatalog, scan: ScanResult): ScanMatch {
     if (!hit) {
       if (!seen.has(item.slot)) missing.push(item.slot);
       seen.add(item.slot);
-      if (isPvpItem(item)) {
-        pvpCount++;
-        if (!pvp.includes(item.slot)) pvp.push(item.slot);
-      }
       continue;
     }
     free.set(
@@ -409,8 +397,6 @@ export function matchScan(cat: CalcCatalog, scan: ScanResult): ScanMatch {
     stoneReplaced: stone === "missing",
     found,
     missing,
-    pvp,
-    pvpCount,
     absent,
     stone,
     refine:

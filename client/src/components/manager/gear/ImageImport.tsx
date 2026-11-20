@@ -276,15 +276,6 @@ export function scanView({
       title: tx("正在对照当季装备库…"),
       ready: false,
     };
-  // 截图大半是 PVP 装备（带化劲、御劲）：原版计算器只收 PVE 装备，对不上的会被换成默认装备，
-  // 建出来的属性和装分都不准，不让按截图建
-  if (match.pvpCount > 0 && match.pvpCount >= match.found)
-    return {
-      tone: "warn",
-      title: tx("截图是 PVP 装备，配装器里没有"),
-      detail: tx("配装器按原版计算器算木桩秒伤，只有 PVE 装备"),
-      ready: false,
-    };
   if (match.found === 0)
     return {
       tone: "warn",
@@ -314,21 +305,17 @@ export function scanView({
 
 /**
  * 哪些部位先用了原版默认装备、为什么。只有一种原因时说清楚是哪种
- * （PVP 装备 / 当季装备库里没有 / 截图里没有）；4 个以内列部位名，再多只说个数。
+ * （当季装备库里没有 / 截图里没有）；4 个以内列部位名，再多只说个数。
  */
 function lackingNote(m: ScanMatch): string | undefined {
-  const lib = m.missing.filter(s => !m.pvp.includes(s));
-  const groups = [m.pvp, lib, m.absent].filter(g => g.length > 0);
+  const lib = m.missing;
+  const groups = [lib, m.absent].filter(g => g.length > 0);
   if (!groups.length) return undefined;
   if (groups.length > 1)
     return txn(
       "{0} 个部位没对上当季装备库，先用原版默认装备，建好后可以在配装器里换",
-      m.pvp.length + lib.length + m.absent.length
+      lib.length + m.absent.length
     );
-  if (m.pvp.length)
-    return m.pvp.length > 4
-      ? txn("{0} 件是 PVP 装备，配装器里没有，先用原版默认装备", m.pvpCount)
-      : tx("{0}是 PVP 装备，配装器里没有，先用原版默认装备", join(m.pvp));
   if (lib.length)
     return lib.length > 4
       ? txn(

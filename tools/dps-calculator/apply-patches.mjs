@@ -10,6 +10,7 @@ if (!root) {
   process.exit(1);
 }
 const here = dirname(fileURLToPath(import.meta.url));
+const repo = join(here, "../..");
 
 /** 我们的软件和计算器同源，共用 localStorage；这两个前缀的键计算器不能列出、导出、删除 */
 const OURS = `(k) => String(k).startsWith('tongdiao.') || String(k).startsWith('jw3memo:')`;
@@ -76,6 +77,18 @@ const patches = [
     find: "        for (const key in localStorageData) {\n          localStorage.setItem(key, localStorageData[key])\n",
     replace: `        for (const key in localStorageData) {\n          if ((${OURS})(key)) continue\n          localStorage.setItem(key, localStorageData[key])\n`,
   },
+  {
+    file: "src/数据/附魔/查询.ts",
+    why: "按 id 查附魔时也能查到引擎合进来的 PVP 小附魔（化劲、御劲），否则算属性和装分时会被丢掉",
+    find: "const ID索引 = new Map(附魔列表.map((item) => [item.id, item]))\n",
+    replace:
+      "const ID索引 = new Map(附魔列表.map((item) => [item.id, item]))\n" +
+      "// 备忘录引擎合进来的 PVP 小附魔（见 src/备忘录引擎.ts）；已有的 id 不覆盖\n" +
+      "export const 注册外部附魔 = (列表: 附魔数据类型[]) =>\n" +
+      "  列表.forEach((item) => {\n" +
+      "    if (!ID索引.has(item.id)) ID索引.set(item.id, item)\n" +
+      "  })\n",
+  },
 ];
 
 let failed = 0;
@@ -96,6 +109,8 @@ copyFileSync(join(here, "bridge.ts"), join(root, "src/备忘录桥接.ts"));
 console.log("已复制桥接：src/备忘录桥接.ts");
 copyFileSync(join(here, "engine.ts"), join(root, "src/备忘录引擎.ts"));
 console.log("已复制引擎：src/备忘录引擎.ts");
+copyFileSync(join(repo, "client/src/lib/pvpEquip.ts"), join(root, "src/备忘录PVP.ts"));
+console.log("已复制 PVP 装备库工具：src/备忘录PVP.ts");
 
 if (failed) {
   console.error(`${failed} 处补丁没对上，上游代码可能改了，请对照 tools/dps-calculator/README.md 更新补丁。`);

@@ -6,6 +6,7 @@ import {
   type PanelStats,
 } from "@/data/gear";
 import { tx } from "@/lib/i18n";
+import { decritPct, toughPct } from "@/lib/pvpEquip";
 
 export type PanelUnit = "pct" | "int";
 
@@ -25,10 +26,15 @@ export interface PanelRow {
 
 const n = (v: number) => Math.round(v).toLocaleString("en-US");
 const r2 = (v: number) => Math.round(v * 100) / 100;
+/** 没有原版结果时的 50 级系数，同原版 自身属性系数 */
+const DECRIT_COEF = 5148;
+const TOUGH_COEF = 19025.82;
 
 /**
- * 面板属性行，顺序同魔盒配装器：装分、气血、主属性、攻击、会心、会效、破防、无双、破招、全能、加速。
+ * 面板属性行，顺序同魔盒配装器：装分、气血、主属性、攻击、会心、会效、破防、无双、破招、全能、加速，
+ * PVP 装备再加化劲、御劲（放最后，不影响木桩秒伤）。
  * 全能只在不为 0 时显示（PVE 配装一般是 0）。
+ * 化劲、御劲也只在不为 0 时显示，PVE 配装不多出两行。
  * calc 是原版计算器算好的百分比：有就直接用，加速也不显示段数（段数阈值是上赛季的）。
  */
 export function panelRows(
@@ -136,6 +142,34 @@ export function panelRows(
         ? `加速等级 ${n(hasteValue)}，${hastePct}%`
         : `加速等级 ${n(hasteValue)}，${hastePct}%，${tier}`,
     },
+    ...(p.decrit
+      ? [
+          {
+            ...pctRow(
+              "decrit",
+              "化劲",
+              "化劲",
+              calc?.decrit ?? decritPct(p.decrit, DECRIT_COEF),
+              p.decrit
+            ),
+            core: false,
+          },
+        ]
+      : []),
+    ...(p.tough
+      ? [
+          {
+            ...pctRow(
+              "tough",
+              "御劲",
+              "御劲",
+              calc?.tough ?? toughPct(p.tough, TOUGH_COEF),
+              p.tough
+            ),
+            core: false,
+          },
+        ]
+      : []),
   ];
 }
 

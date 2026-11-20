@@ -1290,3 +1290,22 @@
 - [x] 第 31 轮全量：`pnpm check`、`pnpm test`（17 个文件、154 项）、`pnpm build`、`cargo test` 通过；33 个浏览器/桌面回归共 1807 项全部通过。
 - [ ] 真机未测。未重新打包，v2.4.1 不含这次改动。
 - [ ] 未做：真正支持 PVP 配装，等用户决定。
+
+
+## 支持 PVP 装备：接入魔盒 PVP 装备库（2026-11-20）
+
+用户原话：「支持 PVP 装备吧，选第二种接入魔盒的 PVP 装备库。」
+
+- [x] `tools/pvp-equip/build.ts`：抓取魔盒当季 PVP 装备、套装、化劲/御劲小附魔，校验后写入 `client/public/pvp-equip/`（22 个文件，1.8 MB）；附带 `README.md`。
+- [x] `client/src/lib/pvpEquip.ts`：格式转换、按心法挑选、PVP 孔数值、化劲（含基础 102/1024、上限 85%）和御劲；构建时复制成上游的 `src/备忘录PVP.ts`。
+- [x] `tools/dps-calculator/engine.ts`：合并 PVP 装备和小附魔，补 PVP 孔，算化劲（含全能）、御劲和套装属性；目录版本 2。`apply-patches.mjs` 新增第 9 处补丁（附魔查询认识 PVP 小附魔）；`build.sh` 的指纹包含 `pvpEquip.ts`。
+- [x] 类型和面板：`gear.ts`、`calcEngine.ts` 加 `decrit`、`tough`，PVP 装备标签；`panelRows.ts`、`CompareView.tsx` 加化劲、御劲。
+- [x] `NativeEquipPicker.tsx`：PVE/PVP 切换、按获取途径筛选、来源标签和搜索；弹窗宽 600。`NativeGearDialog.tsx`：小附魔「PVP」分组。
+- [x] 截图导入：`gearScan.ts` 去掉 PVP 拦截，附魔识别加化劲/御劲；`ImageImport.tsx`、`seasonNote.ts` 跟着改；四种语言删掉 4 个旧词条，新增「玩法」「获取途径」，`i18n_scan.py` 0 缺失。
+- [x] 单元测试：`pvpEquip.test.ts` 12 项（新增）；`gearScan.test.ts` 11 项（PVP 装备和附魔能对上）。
+- [x] 真实引擎核对用户截图：12 件全对上，气血、化劲、御劲、加速、会效和截图一致（数字见 plan.md）。
+- [x] 截图导入界面测试 `scan_ui_test.py` 54/54：PVP 截图认出 12 件，能建，建好后面板化劲 56.07%、御劲 1.29%、气血 72,363；同系列别门派的 PVP 装能对上，旧赛季装备提示当季装备库里没有。
+- [x] 配装器界面测试 `/tmp/pvp/ui_pvp.py` 24/24：切换、默认模式、来源筛选和搜索、换上后面板出化劲、PVP 小附魔分组、英文界面；中日韩西英五种语言，在 1280 和最小 960 窗口下，来源标签都在一行。
+- [x] 第 32 轮全量：`pnpm check`、`pnpm test`（18 个文件、166 项）、`pnpm build`、`cargo test` 通过；33 个浏览器/桌面回归共 1810 项全部通过。
+- [ ] 真机未测。未重新打包，v2.4.1 不含这次改动。
+- [ ] 装分和截图差 88，原因未查明。

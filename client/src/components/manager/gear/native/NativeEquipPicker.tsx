@@ -17,13 +17,22 @@ import { ItemTile, QUALITY_TEXT } from "../ItemTile";
 import { tx } from "@/lib/i18n";
 
 type Sort = "gain" | "ilvl";
+type Mode = "pve" | "pvp";
 
 /** 每批算几件，算完一批让出主线程，列表先出来、收益陆续补上 */
 const BATCH = 6;
+const NONE: CalcEquip[] = [];
+
+/** 列表里的小标签：PVP 装备显示获取途径（竞技场、威望…），其他按装备类型 */
+function tagOf(e: CalcEquip) {
+  return e.pvp ? (e.来源 ?? "PVP") : typeTag(e);
+}
 
 /**
  * 当季装备选择：装备来自原版计算器的装备库，收益用原版计算核心算
  * （换上这件、其他不变，秒伤相对现在变多少）。
+ * 装备库里有 PVP 装备时，上面多一个 PVE / PVP 切换，默认跟着这个部位现在穿的；
+ * 部位空着就看其他部位多数穿的是哪种。只算当前这一种的收益。
  */
 export function NativeEquipPicker({
   cat,
@@ -53,13 +62,31 @@ export function NativeEquipPicker({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<Sort>("gain");
+  const [mode, setMode] = useState<Mode>("pve");
   const [kind, setKind] = useState<string | null>(null);
   const [active, setActive] = useState(0);
   const [gains, setGains] = useState<Map<number, number>>(() => new Map());
 
   const value = input.slots[idx] ?? null;
   const cur = value ? equipOf(cat, idx, value.id) : null;
-  const pool = cat.equips[cat.slotPart[idx]] ?? [];
+  const pool = cat.equips[cat.slotPart[idx]] ?? NONE;
+  const hasPvp = useMemo(() => pool.some(e => e.pvp), [pool]);
+  const scoped = useMemo(
+    () => (hasPvp ? pool.filter(e => !!e.pvp === (mode === "pvp")) : pool),
+    [pool, hasPvp, mode]
+  );
+
+  const guessMode = (): Mode => {
+    if (!hasPvp) return "pve";
+    if (cur) return cur.pvp ? "pvp" : "pve";
+    let pvp = 0;
+    let pve = 0;
+    for (const [k, s] of Object.entries(input.slots)) {
+      const e = s ? equipOf(cat, k, s.id) : null;
+      if (e) e.pvp ? pvp++ : pve++;
+    }
+    return pvp > pve ? "pvp" : "pve";
+  };
 
   // 打开时按批算每件的收益；关掉或配装变了就重算
   useEffect(() => {
@@ -70,8 +97,8 @@ export function NativeEquipPicker({
     setGains(new Map());
     const step = () => {
       if (!alive) return;
-      for (const end = Math.min(i + BATCH, pool.length); i < end; i++) {
-        const e = pool[i];
+      for (const end = Math.min(i + BATCH, scoped.length); i < end; i++) {
+        const e = scoped[i];
         if (value && e.id === value.id) {
           next.set(e.id, 0);
           continue;
@@ -83,7 +110,7 @@ export function NativeEquipPicker({
         if (r.ok) next.set(e.id, r.dps / dps - 1);
       }
       setGains(new Map(next));
-      if (i < pool.length) window.setTimeout(step, 0);
+      if (i < scoped.length) window.setTimeout(step, 0);
     };
     const t = window.setTimeout(step, 0);
     return () => {
@@ -92,23 +119,29 @@ export function NativeEquipPicker({
     };
     // input 每次改都是新对象；只在打开和这几项变化时重算
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, dps, idx, cat, xinfa, value?.id]);
+  }, [open, dps, idx, cat, xinfa, value?.id, scoped]);
 
   const kinds = useMemo(() => {
     const set = new Set<string>();
-    for (const e of pool) {
-      const t = typeTag(e);
+    for (const e of scoped) {
+      const t = tagOf(e);
       if (t) set.add(t);
     }
     return Array.from(set);
-  }, [pool]);
+  }, [scoped]);
 
   const shown = useMemo(() => {
     const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const list = pool.filter(e => {
-      if (kind && typeTag(e) !== kind) return false;
+    const list = scoped.filter(e => {
+      if (kind && tagOf(e) !== kind) return false;
       if (!words.length) return true;
-      const hay = [e.装备名称, String(e.装备品级), typeTag(e) ?? "", ...equipTags(cat, e)]
+      const hay = [
+        e.装备名称,
+        String(e.装备品级),
+        typeTag(e) ?? "",
+        e.来源 ?? "",
+        ...equipTags(cat, e),
+      ]
         .join(" ")
         .toLowerCase();
       return words.every(w => hay.includes(w));
@@ -124,14 +157,21 @@ export function NativeEquipPicker({
       }
       return b.装备品级 - a.装备品级 || a.装备名称.localeCompare(b.装备名称, "zh");
     });
-  }, [pool, q, kind, sort, gains, cat]);
+  }, [scoped, q, kind, sort, gains, cat]);
 
   const show = () => {
     setQ("");
     setKind(null);
+    setMode(guessMode());
     setOpen(true);
-    const at = cur ? pool.indexOf(cur) : 0;
-    setActive(Math.max(0, at));
+    setActive(0);
+  };
+  const switchMode = (m: Mode) => {
+    if (m === mode) return;
+    setMode(m);
+    setKind(null);
+    setActive(0);
+    listRef.current?.scrollTo({ top: 0 });
   };
   const close = () => {
     setOpen(false);
@@ -194,7 +234,8 @@ export function NativeEquipPicker({
         anchor={btn}
         open={open}
         onClose={close}
-        width={560}
+        // PVP 的 6 种获取途径 + PVE/PVP 切换要排在一行（日语最宽约 578px）
+        width={600}
         maxHeight={460}
         label={tx("选择{0}", label)}
       >
@@ -259,32 +300,66 @@ export function NativeEquipPicker({
           </div>
         </div>
 
-        {kinds.length > 0 && (
-          <div
-            role="radiogroup"
-            aria-label={tx("装备类型")}
-            className="flex shrink-0 flex-wrap gap-1 border-b border-paper/[0.07] px-3 py-1.5"
-          >
-            {[null, ...kinds].map(k => (
-              <button
-                key={k ?? "all"}
-                type="button"
-                role="radio"
-                aria-checked={kind === k}
-                onClick={() => {
-                  setKind(k);
-                  setActive(0);
-                }}
-                className={cn(
-                  "h-6 rounded-md px-2 text-[12px] transition-colors",
-                  kind === k
-                    ? "bg-paper/[0.1] text-paper"
-                    : "text-paper-3 hover:bg-paper/[0.05] hover:text-paper-2"
+        {(hasPvp || kinds.length > 0) && (
+          <div className="flex shrink-0 items-center gap-2 border-b border-paper/[0.07] px-3 py-1.5">
+            {hasPvp && (
+              <>
+                <div
+                  role="radiogroup"
+                  aria-label={tx("玩法")}
+                  className="flex shrink-0 rounded-md bg-paper/[0.04] p-0.5 ring-1 ring-inset ring-paper/10"
+                >
+                  {(["pve", "pvp"] as Mode[]).map(m => (
+                    <button
+                      key={m}
+                      type="button"
+                      role="radio"
+                      aria-checked={mode === m}
+                      onClick={() => switchMode(m)}
+                      className={cn(
+                        "h-6 rounded px-2.5 text-[12px] font-medium transition-colors",
+                        mode === m
+                          ? "bg-paper/[0.1] text-paper"
+                          : "text-paper-3 hover:text-paper-2"
+                      )}
+                    >
+                      {m.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+                {kinds.length > 0 && (
+                  <span className="h-4 w-px shrink-0 bg-paper/10" aria-hidden="true" />
                 )}
+              </>
+            )}
+            {kinds.length > 0 && (
+              <div
+                role="radiogroup"
+                aria-label={mode === "pvp" ? tx("获取途径") : tx("装备类型")}
+                className="flex min-w-0 flex-1 flex-wrap gap-1"
               >
-                {k ?? tx("全部")}
-              </button>
-            ))}
+                {[null, ...kinds].map(k => (
+                  <button
+                    key={k ?? "all"}
+                    type="button"
+                    role="radio"
+                    aria-checked={kind === k}
+                    onClick={() => {
+                      setKind(k);
+                      setActive(0);
+                    }}
+                    className={cn(
+                      "h-6 rounded-md px-2 text-[12px] transition-colors",
+                      kind === k
+                        ? "bg-paper/[0.1] text-paper"
+                        : "text-paper-3 hover:bg-paper/[0.05] hover:text-paper-2"
+                    )}
+                  >
+                    {k ?? tx("全部")}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -304,7 +379,7 @@ export function NativeEquipPicker({
               const isCur = !!value && e.id === value.id;
               const g = gains.get(e.id);
               const qual = qualityOfCalc(e);
-              const tag = typeTag(e);
+              const tag = tagOf(e);
               return (
                 <div
                   key={e.id}

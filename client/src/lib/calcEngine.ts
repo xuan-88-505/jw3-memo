@@ -4,6 +4,7 @@
  * 不显示原版页面：在隐藏的同源 iframe 里打开 /dps-calculator/index.html?engine=1，
  * 原版只加载数据和计算核心，界面全是备忘录自己的（见 tools/dps-calculator/engine.ts）。
  * - loadCatalog：当季装备库、附魔、五彩石、循环、增益，按心法缓存。
+ *   装备库里也有当季 PVP 装备（引擎读 public/pvp-equip/ 的魔盒数据合进来，带 pvp: true）。
  * - computeSync：按配装和战斗配置算装分、面板、秒伤，一次约 4 ms，可以每改一下就算。
  */
 import {
@@ -53,11 +54,16 @@ export interface CalcEquip {
   装备特效?: string;
   装备类型: string;
   装备增益: CalcAttr[];
-  镶嵌孔数组?: { 镶嵌类型: string }[];
+  /** PVP 装备的孔带基数：普通孔 304，体质孔、气血孔更高 */
+  镶嵌孔数组?: { 镶嵌类型: string; 镶嵌基数?: number }[];
   武器伤害_最小值?: number;
   武器伤害_最大值?: number;
   /** 引擎补上的：橙武 8，其他 6 */
   最大精炼等级: number;
+  /** 魔盒 PVP 装备库里的（见 lib/pvpEquip.ts） */
+  pvp?: boolean;
+  /** PVP 装备的获取途径：竞技场、威望、阵营拍卖… */
+  来源?: string;
 }
 
 export interface CalcEnchant {
@@ -67,6 +73,8 @@ export interface CalcEnchant {
   附魔支持部位: string[];
   附魔装分?: number;
   附魔颜色?: string;
+  /** 化劲、御劲小附魔（魔盒数据） */
+  pvp?: boolean;
 }
 
 export interface CalcStone {
@@ -146,6 +154,9 @@ export interface CalcPanel {
   strainLv: number;
   versatility: number;
   haste: number;
+  /** 化劲、御劲等级；引擎版本 1 没有 */
+  decrit?: number;
+  tough?: number;
 }
 
 export interface EngineOk {
@@ -335,6 +346,7 @@ const TYPE_TAG: Record<string, string> = {
 
 /** 列表里装备名后面的小标签 */
 export function typeTag(e: CalcEquip): string | null {
+  if (e.pvp) return "PVP";
   if (TYPE_TAG[e.装备类型]) return TYPE_TAG[e.装备类型];
   const fx = e.装备特效;
   if (fx && fx !== "None" && !fx.startsWith("切糕")) return "特效";
@@ -641,6 +653,8 @@ export function loadoutFromEngine(
       // 原版的角色面板里没有破招
       surplus: 0,
       versatility: r.panel.versatility,
+      decrit: r.panel.decrit ?? 0,
+      tough: r.panel.tough ?? 0,
     },
     haste: hasteOf(r.panel.haste),
   };

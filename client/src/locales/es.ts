@@ -1242,16 +1242,14 @@ const dict: Record<string, string> = {
   "网络断了，正在重新下载 {0} MB": "Se cortó la conexión. Descargando de nuevo {0} MB",
   "改从 GitHub 下载 {0} / {1} MB": "Descargando desde GitHub {0} / {1} MB",
   "改从 GitHub 下载 {0} MB": "Descargando desde GitHub {0} MB",
-  "截图是 PVP 装备，配装器里没有": "La captura muestra equipo PVP, que el editor no tiene",
-  "配装器按原版计算器算木桩秒伤，只有 PVE 装备": "El editor usa la calculadora original para el DPS contra el muñeco, así que solo tiene equipo PVE",
   "{0} 个部位没对上当季装备库，先用原版默认装备，建好后可以在配装器里换": "{0} ranuras no coinciden con el catálogo actual. Por ahora se usa el equipo predeterminado de la calculadora original; puedes cambiarlo en el editor después de crearlo",
-  "{0} 件是 PVP 装备，配装器里没有，先用原版默认装备": "{0} piezas son equipo PVP, que el editor no tiene. Por ahora se usa el equipo predeterminado de la calculadora original",
-  "{0}是 PVP 装备，配装器里没有，先用原版默认装备": "Equipo PVP que el editor no tiene: {0}. Por ahora se usa el equipo predeterminado de la calculadora original",
   "{0} 个部位当季装备库里没有，先用原版默认装备，建好后可以在配装器里换": "{0} ranuras no están en el catálogo actual. Por ahora se usa el equipo predeterminado de la calculadora original; puedes cambiarlo en el editor después de crearlo",
   "{0}当季装备库里没有，先用原版默认装备，建好后可以在配装器里换": "No están en el catálogo actual: {0}. Por ahora se usa el equipo predeterminado de la calculadora original; puedes cambiarlo en el editor después de crearlo",
   "截图里少了 {0} 个部位，先用原版默认装备，建好后可以在配装器里换": "Faltan {0} ranuras en la captura. Por ahora se usa el equipo predeterminado de la calculadora original; puedes cambiarlo en el editor después de crearlo",
   "截图里没有{0}，先用原版默认装备，建好后可以在配装器里换": "No aparecen en la captura: {0}. Por ahora se usa el equipo predeterminado de la calculadora original; puedes cambiarlo en el editor después de crearlo",
   "{0} 个部位没对上当季装备库，用了原版默认装备": "{0} ranuras no coinciden con el catálogo actual; se usa el equipo predeterminado de la calculadora original",
   "1 个部位没对上当季装备库，用了原版默认装备": "1 ranura no coincide con el catálogo actual; se usa el equipo predeterminado de la calculadora original",
+  "玩法": "Modo",
+  "获取途径": "Origen",
 };
 export default dict;

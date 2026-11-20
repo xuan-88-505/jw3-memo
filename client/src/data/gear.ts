@@ -121,6 +121,10 @@ export interface PanelStats {
   surplus: number;
   /** 全能等级，PVE 配装一般是 0 */
   versatility: number;
+  /** 化劲等级（PVP 装备才有）；没有或 0 时面板不显示 */
+  decrit?: number;
+  /** 御劲等级（PVP 装备才有） */
+  tough?: number;
 }
 
 /**
@@ -212,6 +216,9 @@ export interface CalcPct {
   overcome: number;
   strain: number;
   haste: number;
+  /** 化劲、御劲百分比；旧版本带回的结果里没有 */
+  decrit?: number;
+  tough?: number;
 }
 
 /**

@@ -161,13 +161,15 @@ export function CompareView({
   const dpsA = buffedDps(a);
   const dpsB = buffedDps(mode === "same" ? { ...b, buffs: a.buffs } : b);
 
-  // 两套里有一套全能不为 0 时，两边都显示全能
+  // 两套里有一套全能（或化劲、御劲）不为 0 时，两边都显示这一行
   const ra = panelRows(a.xinfa, a.panel, a.haste.value);
   const rb = panelRows(b.xinfa, b.panel, b.haste.value);
   const keys = [...ra, ...rb].map(r => r.key);
-  const order = panelRows(a.xinfa, { ...a.panel, versatility: 1 }, 0).map(
-    r => r.key
-  );
+  const order = panelRows(
+    a.xinfa,
+    { ...a.panel, versatility: 1, decrit: 1, tough: 1 },
+    0
+  ).map(r => r.key);
   const rows: Row[] = order
     .filter(k => keys.includes(k))
     .map(k => {

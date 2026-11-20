@@ -380,11 +380,25 @@ function Body({
                           wrapClassName="w-full"
                         >
                           <option value="">{tx("不附")}</option>
-                          {enchants.map(f => (
-                            <option key={f.id} value={f.id}>
-                              {f.附魔效果简写}
-                            </option>
-                          ))}
+                          {enchants
+                            .filter(f => !f.pvp)
+                            .map(f => (
+                              <option key={f.id} value={f.id}>
+                                {f.附魔效果简写}
+                              </option>
+                            ))}
+                          {/* 化劲、御劲小附魔单独一组，不和 PVE 附魔按装分混排 */}
+                          {enchants.some(f => f.pvp) && (
+                            <optgroup label="PVP">
+                              {enchants
+                                .filter(f => f.pvp)
+                                .map(f => (
+                                  <option key={f.id} value={f.id}>
+                                    {f.附魔效果简写}
+                                  </option>
+                                ))}
+                            </optgroup>
+                          )}
                         </SelectBox>
                       ) : (
                         <span className="block px-2.5 text-[12px] text-paper-3/60">

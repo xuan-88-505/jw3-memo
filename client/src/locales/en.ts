@@ -1242,16 +1242,14 @@ const dict: Record<string, string> = {
   "网络断了，正在重新下载 {0} MB": "Connection dropped. Downloading again {0} MB",
   "改从 GitHub 下载 {0} / {1} MB": "Downloading from GitHub instead {0} / {1} MB",
   "改从 GitHub 下载 {0} MB": "Downloading from GitHub instead {0} MB",
-  "截图是 PVP 装备，配装器里没有": "This screenshot shows PVP gear, which the editor doesn't have",
-  "配装器按原版计算器算木桩秒伤，只有 PVE 装备": "The editor uses the original calculator for training dummy DPS, so it only has PVE gear",
   "{0} 个部位没对上当季装备库，先用原版默认装备，建好后可以在配装器里换": "{0} slots didn't match the current library. Using the original calculator's defaults for now — you can change them in the editor after creating",
-  "{0} 件是 PVP 装备，配装器里没有，先用原版默认装备": "{0} pieces are PVP gear, which the editor doesn't have. Using the original calculator's defaults for now",
-  "{0}是 PVP 装备，配装器里没有，先用原版默认装备": "PVP gear the editor doesn't have: {0}. Using the original calculator's defaults for now",
   "{0} 个部位当季装备库里没有，先用原版默认装备，建好后可以在配装器里换": "{0} slots aren't in the current library. Using the original calculator's defaults for now — you can change them in the editor after creating",
   "{0}当季装备库里没有，先用原版默认装备，建好后可以在配装器里换": "Not in the current library: {0}. Using the original calculator's defaults for now — you can change them in the editor after creating",
   "截图里少了 {0} 个部位，先用原版默认装备，建好后可以在配装器里换": "The screenshot is missing {0} slots. Using the original calculator's defaults for now — you can change them in the editor after creating",
   "截图里没有{0}，先用原版默认装备，建好后可以在配装器里换": "Not in the screenshot: {0}. Using the original calculator's defaults for now — you can change them in the editor after creating",
   "{0} 个部位没对上当季装备库，用了原版默认装备": "{0} slots didn't match the current library; the original calculator's defaults are used",
   "1 个部位没对上当季装备库，用了原版默认装备": "1 slot didn't match the current library; the original calculator's default is used",
+  "玩法": "Mode",
+  "获取途径": "Source",
 };
 export default dict;
