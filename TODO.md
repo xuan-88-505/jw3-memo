@@ -1324,4 +1324,14 @@
 - [x] 界面：附魔下拉「往季」分组在中、英、日下不截断，选上后能算（`/tmp/pvp/ui_legacy.py` 11/11）；`scan_ui_test.py` 54/54，`ui_pvp.py` 24/24。
 - [x] GitHub 上实测工作流（临时分支，测完已删）：安装依赖、抓取魔盒（49 秒）、单元测试都成功，提交步骤按预期跳过。
 - [x] 第 33 轮全量：`pnpm check`、`pnpm test`（18 个文件、173 项）、`pnpm build`、`cargo test` 通过；33 个浏览器/桌面回归共 1810 项全部通过。
-- [ ] 未重新打包；新数据要等下次发版才进安装包。
+- [x] 已发布 2.5.0（见下一节）。
+
+## 发布 2.5.0（2026-11-21）
+
+用户原话：「打包当前的 PVP 数据并生成安装包。」
+
+- [x] 版本号改成 2.5.0（`package.json`、`tauri.conf.json`、`Cargo.toml`、`Cargo.lock`），`version.test.ts` 通过。服务器代码自 2.4.1 没变，没有重新发布网站。
+- [x] 打 `v2.5.0` 标签，Actions「打包发布」四个任务全部成功（约 18 分钟）。安装包：Windows `setup.exe` 10.2 MB，Mac `universal.dmg` 21.8 MB，和 2.4.1 相比只多了约 65 KB（新增的 PVP 数据）。
+- [x] `publish-update.mjs` 签名并验证三个更新包；gh 上传报 403，用临时分支 `release-upload/v2.5.0` 让 Actions 代传 `latest.json`、3 个 `.sig` 和 Release 正文，传完已删分支和 worktree。
+- [x] 线上检查：`/api/update/{windows/x86_64, darwin/aarch64, darwin/x86_64}/2.4.1` 都返回 200 和 2.5.0；更新包下载地址可用。
+- [ ] 真机一键更新未测。
