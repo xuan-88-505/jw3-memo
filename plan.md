@@ -1286,3 +1286,13 @@ client/src/
 - GitHub Actions `.github/workflows/pvp-equip.yml`：每天北京时间 6:00 运行，有变化时先跑 `pnpm test`，再以 `github-actions[bot]` 提交到 GitHub `main`；可以手动触发，也可以只检查不提交。机器人提交后，本地推 GitHub 前要先合并 `github/main`。
 
 结果：装分 25,412（截图 25,411），元气 3,616、基础攻击 8,898、攻击 11,175、气血 72,363、会心 25.69%、化劲 56.07%、御劲 1.29% 和截图一致，破防 33.30%（截图 33.31%）。附魔 80 个（化劲御劲 22、往季 19）。
+
+## 输入框拼音叠字（2026-11-26）
+现象：Mac 拼音输入法在「服务器」框打字，框里变成 `weimweimaweimanweimanx`。
+根因：组字文本带空格（`wei man x`），onChange 里 `.replace(/\s/g, "")` 把空格去掉再写回，输入框的值和输入法正在组的文本不一致，WKWebView 打断组字，拼音被当成正式文字，输入法再整段重发，叠成一串。
+修复：
+- `useImeNormalize(set, normalize, maxLength)`：组字中（`composing` 或 `isComposing`）原样 set，不整理；`compositionend` 和非组字的 input 才整理并截断。去掉 `maxLength` 属性，由 hook 在组字结束后截断。
+- `imeBusy(e)`：`isComposing || keyCode === 229`，输入法的回车、Esc 不当作提交、保存、取消。
+- 用在：`AddCharacterForm` 服务器框、`RoleLookup` 服务器框、`CharactersView` 的 `InlineEdit`。
+不改的：多数输入框直接 `setX(e.target.value)`，没有问题；工资、数字框只留数字，不涉及拼音。
+测试：`imeNormalize.test.ts`，`/tmp/ime/ime_test.py`（CDP 模拟），全量回归 `run_all.sh 34`。真机（Mac WKWebView）未测。

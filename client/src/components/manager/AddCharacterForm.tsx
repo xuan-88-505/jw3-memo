@@ -2,6 +2,7 @@ import { useState, type RefObject } from "react";
 import { SCHOOL_GROUPS, schoolLabel, xinfasOf } from "@/data/seed";
 import type { Character } from "@/data/types";
 import { isServerName } from "@/data/records";
+import { imeBusy, useImeNormalize } from "@/hooks/useImeNormalize";
 import { isOnline, myCharacters, setsOf, useProto } from "@/state/store";
 import { Field, inputCls } from "./shared";
 import { SchoolFields, type SchoolValue } from "./SchoolPicker";
@@ -118,8 +119,18 @@ export function AddCharacterFields({
   nameRef?: RefObject<HTMLInputElement | null>;
 }) {
   const onEnter = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") onSubmit();
+    // 输入法里按回车是确认拼音，不是提交
+    if (e.key === "Enter" && !imeBusy(e)) onSubmit();
   };
+  // 服务器不能有空格，限 8 个字。输入法组字时不整理，选完字再整理，见 useImeNormalize
+  const serverIme = useImeNormalize(
+    v => {
+      form.setServer(v);
+      form.setServerError("");
+    },
+    v => v.replace(/\s/g, ""),
+    8
+  );
   return (
     <div className="grid grid-cols-2 gap-x-3 gap-y-4">
       <Field
@@ -151,11 +162,7 @@ export function AddCharacterFields({
         <input
           id={`${idPrefix}-server`}
           value={form.server}
-          maxLength={8}
-          onChange={e => {
-            form.setServer(e.target.value.replace(/\s/g, ""));
-            form.setServerError("");
-          }}
+          {...serverIme}
           onKeyDown={onEnter}
           placeholder={tx("如 梦江南")}
           aria-invalid={!!form.serverError}

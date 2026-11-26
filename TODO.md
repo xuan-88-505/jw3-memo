@@ -1335,3 +1335,15 @@
 - [x] `publish-update.mjs` 签名并验证三个更新包；gh 上传报 403，用临时分支 `release-upload/v2.5.0` 让 Actions 代传 `latest.json`、3 个 `.sig` 和 Release 正文，传完已删分支和 worktree。
 - [x] 线上检查：`/api/update/{windows/x86_64, darwin/aarch64, darwin/x86_64}/2.4.1` 都返回 200 和 2.5.0；更新包下载地址可用。
 - [ ] 真机一键更新未测。
+
+## 输入框拼音叠字（2026-11-26）
+用户原话：引用「排查输入框自动重复问题的原因」，说「修下这个问题」。现象：Mac 上用拼音输入法在「服务器」框打「为慢性」，框里变成 `weimweimaweimanweimanx`，候选栏还开着。
+- [x] 根因：Mac 拼音输入法组字时，输入框里是带空格的拼音（`wei m`、`wei man x`）。onChange 里把空格去掉再写回，值和正在组字的文本不一致，WebKit（Tauri 在 Mac 用 WKWebView）就打断组字，拼音被当成正式文字提交，输入法再塞一整段新拼音，叠成 `weim` + `weima` + `weiman` + `weimanx`。角色名框没有改写输入值，所以没事。
+- [x] 新增 `hooks/useImeNormalize.ts`：组字中原样放进去，选完字（compositionend）和平时打字、粘贴时再去空格、限长；兼容 Chrome（input 先、compositionend 后）和 Safari（反过来）两种顺序。限长不再用 `maxLength` 属性，因为有的内核会把组字中的拼音也算进去截断。
+- [x] 三处改用：添加角色表单的服务器框（`AddCharacterForm.tsx`）、记录页角色查找的服务器框（`RoleLookup.tsx`，避雷查人、打本添加成员）、角色列表里点击修改的行内编辑（`CharactersView.tsx` 的 `InlineEdit`，角色名、服务器）。
+- [x] 顺手修同类问题：输入法里按回车是确认拼音，之前会直接提交添加角色表单、触发角色查找、保存行内编辑；按 Esc 取消拼音会取消行内编辑。新增 `imeBusy`（Chrome 看 `isComposing`，Safari 看 `keyCode === 229`）跳过这些按键。
+- [x] 单元测试 `imeNormalize.test.ts` 6 项（组字不整理、Chrome 和 Safari 事件顺序、粘贴去空格和限长、组字结束才截断）。
+- [x] 界面测试 `/tmp/ime/ime_test.py` 21 项（Chromium + CDP `Input.imeSetComposition` 模拟带空格的拼音组字）：修复前服务器框 3 处叠字失败，修复后全部通过；角色名对照、键盘输入和粘贴去空格、输入法回车不提交不查找、普通回车仍然生效、超长截到 8 个字。让 `imeBusy` 失效后两项回车用例会失败，说明用例有效。
+- [x] `pnpm check`、`pnpm test`（19 个文件、179 项）、多语言检查 0 缺失、`char_test.py` 45/45。
+- [ ] 真机未测：沙箱里没有 Mac，只在 Chromium 里模拟过；WKWebView 的真实行为要在 Mac 上试一下。
+- [ ] 未打包，修复要等下次「打包」才进安装包。

@@ -9,6 +9,7 @@ import {
   type GameRole,
 } from "@/data/records";
 import { cn } from "@/lib/utils";
+import { imeBusy, useImeNormalize } from "@/hooks/useImeNormalize";
 import { inputCls } from "../shared";
 import { monthDay, tx } from "@/lib/i18n";
 
@@ -161,6 +162,16 @@ export function RoleLookup({
   /** 用曾用名查到时，记下输入的旧名字 */
   const [viaFormer, setViaFormer] = useState<string | null>(null);
 
+  // 服务器不能有空格，限 8 个字。输入法组字时不整理，选完字再整理，见 useImeNormalize
+  const serverIme = useImeNormalize(
+    v => {
+      setServer(v);
+      if (status.kind === "error") setStatus({ kind: "idle" });
+    },
+    v => v.replace(/\s/g, ""),
+    8
+  );
+
   const run = async () => {
     if (!online || disabled) return;
     setStatus({ kind: "loading" });
@@ -176,7 +187,8 @@ export function RoleLookup({
   };
 
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    // 输入法里按回车是确认拼音，不是查找
+    if (e.key === "Enter" && !imeBusy(e)) {
       e.preventDefault();
       e.stopPropagation();
       run();
@@ -266,11 +278,7 @@ export function RoleLookup({
           aria-label={tx("服务器")}
           value={server}
           disabled={blocked || loading}
-          maxLength={8}
-          onChange={e => {
-            setServer(e.target.value.replace(/\s/g, ""));
-            if (status.kind === "error") setStatus({ kind: "idle" });
-          }}
+          {...serverIme}
           onKeyDown={onKey}
           placeholder={tx("服务器")}
           className={cn(inputCls(), "w-[96px] shrink-0")}

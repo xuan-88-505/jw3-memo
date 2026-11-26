@@ -9,6 +9,7 @@ import { Btn, IconBtn } from "@/components/common/ui";
 import { isServerName } from "@/data/records";
 import { schoolLabel, xinfasOf } from "@/data/seed";
 import type { Character } from "@/data/types";
+import { imeBusy, useImeNormalize } from "@/hooks/useImeNormalize";
 import {
   canEdit,
   currentLoadout,
@@ -269,6 +270,16 @@ function InlineEdit({
 
   useEffect(() => setValue(saved), [saved]);
 
+  // 输入法组字时不整理，选完字再整理；限长也在这里做，见 useImeNormalize
+  const ime = useImeNormalize(
+    v => {
+      setValue(v);
+      setError("");
+    },
+    normalize,
+    maxLength
+  );
+
   const onBlur = () => {
     const n = value.trim();
     if (cancelRef.current || n === saved) {
@@ -292,17 +303,15 @@ function InlineEdit({
       <input
         value={value}
         disabled={disabled}
-        maxLength={maxLength}
         spellCheck={false}
         aria-label={label}
         aria-invalid={!!error}
         aria-describedby={error ? errorId : undefined}
         title={title}
-        onChange={e => {
-          setValue(normalize(e.target.value));
-          setError("");
-        }}
+        {...ime}
         onKeyDown={e => {
+          // 输入法里的回车和 Esc 是确认、取消拼音，不是保存、取消编辑
+          if (imeBusy(e)) return;
           if (e.key === "Enter") {
             const err = validate(value.trim());
             if (err) setError(err);
