@@ -302,17 +302,8 @@ function SchemeRow({
             )}
           </span>
         </span>
-        <span className="mt-0.5 flex shrink-0 items-center gap-1.5">
-          <span
-            className={cn(
-              "text-[11.5px] tabular-nums text-paper-3 transition-opacity",
-              onDelete &&
-                "group-focus-within/row:opacity-0 group-hover/row:opacity-0"
-            )}
-          >
-            {count}
-          </span>
-          {/* 圆点固定占位，各行的段数才能对齐 */}
+        {/* 只留未保存的圆点；段数不显示（读屏仍在按钮名字里），悬停出来的删除图标才不会和别的字叠在一起 */}
+        <span className="flex h-5 shrink-0 items-center">
           <span
             className={cn("h-1.5 w-1.5 rounded-full", draft && "bg-gold")}
             aria-hidden="true"

@@ -119,10 +119,10 @@ export function LoadoutList({
                             </span>
                           )}
                         </span>
-                        {/* 装分一直占着位置，图标换上来时整行不会跳 */}
+                        {/* 装分一直占着位置，图标换上来时整行不会跳；装分直接让开（不淡出），不会和淡入的图标叠在一起 */}
                         <span
                           className={cn(
-                            "shrink-0 text-[12px] tabular-nums transition-opacity",
+                            "shrink-0 text-[12px] tabular-nums",
                             active ? "text-paper" : "text-paper-2",
                             !disabled &&
                               "group-hover/row:opacity-0 group-has-[:focus-visible]/row:opacity-0"
