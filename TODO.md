@@ -1376,3 +1376,11 @@
 - [x] 新增界面测试 `/tmp/pwfocus/ui_focus.py`（用真实键盘逐键输入，15 项）：旧代码 8 项失败，新代码全过；已加进 `run_all.sh`。
 - [ ] 未打包，要等下次「打包」才进安装包。
 - [ ] 真机 Mac WKWebView、中文输入法（IME）没测，沙箱里只能 Chromium。
+
+## 发布 2.5.2（2026-11-26）
+包含：配装列表每行可删除、方案库左栏去掉「N 段」避免叠字、弹窗里在第二个输入框打字焦点不再被抢回第一个输入框（设置登录密码）。
+- [x] 版本号改成 2.5.2（四处），`version.test.ts` 通过。服务器代码自 2.5.1 没变，没有重新发布网站。
+- [x] 打 `v2.5.2` 标签（提交 834a388），Actions「打包发布」四个任务全部成功（约 20 分钟）。安装包：Windows `setup.exe` 10.2 MB，Mac `universal.dmg` 21.8 MB。
+- [x] `publish-update.mjs` 签名并验证三个更新包；上传仍走临时分支 `release-upload/v2.5.2` 让 Actions 代传，传完已删分支和工作树。
+- [x] 线上检查：`/api/update/{windows/x86_64, darwin/aarch64, darwin/x86_64}/2.5.1` 返回 200 和 2.5.2；`darwin/aarch64/2.5.2` 返回 204（已是最新）；经服务器下载 mac 更新包返回 206。
+- [ ] 真机 Mac（WKWebView）、Windows 上的实测，等用户测试反馈。
