@@ -141,6 +141,7 @@ export function RoleLookup({
   showBlackWarning = true,
   onNotFound,
   invalid,
+  fit,
 }: {
   id: string;
   value: GameRole | null;
@@ -155,6 +156,11 @@ export function RoleLookup({
   onNotFound?: (name: string, server: string) => void;
   /** 外层校验失败时，输入框标红 */
   invalid?: boolean;
+  /**
+   * 输入框宽度贴合占位文字（各语言都刚好放下，不截断），不撑满一行。
+   * 用在单独一行的「查人」；表单里的查找框保持撑满
+   */
+  fit?: boolean;
 }) {
   const [server, setServer] = useState(value?.server ?? defaultServer);
   const [text, setText] = useState("");
@@ -271,6 +277,9 @@ export function RoleLookup({
 
   const loading = status.kind === "loading";
   const blocked = !online || disabled;
+  const placeholder = online
+    ? tx("角色名或 UID，回车查找")
+    : tx("离线时不能查找");
   return (
     <div>
       <div className="flex gap-2">
@@ -283,7 +292,17 @@ export function RoleLookup({
           placeholder={tx("服务器")}
           className={cn(inputCls(), "w-[96px] shrink-0")}
         />
-        <div className="relative min-w-0 flex-1">
+        <div className={cn("relative min-w-0", fit ? "grid" : "flex-1")}>
+          {fit && (
+            // 看不见的占位文字，把这一格撑到「文字 + 左右内边距 + 右边放大镜」的宽度，
+            // 输入框和它叠在同一格里，跟着变宽。右边多留 16px，文字不贴着放大镜
+            <span
+              aria-hidden="true"
+              className="invisible col-start-1 row-start-1 h-0 overflow-hidden whitespace-pre pl-3 pr-[52px] text-[13px]"
+            >
+              {placeholder}
+            </span>
+          )}
           <input
             id={id}
             value={text}
@@ -293,11 +312,15 @@ export function RoleLookup({
               if (status.kind === "error") setStatus({ kind: "idle" });
             }}
             onKeyDown={onKey}
-            placeholder={
-              online ? tx("角色名或 UID，回车查找") : tx("离线时不能查找")
-            }
+            placeholder={placeholder}
+            // 输入框自带约 20 个字的默认宽度，会比占位文字还宽；改成 1，宽度只看占位文字
+            size={fit ? 1 : undefined}
             aria-invalid={status.kind === "error" || invalid || undefined}
-            className={cn(inputCls(status.kind === "error" || invalid), "pr-9")}
+            className={cn(
+              inputCls(status.kind === "error" || invalid),
+              "pr-9",
+              fit && "col-start-1 row-start-1"
+            )}
           />
           <button
             type="button"

@@ -58,69 +58,75 @@ export function BlacklistTab({
 
   return (
     <div className="flex flex-1 flex-col space-y-4">
-      <section aria-label={tx("查人")}>
-        <div className="max-w-[640px]">
-          <RoleLookup
-            id="bl-check"
-            value={check}
-            onChange={setCheck}
-            blacklist={state.blacklist}
-            online={isOnline(state)}
-            showBlackWarning={false}
-          />
-        </div>
-        {check && hits.length > 0 && (
-          <ul className="mt-3 max-w-[640px] space-y-2">
-            {hits.map(h => (
-              <li
-                key={h.id}
-                className="flex items-start gap-2.5 rounded-lg bg-cinnabar/[0.08] px-3 py-2.5 ring-1 ring-inset ring-cinnabar/25"
-              >
-                <ShieldAlert
-                  className="mt-0.5 h-4 w-4 shrink-0 text-cinnabar-text"
-                  aria-hidden="true"
-                />
-                <div className="min-w-0 flex-1 text-[12.5px]">
-                  <TagChips tags={h.tags} />
-                  {h.reason && <p className="mt-1.5 text-paper">{h.reason}</p>}
-                  {h.images.length > 0 && (
-                    <div className="mt-2">
-                      <NoteThumbs
-                        images={h.images}
-                        caption={h.reason || undefined}
-                        max={6}
-                      />
-                    </div>
-                  )}
-                  <p className="mt-1 text-paper-3">
-                    {!isSolo(state) && `${memberName(state, h.by)} · `}
-                    {fmtDay(h.at)}
-                    {h.nameAtRecord !== check.name &&
-                      tx(" · 记录时叫「{0}」", h.nameAtRecord)}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        {check && hits.length === 0 && (
-          <div className="mt-3 flex items-center gap-3">
-            <p className="flex items-center gap-1.5 text-[12.5px] text-jade">
-              <Check className="h-3.5 w-3.5" aria-hidden="true" />
-              {tx("名单里没有这个人")}
-            </p>
-            <Btn
-              size="xs"
-              variant="ghost"
-              disabled={!writable}
-              title={lockReason}
-              onClick={() => onEdit({ id: "new", preset: check })}
-            >
-              {tx("加入避雷")}
-            </Btn>
+      {/* 名单是空的时候查谁都是「没有」，不显示查人；加人用右上角的「加入避雷」 */}
+      {rows.length > 0 && (
+        <section aria-label={tx("查人")}>
+          <div className="max-w-[640px]">
+            <RoleLookup
+              id="bl-check"
+              value={check}
+              onChange={setCheck}
+              blacklist={state.blacklist}
+              online={isOnline(state)}
+              showBlackWarning={false}
+              fit
+            />
           </div>
-        )}
-      </section>
+          {check && hits.length > 0 && (
+            <ul className="mt-3 max-w-[640px] space-y-2">
+              {hits.map(h => (
+                <li
+                  key={h.id}
+                  className="flex items-start gap-2.5 rounded-lg bg-cinnabar/[0.08] px-3 py-2.5 ring-1 ring-inset ring-cinnabar/25"
+                >
+                  <ShieldAlert
+                    className="mt-0.5 h-4 w-4 shrink-0 text-cinnabar-text"
+                    aria-hidden="true"
+                  />
+                  <div className="min-w-0 flex-1 text-[12.5px]">
+                    <TagChips tags={h.tags} />
+                    {h.reason && (
+                      <p className="mt-1.5 text-paper">{h.reason}</p>
+                    )}
+                    {h.images.length > 0 && (
+                      <div className="mt-2">
+                        <NoteThumbs
+                          images={h.images}
+                          caption={h.reason || undefined}
+                          max={6}
+                        />
+                      </div>
+                    )}
+                    <p className="mt-1 text-paper-3">
+                      {!isSolo(state) && `${memberName(state, h.by)} · `}
+                      {fmtDay(h.at)}
+                      {h.nameAtRecord !== check.name &&
+                        tx(" · 记录时叫「{0}」", h.nameAtRecord)}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {check && hits.length === 0 && (
+            <div className="mt-3 flex items-center gap-3">
+              <p className="flex items-center gap-1.5 text-[12.5px] text-jade">
+                <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                {tx("名单里没有这个人")}
+              </p>
+              <Btn
+                size="xs"
+                variant="ghost"
+                disabled={!writable}
+                title={lockReason}
+                onClick={() => onEdit({ id: "new", preset: check })}
+              >
+                {tx("加入避雷")}
+              </Btn>
+            </div>
+          )}
+        </section>
+      )}
 
       {rows.length === 0 ? (
         <EmptyState icon="thunder" title={tx("避雷名单是空的")} />
