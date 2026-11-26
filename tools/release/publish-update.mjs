@@ -164,6 +164,70 @@ function sign(file, version, keyPath, password) {
   return fs.readFileSync(`${file}.sig`, "utf8").trim();
 }
 
+/**
+ * 读 Release 信息。先用 gh；gh 没登录或令牌失效时，改用 GitHub 公开接口
+ * （仓库是公开的，读和下载都不需要登录）。上传仍然需要权限，见 README「gh 上传不了时」。
+ */
+async function viewRelease(tag) {
+  try {
+    return JSON.parse(
+      run("gh", [
+        "release",
+        "view",
+        tag,
+        "--repo",
+        REPO,
+        "--json",
+        "assets,publishedAt,isDraft",
+      ])
+    );
+  } catch (e) {
+    console.log(
+      `WARN gh 读取 Release 失败，改用公开接口：${e.message.split("\n").pop()}`
+    );
+  }
+  const res = await fetch(
+    `https://api.github.com/repos/${REPO}/releases/tags/${tag}`,
+    {
+      headers: { Accept: "application/vnd.github+json" },
+    }
+  );
+  if (!res.ok) throw new Error(`公开接口读取 ${tag} 失败：${res.status}`);
+  const d = await res.json();
+  return {
+    assets: d.assets.map(a => ({ name: a.name, url: a.browser_download_url })),
+    publishedAt: d.published_at,
+    isDraft: d.draft,
+  };
+}
+
+/** 下载 Release 里的一个文件到 dir。先用 gh，不行就走公开下载地址 */
+async function downloadAsset(tag, name, dir) {
+  try {
+    run("gh", [
+      "release",
+      "download",
+      tag,
+      "--repo",
+      REPO,
+      "-p",
+      name,
+      "-D",
+      dir,
+      "--clobber",
+    ]);
+    return;
+  } catch {
+    // 往下走公开地址
+  }
+  const res = await fetch(
+    `https://github.com/${REPO}/releases/download/${tag}/${name}`,
+    { redirect: "follow" }
+  );
+  if (!res.ok) throw new Error(`下载 ${name} 失败：${res.status}`);
+  fs.writeFileSync(path.join(dir, name), Buffer.from(await res.arrayBuffer()));
+}
+
 function readConfig() {
   const conf = JSON.parse(
     fs.readFileSync(path.join(ROOT, "src-tauri/tauri.conf.json"), "utf8")
@@ -366,17 +430,7 @@ async function main() {
   if (!fs.existsSync(keyPath))
     throw new Error(`找不到私钥 ${keyPath}（备份在项目共享文件里）`);
 
-  const rel = JSON.parse(
-    run("gh", [
-      "release",
-      "view",
-      tag,
-      "--repo",
-      REPO,
-      "--json",
-      "assets,publishedAt,isDraft",
-    ])
-  );
+  const rel = await viewRelease(tag);
   const names = new Set(rel.assets.map(a => a.name));
   const win = `${PRODUCT}_${version}_windows_x64-setup.exe`;
   // Mac：两种芯片优先用各自的包（只有一种芯片的代码，小一半）；没有就用通用包
@@ -401,18 +455,7 @@ async function main() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `jw3-update-${version}-`));
   console.log(`下载到 ${dir}`);
   for (const n of files) {
-    run("gh", [
-      "release",
-      "download",
-      tag,
-      "--repo",
-      REPO,
-      "-p",
-      n,
-      "-D",
-      dir,
-      "--clobber",
-    ]);
+    await downloadAsset(tag, n, dir);
   }
 
   const url = n => `https://github.com/${REPO}/releases/download/${tag}/${n}`;

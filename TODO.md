@@ -1347,3 +1347,12 @@
 - [x] `pnpm check`、`pnpm test`（19 个文件、179 项）、多语言检查 0 缺失、`char_test.py` 45/45。
 - [ ] 真机未测：沙箱里没有 Mac，只在 Chromium 里模拟过；WKWebView 的真实行为要在 Mac 上试一下。
 - [ ] 未打包，修复要等下次「打包」才进安装包。
+
+## 发布 2.5.1（2026-11-26）
+用户原话：「打包」。内容：输入框拼音叠字修复（见上一节）。
+- [x] 版本号改成 2.5.1（`package.json`、`tauri.conf.json`、`Cargo.toml`、`Cargo.lock`），`version.test.ts` 通过。服务器代码自 2.5.0 没变，没有重新发布网站。
+- [x] 打 `v2.5.1` 标签，Actions「打包发布」四个任务全部成功（约 17 分钟）。安装包：Windows `setup.exe` 10.2 MB，Mac `universal.dmg` 21.8 MB。
+- [x] `publish-update.mjs` 签名并验证三个更新包。这次 GitHub 连接器令牌失效，脚本读取 Release 和下载更新包改走公开接口（新加的回退）；上传用临时分支 `release-upload/v2.5.1` 让 Actions 代传 `latest.json`、3 个 `.sig` 和 Release 正文，传完已删。
+- [x] 线上检查：`/api/update/{windows/x86_64, darwin/aarch64, darwin/x86_64}/{2.5.0, 2.4.1}` 都返回 200 和 2.5.1；2.5.1 请求返回 204（已是最新）。
+- [x] 测试脚本里写死的版本号（`update_test.py`、`desktop_mock.py`）改成按 `package.json` 生成：`/tmp/team2/retarget_versions.py`，发版后运行一次，免得误报。
+- [ ] 真机一键更新、Mac 拼音输入法未测。

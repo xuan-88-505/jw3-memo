@@ -22,9 +22,11 @@ GitHub Actions 只负责打包。签名和生成 `latest.json` 在本地做，�
 
    脚本会下载更新包（Windows 一个，Mac 两种芯片各一个）并签名，签名里写入版本号。然后用公钥验证签名，确认服务器的检查更新接口返回 JSON，最后把 `latest.json` 和各个 `.sig` 上传到这个 Release。先加 `--dry-run` 可以只生成、不上传。
 
+   GitHub 命令行没登录或连接器令牌失效时，脚本读取 Release 和下载更新包会自动改用 GitHub 公开接口（仓库是公开的，不需要登录）；但上传需要权限，这时直接走下面「上传不了时」的临时分支办法（2.5.1 就是这样发的）。
+
 5. 检查：`curl https://tongdiao-k5ujnxu8.manus.space/api/update/windows/x86_64/<旧版本号>` 应该返回 200 和新版本的 JSON。服务器把清单缓存 5 分钟，所以刚上传时可能要等一会儿。
 
-## gh 上传不了时
+## 上传不了时（命令行报 403 或令牌失效）
 
 如果第 4 步上传时报 403「Resource not accessible by integration」，说明 gh 的凭据没有上传 Release 文件的权限。签名已经做完了，脚本会打印「已生成 /tmp/jw3-update-X.Y.Z-xxxx」，里面就是 `latest.json` 和各个 `.sig`。这些都是公开文件，不含私钥。用临时分支让 Actions 代传（2.4.0 就是这样传的）：
 
