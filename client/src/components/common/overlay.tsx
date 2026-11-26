@@ -37,6 +37,15 @@ export function InlineModal({
   const titleId = useId();
   const descId = useId();
 
+  // 关闭回调多半是调用方每次渲染新写的箭头函数，放进 ref 取最新的。
+  // 如果让它进下面的依赖，每次重新渲染（比如在第二个输入框打一个字）都会重新聚焦，
+  // 焦点被抢回第一个输入框，后面的字就打到上面去了
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  // 只在打开的那一次聚焦
   useEffect(() => {
     if (!open) return;
     const el = ref.current;
@@ -45,15 +54,20 @@ export function InlineModal({
       el?.querySelector<HTMLElement>("[data-autofocus]") ??
       el?.querySelector<HTMLElement>("input, textarea, select, button");
     first?.focus();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const el = ref.current;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && dismissible) {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
       }
     };
     el?.addEventListener("keydown", onKey);
     return () => el?.removeEventListener("keydown", onKey);
-  }, [open, dismissible, onClose]);
+  }, [open, dismissible]);
 
   if (!open) return null;
   return (
