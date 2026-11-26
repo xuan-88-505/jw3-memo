@@ -1252,5 +1252,7 @@ const dict: Record<string, string> = {
   "玩法": "Modo",
   "获取途径": "Origen",
   "往季": "Temporadas pasadas",
+  "装备、增益和秒伤变化记录会一起删除，不能恢复。": "También se eliminarán el equipo, los potenciadores y el historial de DPS. No se puede deshacer.",
+  "关联的角色和宏不受影响。": "Los personajes y las macros vinculados no se ven afectados.",
 };
 export default dict;

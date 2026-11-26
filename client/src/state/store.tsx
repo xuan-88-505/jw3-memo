@@ -70,6 +70,7 @@ import {
   normalizeSynced,
 } from "@/lib/schemeSets";
 import { copyTalentFields } from "@/lib/talentSets";
+import { pickAfterRemove } from "@/lib/loadoutPick";
 import { DEFAULT_HOTKEYS, type Hotkey } from "@/lib/hotkey";
 import type { NoteImage } from "@/lib/image";
 import {
@@ -1796,14 +1797,18 @@ function useActions(
         }),
       removeLoadout: (id: string) =>
         update(st => {
+          const list = loadoutList(st);
+          // 配装页显示的那套：选中的，选中的不在了就是列表第一套
+          const shownId = st.loadouts[st.activeLoadoutId ?? ""]
+            ? st.activeLoadoutId
+            : (list[0]?.id ?? null);
           const loadouts = { ...st.loadouts };
           delete loadouts[id];
           return {
             loadouts,
+            // 删的不是正在看的，不动；删的是正在看的，换成挨着的一套
             activeLoadoutId:
-              st.activeLoadoutId === id
-                ? (Object.keys(loadouts)[0] ?? null)
-                : st.activeLoadoutId,
+              shownId === id ? pickAfterRemove(list, id) : st.activeLoadoutId,
           };
         }),
       selectLoadout: (activeLoadoutId: string) => patch({ activeLoadoutId }),

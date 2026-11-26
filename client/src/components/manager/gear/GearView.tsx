@@ -27,6 +27,7 @@ import { fmt } from "./Dashboard";
 import { GearEditorDialog } from "./GearEditorDialog";
 import { GearOverview } from "./GearOverview";
 import { ImportCard } from "./ImportCard";
+import { DeleteLoadoutDialog } from "./DeleteLoadoutDialog";
 import { LoadoutList } from "./LoadoutList";
 import { EditLoadoutDialog, NewLoadoutDialog } from "./NewLoadoutDialog";
 import { tx } from "@/lib/i18n";
@@ -49,6 +50,8 @@ export function GearView() {
   const lo = list.find(l => l.id === state.activeLoadoutId) ?? list[0] ?? null;
   const [newOpen, setNewOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  // 左栏点了删除、等确认的那一套
+  const [removing, setRemoving] = useState<Loadout | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   // 计算器支持的心法：备忘录自己的界面 + 内置原版计算核心（当季装备库）；其余用旧配装器
   const [nativeOpen, setNativeOpen] = useState(false);
@@ -264,6 +267,7 @@ export function GearView() {
         newTitle={offline ? tx("离线时不能导入") : undefined}
         onSelect={id => actions.selectLoadout(id)}
         onNew={openNew}
+        onDelete={setRemoving}
       />
 
       {/* 右侧：面板、装备、秒伤变化；导入时换成导入框 */}
@@ -417,6 +421,10 @@ export function GearView() {
           onClose={() => setEditOpen(false)}
         />
       )}
+      <DeleteLoadoutDialog
+        loadout={removing}
+        onClose={() => setRemoving(null)}
+      />
     </div>
   );
 }

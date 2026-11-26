@@ -1252,5 +1252,7 @@ const dict: Record<string, string> = {
   "玩法": "Mode",
   "获取途径": "Source",
   "往季": "Past seasons",
+  "装备、增益和秒伤变化记录会一起删除，不能恢复。": "The equipment, buffs and DPS history will be deleted too. This can't be undone.",
+  "关联的角色和宏不受影响。": "Linked characters and macros are not affected.",
 };
 export default dict;

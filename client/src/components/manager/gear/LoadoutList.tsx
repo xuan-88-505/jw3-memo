@@ -1,5 +1,5 @@
-import { Loader2, Plus } from "lucide-react";
-import { Btn } from "@/components/common/ui";
+import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Btn, IconBtn } from "@/components/common/ui";
 import { XinfaMark } from "@/components/brand/Marks";
 import { useProto } from "@/state/store";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ export function LoadoutList({
   newTitle,
   onSelect,
   onNew,
+  onDelete,
 }: {
   list: Loadout[];
   currentId: string | null;
@@ -32,6 +33,8 @@ export function LoadoutList({
   newTitle?: string;
   onSelect: (id: string) => void;
   onNew: () => void;
+  /** 点行里的删除图标：只负责通知，确认和真删在外面做 */
+  onDelete: (l: Loadout) => void;
 }) {
   const { state } = useProto();
   const charName = (id: string | null) =>
@@ -78,7 +81,17 @@ export function LoadoutList({
                   const active = l.id === currentId && !pending;
                   const who = charName(l.charId);
                   return (
-                    <li key={l.id}>
+                    <li
+                      key={l.id}
+                      className={cn(
+                        "group/row relative rounded-md transition-colors",
+                        active
+                          ? "bg-paper/[0.08] text-paper"
+                          : disabled
+                            ? "text-paper-2"
+                            : "text-paper-2 hover:bg-paper/[0.04] hover:text-paper"
+                      )}
+                    >
                       <button
                         type="button"
                         disabled={disabled}
@@ -89,12 +102,7 @@ export function LoadoutList({
                           who ? `${l.name} · ${who}` : l.name,
                           fmt(l.panel.score)
                         )}
-                        className={cn(
-                          "flex w-full items-center gap-2 rounded-md py-1.5 pl-[36px] pr-2 text-left transition-colors disabled:cursor-default",
-                          active
-                            ? "bg-paper/[0.08] text-paper"
-                            : "text-paper-2 enabled:hover:bg-paper/[0.04] enabled:hover:text-paper"
-                        )}
+                        className="flex w-full items-center gap-2 rounded-md py-1.5 pl-[36px] pr-2 text-left disabled:cursor-default"
                       >
                         <span className="min-w-0 flex-1">
                           <span className="block text-[13px] font-medium leading-5 [overflow-wrap:anywhere]">
@@ -111,15 +119,28 @@ export function LoadoutList({
                             </span>
                           )}
                         </span>
+                        {/* 装分一直占着位置，图标换上来时整行不会跳 */}
                         <span
                           className={cn(
-                            "shrink-0 text-[12px] tabular-nums",
-                            active ? "text-paper" : "text-paper-2"
+                            "shrink-0 text-[12px] tabular-nums transition-opacity",
+                            active ? "text-paper" : "text-paper-2",
+                            !disabled &&
+                              "group-hover/row:opacity-0 group-has-[:focus-visible]/row:opacity-0"
                           )}
                         >
                           {fmt(l.panel.score)}
                         </span>
                       </button>
+                      {/* 和整行按钮并排，不嵌在里面；悬停或键盘聚焦这一行时才出现 */}
+                      {!disabled && (
+                        <IconBtn
+                          label={tx("删除「{0}」", l.name)}
+                          onClick={() => onDelete(l)}
+                          className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 text-paper-3 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/row:opacity-100 group-has-[:focus-visible]/row:opacity-100"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </IconBtn>
+                      )}
                     </li>
                   );
                 })}
